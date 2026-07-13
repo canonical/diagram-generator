@@ -1,63 +1,65 @@
-# Agent inbox — live state
+# Agent inbox — live state (single owner)
 
-Current state only. Invariants live in `AGENTS.md`; operating guidance lives in
-`docs/agent-index.md`; durable spec detail lives under `specs/`.
+Session-start read for **what's happening right now**: current task, active
+blockers, and last-known-green validation. This is the single owner of transient
+state — no other file restates it. Keep it short; when a note is resolved or
+superseded, **delete it** (git and the spec package hold the history). Do not park
+session logs, spec inventories, resolved reviews, or validation transcripts here.
 
-**Last-known-green (2026-07-13, spec 079):** `apps/figma-plugin` **47/47**;
-plugin build and `check_no_new_python.mjs` pass; dev server health is 200 at
-`http://localhost:3846`.
+Other owners: invariants → [`AGENTS.md`](AGENTS.md) · operational how-to →
+[`docs/agent-index.md`](docs/agent-index.md) · queue/order → [`TODO.md`](TODO.md) ·
+spec catalog/status → [`docs/specs.md`](docs/specs.md) · human notes →
+[`INBOX.md`](INBOX.md) · durable per-spec detail → `specs/<id>-<slug>/` ·
+adversarial reviews → `docs/spec-reviews/`.
 
-## Pre-merge handoff — spec 079
+**Last-known-green (2026-07-13, spec 077 closeout focus):**
+`packages/graph-layout-elk test` **74/74**; focused layout/TLS/portability
+validation **26/26**; focused TLS preview render/browser tests **2/2**;
+`packages/layout-engine build:browser`, `check-browser-bundle-fresh.mjs`,
+`check-preview-shell-size-budgets.mjs`, and `check_no_new_python.mjs` green.
+Full layout-engine validation is **1023/1024** and full preview validation is
+**167/168**, with only the unrelated baselines recorded below.
 
-**Branch:** `feat/079-figma-component-variant-import`
+---
 
-The importer accepts selected YAML and maps semantic Section, Panel, and leaf
-nodes to live variants of the current-file `box` component set. Parent/Section
-content and icons use only real live `SLOT` nodes; there is no detach fallback
-or ordinary instance-sublayer structural edit. V3 `kind: container` nodes are
-raw generated auto-layout wrappers, not `Role=Parent` instances.
+## Current handoff (2026-07-10) — spec 077 TLS topology
 
-Figma can make inserted slot descendants opaque after insertion. The importer
-checks sizing at mutation time and SlotNode `limitViolations`; post-build
-readback uses global/direct handles when available and does not roll back a
-valid diagram solely for opaque slot content. Effective V3 `FIXED` geometry is
-reapplied after final auto-layout reparenting; HUG and FILL remain auto-layout
-semantics.
+**Active spec:** 077 (`specs/077-mermaid-elk-cluster-lowering-port/`).
+**Branch:** `feat/077-mermaid-elk-cluster-lowering-port`.
 
-**2026-07-13 semantic grouping and sizing fix:** headingless groups serialize
-as raw `container` frames, even if they have an explicit source level; every
-non-leaf node with frame-owned visible text receives a live semantic component
-(Parent or Section), including authored level-1 panels. This prevents the
-master placeholder `Parent` chrome and unnecessary slots from leaking into
-structural groups while keeping headed semantic boxes live. Explicit vertical
-`sizing_h: fill` overrides were removed from content-driven fixture panels, so
-their panel/body/row chains use V3 `HUG`; the tallest child now determines the
-height. Payload regressions cover both contracts without changing component
-master layers.
+Durable current-state details live in
+`specs/077-mermaid-elk-cluster-lowering-port/handoff.md` and
+`specs/077-mermaid-elk-cluster-lowering-port/evidence/tls-raw-styled-parity.md`.
+The TLS fixture now uses configured, generic mechanisms: `meta.frame_roles`,
+`meta.layout_profiles.same_layer_compound_heights`, and typed ELK
+fan-out/order options. Raw ELK and product SVG agree on visible frame geometry,
+edge-label geometry, shared consumer fan-out stem, section/parent role styling,
+and equal lower-compound heights.
 
-**2026-07-13 slot-body and icon contract correction:** a mapped content slot
-contains exactly one raw directional frame. If a semantic node has one
-automatic structural child, that child is inserted directly as the slot body;
-the importer does not add a redundant `<semantic-id>/body`. Structural frames
-are neutral (zero padding, transparent/no stroke, no component chrome). The
-component contract recognizes a Boolean `hasIcon` definition even without a
-direct icon-layer reference and always sets it false for icon-less payload
-nodes; no detachment or ordinary instance edit is involved.
+T044 ELK option discoverability audit is complete:
+`specs/077-mermaid-elk-cluster-lowering-port/evidence/elk-option-discoverability-audit.md`.
+Every enabled `elkjs` option is now either authorable/exposed in the layout-params
+UI or intentionally classified in code.
 
-The adversarial re-review verdict is **Merge with follow-ups**. The headed
-level-1 container classification defect is fixed: headed non-leaf containers
-become live panels, explicit grey/solid panel chrome is preserved, and
-value-map payload and component-mode regressions guard the behavior. The full
-review history is in
-`docs/spec-reviews/opus-adversarial-review-2026-07-13-spec-079-merge.md`.
+**Review done (2026-07-10):**
+[`docs/spec-reviews/077-mermaid-elk-cluster-lowering-port-adversarial-review-2026-07-10.md`](docs/spec-reviews/077-mermaid-elk-cluster-lowering-port-adversarial-review-2026-07-10.md).
+Readiness: **review blocker addressed on the current branch.** The first attempt
+matched Mermaid's inline-label option but exposed a product-render overlap because
+our arrow labels are transparent by design. The current fix keeps the behavior
+configurable: layered ELK labels default to detached (`elk.edgeLabels.inline:
+false`), expose documented label spacing/side/layer controls, and TLS pins those
+controls in YAML. Product tests now assert no arrow segment crosses an ELK-owned
+label box. T051 is now complete via the non-TLS portability fixture and product
+SVG regression. T054 remains open pending clean full-suite baselines.
 
-The two re-review follow-ups are implemented in the working tree: upstream
-`resolveStyles` normalizes headed level-1 containers to panel chrome, and
-headed containers nested directly in a panel remain structural to avoid nested
-Parent boxes. The final stale production-contract draw.io golden was regenerated
-from committed YAML; the full layout-engine suite is 1011/1011. Real-Figma
-visual verification remains a release gate.
 
-Remaining live gate: verify the rebuilt plugin against the actual Figma file
-for sizing and visual component fidelity. Do not claim that gate passed without
-recorded evidence in the spec inspection file.
+**Still open at spec level:**
+- T054 full validation remains open: the layout-engine suite has one unrelated
+  draw.io golden failure, and the preview suite has one unrelated
+  editor-live-repaint default-options failure. Focused TLS/layout/portability
+  validation is green.
+- Full `npm --prefix packages/layout-engine test` currently fails only in
+  `export-frame-drawio.test.ts` for
+  `specs/077-yaml-drawio-export/golden/ai-infra-production-contract.drawio`.
+  Those draw.io golden files were already dirty/unrelated; do not revert or sweep
+  them into the TLS branch without an explicit decision.

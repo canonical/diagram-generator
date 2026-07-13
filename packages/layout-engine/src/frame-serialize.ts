@@ -32,6 +32,7 @@ export function serializeFrame(frame: Frame): Record<string, unknown> {
     paddingBottom: frame.paddingBottom,
     paddingLeft: frame.paddingLeft,
     align: frame.align,
+    justify: frame.justify,
     wrap: frame.wrap,
     sizingW: frame.sizingW,
     sizingH: frame.sizingH,
@@ -86,6 +87,9 @@ export function serializeFrameDiagram(diagram: FrameDiagram): Record<string, unk
     layoutEngine: diagram.layoutEngine,
     diagramType: diagram.diagramType,
     sourceImage: diagram.sourceImage,
+    ...(diagram.layoutProfiles && Object.keys(diagram.layoutProfiles).length > 0
+      ? { layoutProfiles: diagram.layoutProfiles }
+      : {}),
     ...(diagram.elkLayout && Object.keys(diagram.elkLayout).length > 0
       ? { elkLayout: diagram.elkLayout }
       : {}),
@@ -123,6 +127,7 @@ export function deserializeFrameWire(json: Record<string, unknown>): Frame {
     paddingBottom: json.paddingBottom != null ? Number(json.paddingBottom) : undefined,
     paddingLeft: json.paddingLeft != null ? Number(json.paddingLeft) : undefined,
     align: (json.align as Frame['align']) ?? 'TOP_LEFT',
+    justify: (json.justify as Frame['justify']) ?? 'PACKED',
     wrap: Boolean(json.wrap ?? false),
     sizingW: (json.sizingW as Frame['sizingW']) ?? 'HUG',
     sizingH: (json.sizingH as Frame['sizingH']) ?? 'HUG',
@@ -192,6 +197,7 @@ export function deserializeFrameDiagramWire(json: Record<string, unknown>): Fram
     layoutEngine: json.layoutEngine as string | undefined,
     diagramType: json.diagramType as string | undefined,
     sourceImage: json.sourceImage as string | undefined,
+    layoutProfiles: json.layoutProfiles as Record<string, unknown> | undefined,
     elkLayout: json.elkLayout as Record<string, string> | undefined,
     engineLayout: json.engineLayout as Record<string, Record<string, unknown>> | undefined,
   });

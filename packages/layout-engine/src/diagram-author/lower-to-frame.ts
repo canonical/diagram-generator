@@ -30,6 +30,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function normalizeLayoutProfiles(meta: Record<string, unknown>): Record<string, unknown> | undefined {
+  const profiles = meta.layout_profiles;
+  return isRecord(profiles) && Object.keys(profiles).length > 0
+    ? { ...profiles }
+    : undefined;
+}
+
 export function authorNodeToRecord(node: AuthorFrameNode): Record<string, unknown> {
   const record: Record<string, unknown> = {
     id: node.id,
@@ -105,9 +112,16 @@ export function lowerToFrameDiagram(
 
   const grid = (source.grid as Record<string, unknown>) ?? {};
   const meta = (source.meta as Record<string, unknown>) ?? {};
+  const layoutProfiles = normalizeLayoutProfiles(meta);
   const engineLayout: Record<string, Record<string, unknown>> = {};
   for (const [key, value] of Object.entries(meta)) {
-    if (key === 'layout_engine' || key === 'diagram_type' || key === 'source_image') {
+    if (
+      key === 'layout_engine'
+      || key === 'diagram_type'
+      || key === 'source_image'
+      || key === 'frame_roles'
+      || key === 'layout_profiles'
+    ) {
       continue;
     }
     if (!isRecord(value)) {
@@ -142,6 +156,7 @@ export function lowerToFrameDiagram(
     layoutEngine: meta.layout_engine != null ? String(meta.layout_engine) : undefined,
     diagramType: meta.diagram_type != null ? String(meta.diagram_type) : undefined,
     sourceImage: meta.source_image != null ? String(meta.source_image) : undefined,
+    layoutProfiles,
     elkLayout,
     engineLayout: Object.keys(engineLayout).length > 0 ? engineLayout : undefined,
   }));

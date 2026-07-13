@@ -3,29 +3,34 @@
  * as box autolayout. ELK supplies coordinates only — styling comes from resolveStyles().
  */
 import type {
+  GraphContentAlignment,
   GraphInsetsInput,
   GraphEdgeInput,
   GraphLayoutInput,
   GraphLayoutResult,
   GraphNodeInput,
+  GraphPortInput,
+  GraphPortSide,
   LayoutDirection,
   LayeredCorpusFamily,
   PlacedEdge,
   PlacedNode,
 } from '@diagram-generator/graph-layout-core';
 import {
+  computeNodeIntersection,
   layoutLayeredForFamily,
   stripImplementationOwnedElkLayeredOverrides,
 } from '@diagram-generator/graph-layout-elk';
 
-import { Frame, FrameDiagram, Border, Direction, createLine } from './frame-model.js';
+import { Frame, FrameDiagram, Border, Direction, Fill, Align } from './frame-model.js';
 import { measure, place, layoutFrameTree, type LayoutOutput } from './layout.js';
 import { deserializeFrameDiagramWire, serializeFrameDiagram } from './frame-serialize.js';
 import { resolveStyles } from './resolve-styles.js';
 import { annotationTextToSpec } from './resolved-spec-typography.js';
 import type { TextMeasureAdapter } from './text-measure.js';
 import { lineSpecToMeasureRequest } from './text-measure.js';
-import { INSET, roundUpToGrid, sizeToPx, BODY_LINE_STEP } from './tokens.js';
+import { INSET, roundUpToGrid } from './tokens.js';
+import { measureAnnotationEdgeLabelBox } from './edge-label-style.js';
 
 export interface ElkLayoutSnapshot extends GraphLayoutResult {
   originX: number;
@@ -79,8 +84,6 @@ export interface ElkLayoutDebugData {
   };
   flattenedFrameIds: string[];
 }
-
-const ORDERING_EDGE_PREFIX = '__dg_order__';
 
 function elkGraphDirectionFromRoot(root: Frame): LayoutDirection {
   return root.direction === Direction.HORIZONTAL ? 'LR' : 'TB';
@@ -209,8 +212,10 @@ function shouldIncludeElkNode(
   nativeCompoundIds: Set<string>,
   allowStructuralCarriers: boolean,
   includePassiveFrameAtLevel: boolean,
+  includeAnnotations: boolean,
 ): boolean {
-  if (isSyntheticLayoutFrame(frame) || isAnnotationFrame(frame, endpoints)) return false;
+  if (isSyntheticLayoutFrame(frame)) return false;
+  if (isAnnotationFrame(frame, endpoints)) return includeAnnotations;
   if (isElkCompound(frame, nativeCompoundIds)) return true;
   if (hasAuthoredAnnotationChild(frame, endpoints) && hasEndpointDescendant(frame, endpoints)) return true;
   if (includePassiveFrameAtLevel) return true;
@@ -262,7 +267,14 @@ function shouldPreserveLocalDirection(
 ): boolean {
   if (childNodes.length < 2) return false;
   if (isElkCompound(frame, nativeCompoundIds)) return true;
+  if (frame.border === Border.NONE && !frame.heading && frame.level === undefined) {
+    return true;
+  }
   return childNodes.every((child) => !child.children?.length);
+}
+
+function isInvisibleOrderingCarrier(frame: Frame): boolean {
+  return frame.border === Border.NONE && !frame.heading && frame.level === undefined;
 }
 
 function collectSemanticLayoutSnapshot(
@@ -273,7 +285,6 @@ function collectSemanticLayoutSnapshot(
   placements: Map<string, SemanticFramePlacement>;
 } {
   const cloned = cloneFrameDiagram(diagram);
-  resolveStyles(cloned.root);
   layoutFrameTree(cloned.root, adapter, {
     gridCols: cloned.gridCols,
     gridColGap: cloned.gridColGap,
@@ -299,6 +310,75 @@ function collectSemanticLayoutSnapshot(
   return { sizes, placements };
 }
 
+function shouldUseClusterLoweredGraph(
+  root: Frame,
+  endpoints: Set<string>,
+): boolean {
+  let found = false;
+  walkFrames(root, (frame) => {
+    if (found || frame.isLeaf || isSyntheticLayoutFrame(frame)) {
+      return;
+    }
+    if (authoredLayoutChildren(frame).length === 0) {
+      return;
+    }
+    if (hasEndpointDescendant(frame, endpoints)) {
+      found = true;
+    }
+  });
+  return found;
+}
+
+function graphContentAlignmentForFrame(
+  frame: Frame,
+): GraphNodeInput['contentAlignment'] | undefined {
+  switch (frame.align) {
+    case Align.TOP_CENTER:
+      return 'top-center';
+    case Align.TOP_RIGHT:
+      return 'top-right';
+    case Align.CENTER_LEFT:
+      return 'center-left';
+    case Align.CENTER:
+      return 'center';
+    case Align.CENTER_RIGHT:
+      return 'center-right';
+    case Align.BOTTOM_LEFT:
+      return 'bottom-left';
+    case Align.BOTTOM_CENTER:
+      return 'bottom-center';
+    case Align.BOTTOM_RIGHT:
+      return 'bottom-right';
+    case Align.TOP_LEFT:
+    default:
+      return undefined;
+  }
+}
+
+function centeredHorizontalPadding(
+  frame: Frame,
+  childNodes: GraphNodeInput[],
+  base: GraphInsetsInput | undefined,
+  containerWidth: number | undefined,
+): GraphInsetsInput | undefined {
+  if (childNodes.length === 0) {
+    return base;
+  }
+  const baseInsets = base ?? { top: 0, left: 0, bottom: 0, right: 0 };
+
+  const contentWidth = frame.direction === Direction.HORIZONTAL
+    ? childNodes.reduce((sum, child) => sum + child.width, 0) + Math.max(0, childNodes.length - 1) * (frame.gap ?? 0)
+    : Math.max(...childNodes.map((child) => child.width));
+  const availableWidth = Math.max(0, (containerWidth ?? frame.width ?? 0) - contentWidth);
+  const sideInset = Math.max(baseInsets.left, Math.floor(availableWidth / 2));
+
+  return {
+    ...baseInsets,
+    left: sideInset,
+    right: sideInset,
+  };
+}
+
 function frameToGraphNode(
   frame: Frame,
   adapter: TextMeasureAdapter,
@@ -308,12 +388,23 @@ function frameToGraphNode(
   semanticPlacements: Map<string, SemanticFramePlacement>,
   allowStructuralCarriers: boolean,
   includePassiveLeaves: boolean,
+  includeAnnotations: boolean,
 ): GraphNodeInput {
   measureSubtree(frame, adapter);
   const semantic = semanticSizes.get(frame.id);
+  const borderlessLeafMinWidth = frame.isLeaf &&
+    frame.border === Border.NONE &&
+    !isSyntheticHeadingFrame(frame)
+    ? roundUpToGrid(Math.max(
+        0,
+        ...frame.label.map((line) => adapter.measureTextWidth(
+          lineSpecToMeasureRequest(annotationTextToSpec(line)),
+        )),
+      ) + frame.paddingLeft + frame.paddingRight)
+    : 0;
   const compound = isElkCompound(frame, nativeCompoundIds);
   const includeCompoundChildren = compound && compoundNeedsElkChildLayout(frame, endpoints);
-  const padding = semanticCompoundPadding(frame, semanticPlacements);
+  const contentAlignment = graphContentAlignmentForFrame(frame);
   const childNodes = collectGraphChildNodes(
     authoredLayoutChildren(frame),
     adapter,
@@ -321,16 +412,57 @@ function frameToGraphNode(
     nativeCompoundIds,
     semanticSizes,
     semanticPlacements,
-    allowStructuralCarriers || includeCompoundChildren,
+    true,
     includePassiveLeaves || includeCompoundChildren,
+    includeAnnotations,
   );
+  const semanticPadding = semanticCompoundPadding(frame, semanticPlacements);
+  const forceOrderingCarrier = childNodes.length > 0
+    && !compound
+    && isInvisibleOrderingCarrier(frame)
+    && frame.direction === Direction.HORIZONTAL;
+  const graphNodeKind = childNodes.length > 0
+    ? forceOrderingCarrier
+      ? 'ordering-cluster'
+      : (
+        compound
+        || childNodes.every((child) => (child.children?.length ?? 0) === 0)
+          ? 'compound'
+          : 'ordering-cluster'
+      )
+    : undefined;
+  const padding = (
+    includeAnnotations
+    && (
+    contentAlignment === 'top-center'
+    || contentAlignment === 'center'
+    || contentAlignment === 'bottom-center'
+    )
+    && !forceOrderingCarrier
+  )
+    ? centeredHorizontalPadding(
+      frame,
+      childNodes,
+      semanticPadding,
+      semantic?.width ?? frame._layout.measuredW,
+    )
+    : semanticPadding;
   const node: GraphNodeInput = {
     id: frame.id,
-    width: semantic?.width ?? frame._layout.measuredW,
-    height: semantic?.height ?? frame._layout.measuredH,
-    ...(shouldPreserveLocalDirection(frame, childNodes, nativeCompoundIds) ? {
-      direction: frame.direction === Direction.HORIZONTAL ? 'LR' : 'TB',
-    } : {}),
+    width: Math.max(
+      semantic?.width ?? frame._layout.measuredW,
+      borderlessLeafMinWidth,
+    ),
+    height: Math.max(
+      semantic?.height ?? frame._layout.measuredH,
+    ),
+    ...(graphNodeKind ? { kind: graphNodeKind } : {}),
+    ...(shouldPreserveLocalDirection(frame, childNodes, nativeCompoundIds)
+      ? { direction: frame.direction === Direction.HORIZONTAL ? 'LR' : 'TB' }
+      : {}),
+    ...(childNodes.length > 0 && contentAlignment
+      ? { contentAlignment }
+      : {}),
     ...(padding ? { padding } : {}),
   };
   if (childNodes.length > 0) {
@@ -348,6 +480,7 @@ function collectGraphChildNodes(
   semanticPlacements: Map<string, SemanticFramePlacement>,
   allowStructuralCarriers: boolean,
   includePassiveDescendants: boolean,
+  includeAnnotations: boolean,
 ): GraphNodeInput[] {
   const includePassiveFrameAtLevel = includePassiveDescendants || frames.some((frame) => shouldIncludeElkNode(
     frame,
@@ -355,6 +488,7 @@ function collectGraphChildNodes(
     nativeCompoundIds,
     allowStructuralCarriers,
     false,
+    includeAnnotations,
   ));
   const nodes: GraphNodeInput[] = [];
   for (const frame of frames) {
@@ -364,6 +498,7 @@ function collectGraphChildNodes(
       nativeCompoundIds,
       allowStructuralCarriers,
       includePassiveFrameAtLevel,
+      includeAnnotations,
     )) {
       nodes.push(
         frameToGraphNode(
@@ -375,6 +510,7 @@ function collectGraphChildNodes(
           semanticPlacements,
           allowStructuralCarriers,
           includePassiveDescendants,
+          includeAnnotations,
         ),
       );
       continue;
@@ -388,6 +524,7 @@ function collectGraphChildNodes(
       semanticPlacements,
       allowStructuralCarriers,
       includePassiveDescendants,
+      includeAnnotations,
     ));
   }
   return nodes;
@@ -435,10 +572,10 @@ function buildElkAuthoredTreeDebug(
         : 'frame';
   const status = isSyntheticLayoutFrame(frame)
     ? 'synthetic'
-    : isAnnotationFrame(frame, options.endpoints)
-      ? 'annotation'
-      : options.inputNodeIds.has(frame.id)
-        ? 'graph-node'
+    : options.inputNodeIds.has(frame.id)
+      ? 'graph-node'
+      : isAnnotationFrame(frame, options.endpoints)
+        ? 'annotation'
         : hasEndpointDescendant(frame, options.endpoints)
           ? 'flattened'
           : 'omitted';
@@ -460,6 +597,7 @@ function buildElkGraphNodes(
   nativeCompoundIds: Set<string>,
   semanticSizes: Map<string, { width: number; height: number }>,
   semanticPlacements: Map<string, SemanticFramePlacement>,
+  includeAnnotations: boolean,
 ): GraphNodeInput[] {
   return collectGraphChildNodes(
     authoredLayoutChildren(root),
@@ -470,7 +608,489 @@ function buildElkGraphNodes(
     semanticPlacements,
     false,
     false,
+    includeAnnotations,
   );
+}
+
+function buildFrameParentById(
+  root: Frame,
+  parentId: string | null = null,
+  out = new Map<string, string | null>(),
+): Map<string, string | null> {
+  out.set(root.id, parentId);
+  for (const child of root.children) {
+    buildFrameParentById(child, root.id, out);
+  }
+  return out;
+}
+
+function collectGraphParentAndDepthById(
+  nodes: GraphNodeInput[],
+  parentId: string | null = null,
+  depth = 1,
+  out: {
+    parentById: Map<string, string | null>;
+    depthById: Map<string, number>;
+  } = { parentById: new Map(), depthById: new Map() },
+): {
+  parentById: Map<string, string | null>;
+  depthById: Map<string, number>;
+} {
+  for (const node of nodes) {
+    out.parentById.set(node.id, parentId);
+    out.depthById.set(node.id, depth);
+    if (node.children?.length) {
+      collectGraphParentAndDepthById(node.children, node.id, depth + 1, out);
+    }
+  }
+  return out;
+}
+
+function hasOnlyShallowGraphCrossHierarchyArrows(
+  diagram: FrameDiagram,
+  nodes: GraphNodeInput[],
+  maxEndpointDepth = 2,
+): boolean {
+  const { parentById, depthById } = collectGraphParentAndDepthById(nodes);
+  let found = false;
+  for (const arrow of diagram.arrows) {
+    const sourceId = arrow.source.split('.')[0]!;
+    const targetId = arrow.target.split('.')[0]!;
+    if (parentById.get(sourceId) === parentById.get(targetId)) {
+      continue;
+    }
+    found = true;
+    if (
+      (depthById.get(sourceId) ?? Infinity) > maxEndpointDepth
+      || (depthById.get(targetId) ?? Infinity) > maxEndpointDepth
+    ) {
+      return false;
+    }
+  }
+  return found;
+}
+
+function indexGraphNodesById(
+  nodes: GraphNodeInput[],
+  out = new Map<string, GraphNodeInput>(),
+): Map<string, GraphNodeInput> {
+  for (const node of nodes) {
+    out.set(node.id, node);
+    if (node.children?.length) {
+      indexGraphNodesById(node.children, out);
+    }
+  }
+  return out;
+}
+
+function isAncestorFrameId(
+  ancestorId: string,
+  nodeId: string,
+  parentById: Map<string, string | null>,
+): boolean {
+  let currentId = parentById.get(nodeId) ?? null;
+  while (currentId) {
+    if (currentId === ancestorId) {
+      return true;
+    }
+    currentId = parentById.get(currentId) ?? null;
+  }
+  return false;
+}
+
+function boundaryPortSideForPlacements(
+  sourcePlacement: SemanticFramePlacement,
+  targetPlacement: SemanticFramePlacement,
+): GraphPortSide {
+  const sourceCenterX = sourcePlacement.x + sourcePlacement.width / 2;
+  const sourceCenterY = sourcePlacement.y + sourcePlacement.height / 2;
+  const targetCenterX = targetPlacement.x + targetPlacement.width / 2;
+  const targetCenterY = targetPlacement.y + targetPlacement.height / 2;
+  const sourceLeft = sourcePlacement.x;
+  const sourceRight = sourcePlacement.x + sourcePlacement.width;
+  const sourceTop = sourcePlacement.y;
+  const sourceBottom = sourcePlacement.y + sourcePlacement.height;
+
+  if (targetCenterY >= sourceBottom) {
+    return 'bottom';
+  }
+  if (targetCenterY <= sourceTop) {
+    return 'top';
+  }
+  if (targetCenterX >= sourceRight) {
+    return 'right';
+  }
+  if (targetCenterX <= sourceLeft) {
+    return 'left';
+  }
+
+  const dx = targetCenterX - sourceCenterX;
+  const dy = targetCenterY - sourceCenterY;
+  return Math.abs(dx) > Math.abs(dy)
+    ? (dx >= 0 ? 'right' : 'left')
+    : (dy >= 0 ? 'bottom' : 'top');
+}
+
+function clampPortOffset(
+  side: GraphPortSide,
+  ancestorPlacement: SemanticFramePlacement,
+  sourcePlacement: SemanticFramePlacement,
+  contentAlignment?: GraphContentAlignment,
+): { x: number; y: number } {
+  const centeredX = ancestorPlacement.width / 2;
+  const centeredY = ancestorPlacement.height / 2;
+  if (contentAlignment) {
+    switch (side) {
+      case 'top':
+      case 'bottom':
+        switch (contentAlignment) {
+          case 'top-center':
+          case 'center':
+          case 'bottom-center':
+            return { x: centeredX, y: side === 'top' ? 0 : ancestorPlacement.height };
+          case 'top-right':
+          case 'center-right':
+          case 'bottom-right':
+            return { x: ancestorPlacement.width, y: side === 'top' ? 0 : ancestorPlacement.height };
+          case 'center-left':
+          case 'bottom-left':
+          case 'top-left':
+          default:
+            return { x: 0, y: side === 'top' ? 0 : ancestorPlacement.height };
+        }
+      case 'left':
+      case 'right':
+        switch (contentAlignment) {
+          case 'center-left':
+          case 'center':
+          case 'center-right':
+            return { x: side === 'left' ? 0 : ancestorPlacement.width, y: centeredY };
+          case 'bottom-left':
+          case 'bottom-center':
+          case 'bottom-right':
+            return { x: side === 'left' ? 0 : ancestorPlacement.width, y: ancestorPlacement.height };
+          case 'top-center':
+          case 'top-right':
+          case 'top-left':
+          default:
+            return { x: side === 'left' ? 0 : ancestorPlacement.width, y: 0 };
+        }
+    }
+  }
+
+  const sourceCenterX = sourcePlacement.x + sourcePlacement.width / 2 - ancestorPlacement.x;
+  const sourceCenterY = sourcePlacement.y + sourcePlacement.height / 2 - ancestorPlacement.y;
+  const clampedX = Math.max(0, Math.min(ancestorPlacement.width, sourceCenterX));
+  const clampedY = Math.max(0, Math.min(ancestorPlacement.height, sourceCenterY));
+
+  switch (side) {
+    case 'top':
+      return { x: clampedX, y: 0 };
+    case 'right':
+      return { x: ancestorPlacement.width, y: clampedY };
+    case 'bottom':
+      return { x: clampedX, y: ancestorPlacement.height };
+    case 'left':
+      return { x: 0, y: clampedY };
+  }
+}
+
+function ensureBoundaryTargetPort(
+  ancestorNode: GraphNodeInput,
+  ancestorPlacement: SemanticFramePlacement,
+  sourcePlacement: SemanticFramePlacement,
+  targetPlacement: SemanticFramePlacement,
+  targetId: string,
+  edgeId: string,
+): string {
+  const side = boundaryPortSideForPlacements(ancestorPlacement, sourcePlacement);
+  const portId = `${ancestorNode.id}__boundary_target_${targetId}_${edgeId}_${side}`;
+  const anchor = clampPortOffset(
+    side,
+    ancestorPlacement,
+    targetPlacement,
+    ancestorNode.contentAlignment,
+  );
+
+  ancestorNode.ports ??= [];
+  const existing = ancestorNode.ports.find((port) => port.id === portId);
+  if (!existing) {
+    ancestorNode.ports.push({
+      id: portId,
+      anchor: {
+        kind: 'point',
+        side,
+        x: anchor.x,
+        y: anchor.y,
+      },
+      width: 0,
+      height: 0,
+    } satisfies GraphPortInput);
+  }
+
+  return portId;
+}
+
+function ensureBoundarySourcePort(
+  ancestorNode: GraphNodeInput,
+  ancestorPlacement: SemanticFramePlacement,
+  sourcePlacement: SemanticFramePlacement,
+  targetPlacement: SemanticFramePlacement,
+  sourceId: string,
+  edgeId: string,
+): string {
+  const side = boundaryPortSideForPlacements(ancestorPlacement, targetPlacement);
+  const portId = `${ancestorNode.id}__boundary_source_${sourceId}_${edgeId}_${side}`;
+  const anchor = clampPortOffset(
+    side,
+    ancestorPlacement,
+    sourcePlacement,
+    ancestorNode.contentAlignment,
+  );
+
+  ancestorNode.ports ??= [];
+  const existing = ancestorNode.ports.find((port) => port.id === portId);
+  if (!existing) {
+    ancestorNode.ports.push({
+      id: portId,
+      anchor: {
+        kind: 'point',
+        side,
+        x: anchor.x,
+        y: anchor.y,
+      },
+      width: 0,
+      height: 0,
+    } satisfies GraphPortInput);
+  }
+
+  return portId;
+}
+
+function topLevelGraphOwnerId(
+  nodeId: string,
+  graphParentById: Map<string, string | null>,
+): string | null {
+  let currentId: string | null = nodeId;
+  while (currentId) {
+    const parentId: string | null = graphParentById.get(currentId) ?? null;
+    if (parentId === null) {
+      return currentId;
+    }
+    currentId = parentId;
+  }
+  return null;
+}
+
+function canHostBoundaryPort(node: GraphNodeInput | undefined): node is GraphNodeInput {
+  return Boolean(
+    node
+    && (
+      node.kind === 'compound'
+      || node.kind === 'ordering-cluster'
+      || (node.children?.length ?? 0) > 0
+    ),
+  );
+}
+
+function promoteCrossHierarchyTargets(
+  edges: GraphLayoutInput['edges'],
+  nodes: GraphNodeInput[],
+  semanticPlacements: Map<string, SemanticFramePlacement>,
+  frameParentById: Map<string, string | null>,
+): void {
+  const graphNodesById = indexGraphNodesById(nodes);
+  const graphParentById = collectGraphParentAndDepthById(nodes).parentById;
+  const isLeafRowCompound = (node: GraphNodeInput | undefined): boolean => (
+    node?.kind === 'compound'
+    && (node.children?.length ?? 0) > 1
+    && node.children!.every((child) => (child.children?.length ?? 0) === 0)
+  );
+
+  for (const edge of edges) {
+    const sourcePlacement = semanticPlacements.get(edge.source);
+    const targetPlacement = semanticPlacements.get(edge.target);
+    if (!sourcePlacement || !targetPlacement) {
+      continue;
+    }
+
+    const sourceOwnerId = topLevelGraphOwnerId(edge.source, graphParentById);
+    const targetOwnerId = topLevelGraphOwnerId(edge.target, graphParentById);
+    if (sourceOwnerId && targetOwnerId && sourceOwnerId !== targetOwnerId) {
+      const sourceOwnerNode = graphNodesById.get(sourceOwnerId);
+      const targetOwnerNode = graphNodesById.get(targetOwnerId);
+      const sourceOwnerPlacement = semanticPlacements.get(sourceOwnerId);
+      const targetOwnerPlacement = semanticPlacements.get(targetOwnerId);
+      if (canHostBoundaryPort(sourceOwnerNode) && sourceOwnerPlacement && edge.source !== sourceOwnerId) {
+        edge.sourcePort = ensureBoundarySourcePort(
+          sourceOwnerNode,
+          sourceOwnerPlacement,
+          sourcePlacement,
+          targetPlacement,
+          edge.source,
+          edge.id,
+        );
+        edge.source = sourceOwnerId;
+      }
+      if (canHostBoundaryPort(targetOwnerNode) && targetOwnerPlacement && edge.target !== targetOwnerId) {
+        edge.targetPort = ensureBoundaryTargetPort(
+          targetOwnerNode,
+          targetOwnerPlacement,
+          sourcePlacement,
+          targetPlacement,
+          edge.target,
+          edge.id,
+        );
+        edge.target = targetOwnerId;
+      }
+      continue;
+    }
+
+    const directTargetParentId = frameParentById.get(edge.target) ?? null;
+    if (isLeafRowCompound(directTargetParentId ? graphNodesById.get(directTargetParentId) : undefined)) {
+      continue;
+    }
+
+    let candidateAncestorId = frameParentById.get(edge.target) ?? null;
+    while (candidateAncestorId) {
+      if (isAncestorFrameId(candidateAncestorId, edge.source, frameParentById)) {
+        break;
+      }
+      const candidateNode = graphNodesById.get(candidateAncestorId);
+      const candidatePlacement = semanticPlacements.get(candidateAncestorId);
+      if (candidateNode?.kind === 'compound' && candidatePlacement) {
+        edge.targetPort = ensureBoundaryTargetPort(
+          candidateNode,
+          candidatePlacement,
+          sourcePlacement,
+          targetPlacement,
+          edge.target,
+          edge.id,
+        );
+        edge.target = candidateAncestorId;
+        break;
+      }
+      candidateAncestorId = frameParentById.get(candidateAncestorId) ?? null;
+    }
+  }
+}
+
+function oppositePortSide(side: GraphPortSide): GraphPortSide {
+  switch (side) {
+    case 'top':
+      return 'bottom';
+    case 'right':
+      return 'left';
+    case 'bottom':
+      return 'top';
+    case 'left':
+      return 'right';
+  }
+}
+
+function ensureExplicitEdgePort(
+  node: GraphNodeInput,
+  placement: SemanticFramePlacement,
+  side: GraphPortSide,
+  edgeId: string,
+  slotIndex: number,
+  slotCount: number,
+): string {
+  const spread = 24;
+  const centerOffset = slotIndex - (slotCount - 1) / 2;
+  const portId = `${node.id}__parallel_${edgeId}_${side}`;
+  const anchor = (() => {
+    switch (side) {
+      case 'top':
+      case 'bottom': {
+        const centeredX = placement.width / 2 + centerOffset * spread;
+        return {
+          x: Math.max(0, Math.min(placement.width, centeredX)),
+          y: side === 'top' ? 0 : placement.height,
+        };
+      }
+      case 'left':
+      case 'right': {
+        const centeredY = placement.height / 2 + centerOffset * spread;
+        return {
+          x: side === 'left' ? 0 : placement.width,
+          y: Math.max(0, Math.min(placement.height, centeredY)),
+        };
+      }
+    }
+  })();
+
+  node.ports ??= [];
+  const existing = node.ports.find((port) => port.id === portId);
+  if (!existing) {
+    node.ports.push({
+      id: portId,
+      anchor: {
+        kind: 'point',
+        side,
+        x: anchor.x,
+        y: anchor.y,
+      },
+      width: 0,
+      height: 0,
+    } satisfies GraphPortInput);
+  }
+
+  return portId;
+}
+
+function addParallelEdgePorts(
+  edges: GraphLayoutInput['edges'],
+  nodes: GraphNodeInput[],
+  semanticPlacements: Map<string, SemanticFramePlacement>,
+): void {
+  const graphNodesById = indexGraphNodesById(nodes);
+  const edgesByPair = new Map<string, GraphLayoutInput['edges']>();
+  for (const edge of edges) {
+    const key = `${edge.source}->${edge.target}`;
+    const existing = edgesByPair.get(key);
+    if (existing) {
+      existing.push(edge);
+      continue;
+    }
+    edgesByPair.set(key, [edge]);
+  }
+
+  for (const groupedEdges of edgesByPair.values()) {
+    if (groupedEdges.length < 2) {
+      continue;
+    }
+    const sourceId = groupedEdges[0]!.source;
+    const targetId = groupedEdges[0]!.target;
+    const sourceNode = graphNodesById.get(sourceId);
+    const targetNode = graphNodesById.get(targetId);
+    const sourcePlacement = semanticPlacements.get(sourceId);
+    const targetPlacement = semanticPlacements.get(targetId);
+    if (!sourceNode || !targetNode || !sourcePlacement || !targetPlacement) {
+      continue;
+    }
+
+    const sourceSide = boundaryPortSideForPlacements(sourcePlacement, targetPlacement);
+    const targetSide = oppositePortSide(sourceSide);
+    groupedEdges.forEach((edge, index) => {
+      edge.sourcePort = ensureExplicitEdgePort(
+        sourceNode,
+        sourcePlacement,
+        sourceSide,
+        edge.id,
+        index,
+        groupedEdges.length,
+      );
+      edge.targetPort = ensureExplicitEdgePort(
+        targetNode,
+        targetPlacement,
+        targetSide,
+        edge.id,
+        index,
+        groupedEdges.length,
+      );
+    });
+  }
 }
 
 function indexPlaced(nodes: PlacedNode[], out = new Map<string, PlacedNode>()): Map<string, PlacedNode> {
@@ -579,6 +1199,53 @@ function collectPlacedFrames(root: Frame): Frame[] {
     }
   });
   return frames;
+}
+
+function hasClusterLoweredNodes(nodes: GraphNodeInput[]): boolean {
+  return nodes.some((node) => (
+    (node.kind === 'compound' || node.kind === 'ordering-cluster')
+    || hasClusterLoweredNodes(node.children ?? [])
+  ));
+}
+
+function placeClusterLoweredSyntheticChrome(
+  frame: Frame,
+  semanticPlacements: Map<string, SemanticFramePlacement>,
+): void {
+  for (const child of frame.children) {
+    placeClusterLoweredSyntheticChrome(child, semanticPlacements);
+  }
+
+  const frameSemantic = frame.id ? semanticPlacements.get(frame.id) : undefined;
+  if (!frameSemantic) {
+    return;
+  }
+  const insets = semanticCompoundPadding(frame, semanticPlacements);
+  if (!insets) {
+    return;
+  }
+
+  for (const child of frame.children) {
+    const childSemantic = child.id ? semanticPlacements.get(child.id) : undefined;
+    if (isSyntheticBodyFrame(child)) {
+      child._layout.placedX = frame._layout.placedX + insets.left;
+      child._layout.placedY = frame._layout.placedY + insets.top;
+      child._layout.placedW = Math.max(0, frame._layout.placedW - insets.left - insets.right);
+      child._layout.placedH = Math.max(0, frame._layout.placedH - insets.top - insets.bottom);
+      child._layout.measuredW = child._layout.placedW;
+      child._layout.measuredH = child._layout.placedH;
+      continue;
+    }
+
+    if (isSyntheticHeadingFrame(child) && childSemantic) {
+      child._layout.placedX = frame._layout.placedX + insets.left;
+      child._layout.placedY = frame._layout.placedY + Math.max(0, Math.round(childSemantic.y - frameSemantic.y));
+      child._layout.placedW = Math.max(0, frame._layout.placedW - insets.left - insets.right);
+      child._layout.placedH = childSemantic.height;
+      child._layout.measuredW = child._layout.placedW;
+      child._layout.measuredH = child._layout.placedH;
+    }
+  }
 }
 
 function hasPlacedGeometry(frame: Frame, placedIds: Set<string>): boolean {
@@ -946,88 +1613,208 @@ function dedupeConsecutivePoints(points: [number, number][]): [number, number][]
   return out;
 }
 
-function measureEdgeLabelBox(text: string, adapter: TextMeasureAdapter): { width: number; height: number } {
-  const spec = annotationTextToSpec(createLine(text));
-  const req = lineSpecToMeasureRequest(spec);
-  const width = adapter.measureTextWidth(req);
-  const height = sizeToPx(spec.lineStep ?? BODY_LINE_STEP);
-  const pad = 4;
-  return {
-    width: roundUpToGrid(width + pad * 2),
-    height: roundUpToGrid(height + pad * 2),
-  };
-}
-
-function arrowLabelText(arrow: { label?: { content: string }[] }): string {
-  if (!arrow.label?.length) return '';
-  return arrow.label.map((line) => line.content).join(' ').trim();
+function arrowLabelLines(arrow: { label?: { content: string }[] }): string[] {
+  if (!arrow.label?.length) return [];
+  return arrow.label.map((line) => line.content).filter((line) => line.trim().length > 0);
 }
 
 function buildGraphEdges(
   diagram: FrameDiagram,
   adapter: TextMeasureAdapter,
+  nodes: GraphNodeInput[],
+  semanticPlacements: Map<string, SemanticFramePlacement>,
+  borderRouteCrossHierarchyEdges: boolean,
 ): GraphLayoutInput['edges'] {
-  return diagram.arrows.map((a, i) => {
+  const frameParentById = buildFrameParentById(diagram.root);
+  const edges = diagram.arrows.map((a, i) => {
+    a.id ??= `edge-${i}`;
     const edge: GraphLayoutInput['edges'][number] = {
-      id: a.id ?? `edge-${i}`,
+      id: a.id,
       source: a.source.split('.')[0]!,
       target: a.target.split('.')[0]!,
     };
-    const text = arrowLabelText(a);
-    if (text) {
-      const dims = measureEdgeLabelBox(text, adapter);
-      edge.labels = [{ text, width: dims.width, height: dims.height }];
+    const labelLines = arrowLabelLines(a);
+    if (labelLines.length > 0) {
+      const dims = measureAnnotationEdgeLabelBox(labelLines, adapter);
+      edge.labels = [{ text: labelLines.join('\n'), width: dims.width, height: dims.height }];
     }
     return edge;
   });
+  if (!borderRouteCrossHierarchyEdges) {
+    promoteCrossHierarchyTargets(
+      edges,
+      nodes,
+      semanticPlacements,
+      frameParentById,
+    );
+    addParallelEdgePorts(edges, nodes, semanticPlacements);
+  }
+  return edges;
 }
 
-function isOrderingEdgeId(id: string): boolean {
-  return id.startsWith(ORDERING_EDGE_PREFIX);
+function layoutProfileFlag(
+  diagram: FrameDiagram,
+  camelKey: string,
+  snakeKey: string,
+): boolean {
+  const profiles = diagram.layoutProfiles;
+  if (!profiles) return false;
+  const value = profiles[camelKey] ?? profiles[snakeKey];
+  return value === true || value === 'true' || value === '1' || value === 1;
 }
 
-function buildOrderingGraphEdges(
-  nodes: GraphNodeInput[],
-  existingEdges: GraphLayoutInput['edges'],
-): GraphLayoutInput['edges'] {
-  const directAdjacency = new Set(existingEdges.flatMap((edge) => [
-    `${edge.source}->${edge.target}`,
-    `${edge.target}->${edge.source}`,
-  ]));
-  const orderingEdges: GraphLayoutInput['edges'] = [];
+function sameLayerAxis(direction: LayoutDirection): 'x' | 'y' {
+  return direction === 'LR' || direction === 'RL' ? 'x' : 'y';
+}
 
-  function visit(node: GraphNodeInput): void {
-    if (!node.children?.length) {
-      return;
+function sameLayerKey(value: number): string {
+  return String(Math.round(value / 8));
+}
+
+function collectSameLayerCompoundMinHeights(
+  nodes: readonly PlacedNode[],
+  direction: LayoutDirection,
+  out = new Map<string, number>(),
+): Map<string, number> {
+  const axis = sameLayerAxis(direction);
+  const compoundSiblings = nodes.filter((node) => (node.children?.length ?? 0) > 0);
+  const byLayer = new Map<string, PlacedNode[]>();
+  for (const node of compoundSiblings) {
+    const key = sameLayerKey(axis === 'x' ? node.x : node.y);
+    const group = byLayer.get(key) ?? [];
+    group.push(node);
+    byLayer.set(key, group);
+  }
+
+  for (const group of byLayer.values()) {
+    if (group.length < 2) {
+      continue;
     }
-    if (node.direction) {
-      for (let index = 0; index < node.children.length - 1; index += 1) {
-        const before = node.children[index]!;
-        const after = node.children[index + 1]!;
-        if (before.children?.length && after.children?.length) {
-          continue;
-        }
-        const edgeKey = `${before.id}->${after.id}`;
-        if (!directAdjacency.has(edgeKey)) {
-          orderingEdges.push({
-            id: `${ORDERING_EDGE_PREFIX}${node.id}__${index}`,
-            source: before.id,
-            target: after.id,
-          });
-          directAdjacency.add(edgeKey);
-          directAdjacency.add(`${after.id}->${before.id}`);
-        }
+    const maxHeight = Math.max(...group.map((node) => node.height));
+    for (const node of group) {
+      if (node.height < maxHeight) {
+        out.set(node.id, maxHeight);
       }
-    }
-    for (const child of node.children) {
-      visit(child);
     }
   }
 
   for (const node of nodes) {
-    visit(node);
+    if (node.children?.length) {
+      collectSameLayerCompoundMinHeights(node.children, direction, out);
+    }
   }
-  return orderingEdges;
+  return out;
+}
+
+function applyMinimumCompoundHeights(
+  nodes: readonly GraphNodeInput[],
+  minHeights: Map<string, number>,
+): GraphNodeInput[] {
+  return nodes.map((node) => {
+    const minHeight = minHeights.get(node.id);
+    return {
+      ...node,
+      height: minHeight != null ? Math.max(node.height, minHeight) : node.height,
+      children: node.children?.length
+        ? applyMinimumCompoundHeights(node.children, minHeights)
+        : node.children,
+    };
+  });
+}
+
+function trimLayoutPathToFrameBounds(
+  points: [number, number][],
+  sourceFrame: Frame | null,
+  targetFrame: Frame | null,
+  options: { orthogonalizeEndpointStubs?: boolean } = {},
+): [number, number][] {
+  if (points.length < 2 || !sourceFrame || !targetFrame) {
+    return points;
+  }
+
+  const asPoints = points.map(([x, y]) => ({ x, y }));
+  const sourceBounds = {
+    x: sourceFrame._layout.placedX + sourceFrame._layout.placedW / 2,
+    y: sourceFrame._layout.placedY + sourceFrame._layout.placedH / 2,
+    width: sourceFrame._layout.placedW,
+    height: sourceFrame._layout.placedH,
+  };
+  const targetBounds = {
+    x: targetFrame._layout.placedX + targetFrame._layout.placedW / 2,
+    y: targetFrame._layout.placedY + targetFrame._layout.placedH / 2,
+    width: targetFrame._layout.placedW,
+    height: targetFrame._layout.placedH,
+  };
+  const first = asPoints[0]!;
+  const sourceRect = {
+    left: sourceFrame._layout.placedX,
+    right: sourceFrame._layout.placedX + sourceFrame._layout.placedW,
+    top: sourceFrame._layout.placedY,
+    bottom: sourceFrame._layout.placedY + sourceFrame._layout.placedH,
+  };
+  const onBorder = (
+    point: { x: number; y: number },
+    rect: { left: number; right: number; top: number; bottom: number },
+    tolerance = 0.1,
+  ): boolean => (
+    (
+      Math.abs(point.x - rect.left) <= tolerance
+      || Math.abs(point.x - rect.right) <= tolerance
+    ) && point.y >= rect.top - tolerance && point.y <= rect.bottom + tolerance
+  ) || (
+    (
+      Math.abs(point.y - rect.top) <= tolerance
+      || Math.abs(point.y - rect.bottom) <= tolerance
+    ) && point.x >= rect.left - tolerance && point.x <= rect.right + tolerance
+  );
+  if (!onBorder(first, sourceRect)) {
+    const trimmedStart = computeNodeIntersection(
+      {},
+      sourceBounds,
+      asPoints[1]!,
+      { x: sourceBounds.x, y: sourceBounds.y },
+    );
+    if (first.x !== trimmedStart.x || first.y !== trimmedStart.y) {
+      asPoints[0] = trimmedStart;
+    }
+  }
+
+  const lastIndex = asPoints.length - 1;
+  const last = asPoints[lastIndex]!;
+  const targetRect = {
+    left: targetFrame._layout.placedX,
+    right: targetFrame._layout.placedX + targetFrame._layout.placedW,
+    top: targetFrame._layout.placedY,
+    bottom: targetFrame._layout.placedY + targetFrame._layout.placedH,
+  };
+  if (!onBorder(last, targetRect)) {
+    const trimmedEnd = computeNodeIntersection(
+      {},
+      targetBounds,
+      asPoints[asPoints.length - 2]!,
+      { x: targetBounds.x, y: targetBounds.y },
+    );
+    if (last.x !== trimmedEnd.x || last.y !== trimmedEnd.y) {
+      asPoints[lastIndex] = trimmedEnd;
+    }
+  }
+
+  if (options.orthogonalizeEndpointStubs && asPoints.length >= 2) {
+    const firstPoint = asPoints[0]!;
+    const secondPoint = asPoints[1]!;
+    if (firstPoint.x !== secondPoint.x && firstPoint.y !== secondPoint.y) {
+      asPoints.splice(1, 0, { x: secondPoint.x, y: firstPoint.y });
+    }
+  }
+  if (options.orthogonalizeEndpointStubs && asPoints.length >= 2) {
+    const finalIndex = asPoints.length - 1;
+    const previousPoint = asPoints[finalIndex - 1]!;
+    const finalPoint = asPoints[finalIndex]!;
+    if (previousPoint.x !== finalPoint.x && previousPoint.y !== finalPoint.y) {
+      asPoints.splice(finalIndex, 0, { x: previousPoint.x, y: finalPoint.y });
+    }
+  }
+  return asPoints.map((point) => [point.x, point.y]);
 }
 
 function applyElkEdgeLabels(
@@ -1066,6 +1853,7 @@ function applyElkEdgeRoutes(
   edges: PlacedEdge[],
   originX: number,
   originY: number,
+  options: { orthogonalizeEndpointStubs?: boolean } = {},
 ): void {
   const byId = new Map<string, PlacedEdge>();
   const byEndpoints = new Map<string, PlacedEdge>();
@@ -1079,7 +1867,14 @@ function applyElkEdgeRoutes(
     const tgt = arrow.target.split('.')[0]!;
     const edge = (arrow.id ? byId.get(arrow.id) : undefined) ?? byEndpoints.get(`${src}->${tgt}`);
     if (!edge) continue;
-    const layoutPath = dedupeConsecutivePoints(elkEdgeToLayoutPath(edge, originX, originY));
+    const sourceFrame = findFrame(diagram.root, src);
+    const targetFrame = findFrame(diagram.root, tgt);
+    const layoutPath = dedupeConsecutivePoints(trimLayoutPathToFrameBounds(
+      elkEdgeToLayoutPath(edge, originX, originY),
+      sourceFrame,
+      targetFrame,
+      options,
+    ));
     if (layoutPath.length >= 2) {
       arrow.layoutPath = layoutPath;
       arrow.waypoints = layoutPath.slice(1, -1);
@@ -1109,21 +1904,31 @@ export async function layoutGraphFrameDiagram(
   const originY = options.originY ?? diagram.root.paddingTop;
   const semanticLayout = collectSemanticLayoutSnapshot(diagram, adapter);
   const semanticSizes = semanticLayout.sizes;
+  const includeAnnotations = shouldUseClusterLoweredGraph(diagram.root, endpoints);
 
-  const nodes = buildElkGraphNodes(
+  let nodes = buildElkGraphNodes(
     diagram.root,
     adapter,
     endpoints,
     nativeCompoundIds,
     semanticSizes,
     semanticLayout.placements,
+    includeAnnotations,
   );
-  const authoredEdges = buildGraphEdges(diagram, adapter);
-  const orderingEdges = buildOrderingGraphEdges(nodes, authoredEdges);
-  const input: Omit<GraphLayoutInput, 'direction' | 'spacingProfile'> = {
-    id: diagram.title || 'diagram',
+  const clusterLowered = hasClusterLoweredNodes(nodes);
+  const borderRouteCrossHierarchyEdges = clusterLowered && hasOnlyShallowGraphCrossHierarchyArrows(diagram, nodes);
+  const authoredEdges = buildGraphEdges(
+    diagram,
+    adapter,
     nodes,
-    edges: [...authoredEdges, ...orderingEdges],
+    semanticLayout.placements,
+    borderRouteCrossHierarchyEdges,
+  );
+  let input: Omit<GraphLayoutInput, 'direction' | 'spacingProfile'> = {
+    id: diagram.title || 'diagram',
+    routeCrossHierarchyEdgesToBorders: borderRouteCrossHierarchyEdges,
+    nodes,
+    edges: authoredEdges,
   };
   const inputNodeIds = collectGraphNodeIds(nodes);
   const authoredTreeDebug = buildElkAuthoredTreeDebug(diagram.root, {
@@ -1160,17 +1965,31 @@ export async function layoutGraphFrameDiagram(
       optionOverrides: request.optionOverrides,
     },
   ));
-  const elk = await graphLayout({
+  let elk = await graphLayout({
     family,
     input,
     direction,
     optionOverrides: Object.keys(graphOptionOverrides).length > 0 ? graphOptionOverrides : undefined,
   });
-  const visibleElkEdges = elk.edges.filter((edge) => !isOrderingEdgeId(edge.id));
+  if (layoutProfileFlag(diagram, 'sameLayerCompoundHeights', 'same_layer_compound_heights')) {
+    const minHeights = collectSameLayerCompoundMinHeights(elk.nodes, direction);
+    if (minHeights.size > 0) {
+      nodes = applyMinimumCompoundHeights(nodes, minHeights);
+      input = {
+        ...input,
+        nodes,
+      };
+      elk = await graphLayout({
+        family,
+        input,
+        direction,
+        optionOverrides: Object.keys(graphOptionOverrides).length > 0 ? graphOptionOverrides : undefined,
+      });
+    }
+  }
+  const edgeBox = bboxOfElkEdges(elk.edges, originX, originY);
+  applyElkEdgeLabels(diagram, elk.edges, originX, originY);
   const placedById = indexPlaced(elk.nodes);
-  const edgeBox = bboxOfElkEdges(visibleElkEdges, originX, originY);
-  applyElkEdgeRoutes(diagram, visibleElkEdges, originX, originY);
-  applyElkEdgeLabels(diagram, visibleElkEdges, originX, originY);
 
   const placedFrames: Frame[] = [];
   const standaloneContainers: Frame[] = [];
@@ -1195,30 +2014,22 @@ export async function layoutGraphFrameDiagram(
       adapter,
     );
   }
-
-  anchorSemanticDescendants(diagram.root, placedIds, semanticLayout.placements, endpoints);
-  wrapStructuralContainers(diagram.root, placedIds);
-  anchorSyntheticLayoutDescendants(diagram.root, placedIds, semanticLayout.placements);
-  wrapStructuralContainers(diagram.root, placedIds);
-  anchorSyntheticLayoutDescendants(diagram.root, placedIds, semanticLayout.placements);
-
-  layoutAnnotationsBelow(diagram.root, adapter, elk.height, originX, originY, endpoints);
-
-  const allPlacedFrames = collectPlacedFrames(diagram.root).filter((frame) => frame !== diagram.root);
-  const frameBox = bboxOfFrames(allPlacedFrames);
-  const shiftX = frameBox && frameBox.minX < 0 ? -frameBox.minX : 0;
-  const shiftY = frameBox && frameBox.minY < 0 ? -frameBox.minY : 0;
-  translateDiagramGeometry(diagram, shiftX, shiftY);
+  applyElkEdgeRoutes(diagram, elk.edges, originX, originY, {
+    orthogonalizeEndpointStubs: !clusterLowered,
+  });
+  if (!clusterLowered) {
+    anchorSemanticDescendants(diagram.root, placedIds, semanticLayout.placements, endpoints);
+    wrapStructuralContainers(diagram.root, placedIds);
+    anchorSyntheticLayoutDescendants(diagram.root, placedIds, semanticLayout.placements);
+    wrapStructuralContainers(diagram.root, placedIds);
+    anchorSyntheticLayoutDescendants(diagram.root, placedIds, semanticLayout.placements);
+    layoutAnnotationsBelow(diagram.root, adapter, elk.height, originX, originY, endpoints);
+  } else {
+    placeClusterLoweredSyntheticChrome(diagram.root, semanticLayout.placements);
+  }
 
   const normalizedFrameBox = bboxOfFrames(collectPlacedFrames(diagram.root).filter((frame) => frame !== diagram.root));
-  const normalizedEdgeBox = edgeBox
-    ? {
-        minX: edgeBox.minX + shiftX,
-        minY: edgeBox.minY + shiftY,
-        maxX: edgeBox.maxX + shiftX,
-        maxY: edgeBox.maxY + shiftY,
-      }
-    : null;
+  const normalizedEdgeBox = edgeBox;
   const rootW = Math.max(
     diagram.root.width ?? 0,
     elk.width + originX * 2,
@@ -1250,7 +2061,7 @@ export async function layoutGraphFrameDiagram(
     coerced: new Map(),
     elkSnapshot: {
       ...elk,
-      edges: visibleElkEdges,
+      edges: elk.edges,
       originX,
       originY,
       debug: {

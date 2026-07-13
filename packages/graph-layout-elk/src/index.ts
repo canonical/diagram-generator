@@ -62,6 +62,11 @@ export {
   type LayoutLayeredOptions,
   type LayoutLayeredForFamilyOptions,
 } from './elk-layered.js';
+export {
+  buildElkGraph,
+  buildInputTreeData,
+  buildSubgraphLayoutOptions,
+} from './elk-graph-builder.js';
 
 export {
   layoutForce,
@@ -80,6 +85,17 @@ export {
   edgeEndpointsTouchLeaves,
   nearestLeafBoundaryDistance,
 } from './node-bounds.js';
+export {
+  computeNodeIntersection,
+  outsideNode,
+  replaceEndpoint,
+  type CenteredRectLike,
+  type IntersectableNodeLike,
+} from './edge-endpoint-trim.js';
+export {
+  findCommonAncestor,
+  type TreeData,
+} from './find-common-ancestor.js';
 
 export type { LayeredLayoutConfig, ElkLayoutOptions, ElkParamSpec, ElkParamKind } from './layered-options.js';
 export type { ForceLayoutConfig, ElkForceLayoutOptions } from './force-options.js';
@@ -101,3 +117,13 @@ export {
   ELK_RECTPACKING_PARAM_SPECS,
   ELK_STRESS_PARAM_SPECS,
 } from './elk-algorithm-param-registry.js';
+export {
+  ELK_OPTION_AUDIT_REGISTRY_SPECS,
+  ELK_OPTION_AUDITED_ALGORITHM_IDS,
+  allExposedOfficialElkOptionIds,
+  classifyOfficialElkOption,
+  normalizeOfficialElkOptionId,
+  type AuditedElkAlgorithmId,
+  type ElkOptionAuditCategory,
+  type ElkOptionAuditClassification,
+} from './elk-option-audit.js';

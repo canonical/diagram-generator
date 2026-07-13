@@ -441,6 +441,8 @@ export interface FrameDiagramInit {
   layoutEngine?: string;
   diagramType?: string;
   sourceImage?: string;
+  /** Non-engine layout/authoring profiles from YAML meta.layout_profiles. */
+  layoutProfiles?: Record<string, unknown>;
   /** ELK option overrides from YAML meta.elk */
   elkLayout?: Record<string, string>;
   /** Engine option overrides keyed by YAML namespace, e.g. meta.elk or meta.dagre. */
@@ -459,6 +461,7 @@ export class FrameDiagram {
   layoutEngine?: string;
   diagramType?: string;
   sourceImage?: string;
+  layoutProfiles?: Record<string, unknown>;
   elkLayout?: Record<string, string>;
   engineLayout?: Record<string, Record<string, unknown>>;
 
@@ -474,6 +477,7 @@ export class FrameDiagram {
     this.layoutEngine = init?.layoutEngine;
     this.diagramType = init?.diagramType;
     this.sourceImage = init?.sourceImage;
+    this.layoutProfiles = init?.layoutProfiles;
     this.elkLayout = init?.elkLayout;
     this.engineLayout = init?.engineLayout;
   }

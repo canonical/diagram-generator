@@ -1,0 +1,156 @@
+engine: v3
+title: ELK clustered portability fixture
+meta:
+  diagram_type: clustered_service_topology
+  layout_engine: elk-layered
+  elk:
+    elk.direction: DOWN
+    elk.layered.spacing.nodeNodeBetweenLayers: 24
+    elk.spacing.nodeNode: 24
+    elk.spacing.edgeNode: 24
+    elk.spacing.edgeEdge: 24
+    elk.spacing.edgeLabel: 8
+    elk.edgeLabels.inline: false
+    elk.edgeLabels.placement: CENTER
+    elk.layered.edgeLabels.sideSelection: SMART_DOWN
+    elk.layered.edgeLabels.centerLabelPlacementStrategy: SPACE_EFFICIENT_LAYER
+    elk.layered.mergeEdges: true
+    elk.layered.mergeHierarchyEdges: true
+    elk.layered.considerModelOrder.strategy: NODES_AND_EDGES
+    elk.layered.crossingMinimization.forceNodeModelOrder: true
+    elk.hierarchyHandling: INCLUDE_CHILDREN
+  elk_nodes:
+    elk-layered:
+      elk.direction: DOWN
+      elk.layered.spacing.nodeNodeBetweenLayers: 24
+      elk.spacing.nodeNode: 24
+      elk.spacing.edgeNode: 24
+      elk.spacing.edgeEdge: 24
+      elk.spacing.edgeLabel: 8
+      elk.edgeLabels.inline: false
+      elk.edgeLabels.placement: CENTER
+      elk.layered.edgeLabels.sideSelection: SMART_DOWN
+      elk.layered.edgeLabels.centerLabelPlacementStrategy: SPACE_EFFICIENT_LAYER
+      elk.layered.mergeEdges: true
+      elk.layered.mergeHierarchyEdges: true
+      elk.layered.considerModelOrder.strategy: NODES_AND_EDGES
+      elk.layered.crossingMinimization.forceNodeModelOrder: true
+      elk.hierarchyHandling: INCLUDE_CHILDREN
+  frame_roles:
+    strategy: root-edge-source-section-target-parent
+  layout_profiles:
+    same_layer_compound_heights: true
+arrows:
+- id: capture-to-normalize-primary
+  source: collector_primary
+  target: normalizer
+  label:
+  - telemetry
+- id: capture-to-normalize-secondary
+  source: collector_secondary
+  target: normalizer
+  label:
+  - batch
+  - interface: events
+- id: capture-to-normalize-auxiliary
+  source: collector_auxiliary
+  target: normalizer
+  label:
+  - replay
+- id: normalize-to-archive
+  source: normalizer
+  target: archive_node
+  label:
+  - durable
+- id: normalize-to-observe
+  source: normalizer
+  target: observer_primary
+  label:
+  - metrics
+- id: normalize-to-observe-audit
+  source: normalizer
+  target: observer_secondary
+  label:
+  - audit
+root:
+  id: page
+  direction: vertical
+  width: 1280
+  sizing_w: fixed
+  children:
+  - id: capture_cluster
+    heading: Capture
+    direction: horizontal
+    sizing_w: hug
+    align: top-center
+    children:
+    - id: collector_primary
+      width: 200
+      sizing_w: fixed
+      label:
+      - collector-primary
+      - Live input
+    - id: collector_secondary
+      width: 200
+      sizing_w: fixed
+      label:
+      - collector-secondary
+      - Batch input
+    - id: collector_auxiliary
+      width: 160
+      sizing_w: fixed
+      label:
+      - collector-auxiliary
+      - Replay input
+  - id: normalize_cluster
+    heading: Normalize
+    sizing_w: hug
+    align: top-center
+    children:
+    - id: normalizer
+      width: 288
+      sizing_w: fixed
+      label:
+      - event-normalizer
+      - Canonical stream
+  - id: archive_cluster
+    heading: Archive
+    sizing_w: hug
+    align: top-center
+    children:
+    - id: archive_node
+      width: 240
+      sizing_w: fixed
+      label:
+      - cold-archive
+      - Durable records
+  - id: observe_cluster
+    heading: Observe
+    direction: horizontal
+    sizing_w: hug
+    align: top-center
+    children:
+    - id: observer_primary
+      width: 192
+      sizing_w: fixed
+      label:
+      - metrics-view
+      - Primary dashboard
+    - id: observer_secondary
+      width: 192
+      sizing_w: fixed
+      label:
+      - audit-view
+      - Audit dashboard
+    - id: observer_tertiary
+      width: 192
+      sizing_w: fixed
+      label:
+      - replay-view
+      - Replay dashboard
+    - id: observer_quaternary
+      width: 192
+      sizing_w: fixed
+      label:
+      - health-view
+      - Health dashboard

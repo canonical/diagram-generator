@@ -65,11 +65,13 @@ describe('frame-class contract drift guard', () => {
     expect(frameClassesDoc).toContain('Wrapper (`level: 0`), annotation,\nand highlight are exempt from promotion.');
 
     expect(levelAssignmentSkill).toContain('Level assignment is an **authoring-time** rule.');
-    expect(levelAssignmentSkill).toContain('The engine requires explicit `level:` fields in YAML - it never guesses');
+    expect(levelAssignmentSkill).toContain('By default, the engine requires explicit `level:` fields in YAML - it');
+    expect(levelAssignmentSkill).toContain('Diagrams may opt into a typed `meta.frame_roles`');
     expect(levelAssignmentSkill).toContain('1. **`D = 0` → child / leaf (`level: 1`).**');
     expect(levelAssignmentSkill).toContain('2. **`D = 1` → parent / panel (`level: 2`).**');
     expect(levelAssignmentSkill).toContain('3. **`D >= 2` → section (`level: 3`).**');
     expect(levelAssignmentSkill).toContain('Highlights (`variant: highlight`) keep their structural level; they');
+    expect(levelAssignmentSkill).toContain('root-edge-source-section-target-parent');
     expect(levelAssignmentSkill).toContain('`resolveStyles()` in');
   });
 

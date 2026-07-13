@@ -28,7 +28,7 @@ describe('ELK graph layout capabilities', () => {
         },
         edgeLabels: {
           measuredBoxes: true,
-          placementHints: false,
+          placementHints: true,
         },
         constraints: {
           order: false,

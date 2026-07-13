@@ -20,7 +20,7 @@ export const ELK_LAYERED_GRAPH_LAYOUT_ENGINE: GraphLayoutEngineDescriptor = {
     },
     edgeLabels: {
       measuredBoxes: true,
-      placementHints: false,
+      placementHints: true,
     },
     constraints: {
       order: false,

@@ -107,7 +107,6 @@ export function buildLayeredLayoutOptions(config: LayeredLayoutConfig): ElkLayou
       ?? config.sameLayerPx
       ?? defaultSameLayer!,
   );
-  base['elk.edgeLabels.inline'] = 'false';
 
   const resolved = resolveElkLayoutOptions(base, config.optionOverrides);
   // Port side selection is implementation-owned while implicit ports are internal.

@@ -180,13 +180,16 @@ test("persist engine_layout_overrides preserves numeric control values", () => {
     engine_layout_overrides: {
       "meta.elk": {
         "elk.spacing.edgeNode": 56,
+        "elk.layered.highDegreeNodes.threshold": 24,
       },
     },
   });
 
   assert.match(output, /elk\.spacing\.edgeNode: 56/);
+  assert.match(output, /elk\.layered\.highDegreeNodes\.threshold: 24/);
   verifyElkLayoutPersisted(output, {
     "elk.spacing.edgeNode": 56,
+    "elk.layered.highDegreeNodes.threshold": 24,
   });
 });
 

@@ -11,6 +11,8 @@ export {
   type GraphPortAnchorInput,
   type GraphPortInput,
   type GraphNodeInput,
+  type GraphNodeKind,
+  type GraphContentAlignment,
   type GraphLabelPlacement,
   type GraphEdgeLabelInput,
   type GraphConstraintAxis,
@@ -37,4 +39,6 @@ export {
   GRID_BASELINE_PX,
   roundToGrid,
   resolveGraphPortPlacement,
+  resolveGraphNodeKind,
+  isGraphCompoundNode,
 } from './graph-ir.js';

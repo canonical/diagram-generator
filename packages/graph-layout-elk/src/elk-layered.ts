@@ -3,12 +3,18 @@ import type {
   GraphLayoutInput,
   GraphLayoutResult,
   GraphNodeInput,
+  GraphPortInput,
   GraphPortSide,
   LayeredCorpusFamily,
   PlacedNode,
 } from '@diagram-generator/graph-layout-core';
 
-import { buildElkGraphFromInput, buildElkGraph, portIdForSide } from './elk-graph-builder.js';
+import {
+  buildElkGraphFromInput,
+  buildElkGraph,
+  buildInputTreeData,
+  portIdForSide,
+} from './elk-graph-builder.js';
 import {
   buildLayeredLayoutOptions,
   layeredConfigForFamily,
@@ -20,7 +26,6 @@ import { normalizeElkLayoutResult } from './result-normalizer.js';
 import { indexPlacedNodes } from './node-bounds.js';
 
 let sharedElk: InstanceType<typeof ELK> | null = null;
-const ORDERING_EDGE_PREFIX = '__dg_order__';
 
 function getElk(): InstanceType<typeof ELK> {
   if (!sharedElk) {
@@ -132,25 +137,213 @@ function chooseAlternateSidesForPlacedNodes(
   return dy < 0 ? ['top', 'top'] : ['bottom', 'bottom'];
 }
 
+function oppositeSide(side: GraphPortSide): GraphPortSide {
+  switch (side) {
+    case 'top':
+      return 'bottom';
+    case 'right':
+      return 'left';
+    case 'bottom':
+      return 'top';
+    case 'left':
+      return 'right';
+  }
+}
+
+function sourceSideForDirection(direction: ElkDirection): GraphPortSide {
+  switch (direction) {
+    case 'DOWN':
+      return 'bottom';
+    case 'RIGHT':
+      return 'right';
+    case 'UP':
+      return 'top';
+    case 'LEFT':
+      return 'left';
+  }
+}
+
+function cloneGraphNodes(nodes: GraphNodeInput[]): GraphNodeInput[] {
+  return nodes.map((node) => ({
+    ...node,
+    padding: node.padding ? { ...node.padding } : undefined,
+    ports: node.ports?.map((port: GraphPortInput) => ({
+      ...port,
+      anchor: { ...port.anchor },
+    })),
+    children: node.children ? cloneGraphNodes(node.children) : undefined,
+  }));
+}
+
+function collectCrossHierarchyEndpointIds(
+  edges: GraphLayoutInput['edges'],
+  parentById: Record<string, string | undefined>,
+): Set<string> {
+  const ids = new Set<string>();
+  for (const edge of edges) {
+    const sourceParentId = parentById[edge.source];
+    const targetParentId = parentById[edge.target];
+    if (!sourceParentId || !targetParentId || sourceParentId === targetParentId) {
+      continue;
+    }
+    ids.add(edge.source);
+    ids.add(edge.target);
+  }
+  return ids;
+}
+
+function authoredOrderPortId(
+  nodeId: string,
+  groupId: string,
+  role: 'source' | 'target',
+  side: GraphPortSide,
+  index: number,
+): string {
+  return `${nodeId}__ordered_${groupId}_${role}_${side}_${index}`;
+}
+
+function offsetForOrderedPort(
+  node: Pick<GraphNodeInput, 'width' | 'height'>,
+  side: GraphPortSide,
+  index: number,
+  count: number,
+): number {
+  const span = side === 'top' || side === 'bottom' ? node.width : node.height;
+  return Math.round((span * (index + 1)) / (count + 1));
+}
+
+function withAuthoredOrderPortRefs(
+  input: GraphLayoutInput,
+  layoutOptions: Record<string, string>,
+): GraphLayoutInput {
+  if (input.edges.length === 0 || input.routeCrossHierarchyEdgesToBorders) {
+    return input;
+  }
+
+  const nodes = cloneGraphNodes(input.nodes);
+  const edges = input.edges.map((edge) => ({
+    ...edge,
+    labels: edge.labels?.map((label) => ({ ...label })),
+  }));
+  const nodesById = indexInputNodes(nodes);
+  const parentById = buildInputTreeData(nodes, input.id).parentById;
+  const crossHierarchyEndpointIds = collectCrossHierarchyEndpointIds(edges, parentById);
+  const effectiveDirection = resolveElkDirection(input, layoutOptions);
+  const sourceSide = sourceSideForDirection(effectiveDirection);
+  const targetSide = oppositeSide(sourceSide);
+
+  const unresolvedOutgoing = new Map<string, typeof edges>();
+  const unresolvedIncoming = new Map<string, typeof edges>();
+  for (const edge of edges) {
+    if (!edge.sourcePort && !crossHierarchyEndpointIds.has(edge.source)) {
+      const bucket = unresolvedOutgoing.get(edge.source) ?? [];
+      bucket.push(edge);
+      unresolvedOutgoing.set(edge.source, bucket);
+    }
+    if (!edge.targetPort && !crossHierarchyEndpointIds.has(edge.target)) {
+      const bucket = unresolvedIncoming.get(edge.target) ?? [];
+      bucket.push(edge);
+      unresolvedIncoming.set(edge.target, bucket);
+    }
+  }
+
+  const orderingClusterGroups = (
+    groupedEdges: typeof edges,
+    endpoint: 'source' | 'target',
+  ): Array<{ groupId: string; edges: typeof edges }> => {
+    const byGroup = new Map<string, typeof edges>();
+    for (const edge of groupedEdges) {
+      const peerNodeId = endpoint === 'source' ? edge.target : edge.source;
+      const parentId = parentById[peerNodeId];
+      if (!parentId || nodesById.get(parentId)?.kind !== 'ordering-cluster') {
+        continue;
+      }
+      const bucket = byGroup.get(parentId) ?? [];
+      bucket.push(edge);
+      byGroup.set(parentId, bucket);
+    }
+    return [...byGroup.entries()]
+      .filter(([, bucket]) => bucket.length > 1)
+      .map(([groupId, bucket]) => ({ groupId, edges: bucket }));
+  };
+
+  const assignPorts = (
+    nodeId: string,
+    groupedEdges: typeof edges,
+    groupId: string,
+    role: 'source' | 'target',
+    side: GraphPortSide,
+  ): void => {
+    if (groupedEdges.length <= 1) {
+      return;
+    }
+    const node = nodesById.get(nodeId);
+    if (!node) {
+      return;
+    }
+    node.ports ??= [];
+    groupedEdges.forEach((edge, index) => {
+      const portId = authoredOrderPortId(nodeId, groupId, role, side, index);
+      if (!node.ports!.some((port) => port.id === portId)) {
+        node.ports!.push({
+          id: portId,
+          anchor: {
+            kind: 'side',
+            side,
+            offset: offsetForOrderedPort(node, side, index, groupedEdges.length),
+          },
+        });
+      }
+      if (role === 'source') {
+        edge.sourcePort = portId;
+      } else {
+        edge.targetPort = portId;
+      }
+    });
+  };
+
+  for (const [nodeId, groupedEdges] of unresolvedOutgoing) {
+    for (const group of orderingClusterGroups(groupedEdges, 'source')) {
+      assignPorts(nodeId, group.edges, group.groupId, 'source', sourceSide);
+    }
+  }
+  for (const [nodeId, groupedEdges] of unresolvedIncoming) {
+    for (const group of orderingClusterGroups(groupedEdges, 'target')) {
+      assignPorts(nodeId, group.edges, group.groupId, 'target', targetSide);
+    }
+  }
+
+  return {
+    ...input,
+    nodes,
+    edges,
+  };
+}
+
 function withRelationshipAwarePortRefs(
   input: GraphLayoutInput,
   firstPass: GraphLayoutResult,
   layoutOptions: Record<string, string>,
 ): GraphLayoutInput {
-  if (input.edges.some((edge) => edge.id.startsWith(ORDERING_EDGE_PREFIX))) {
+  if (input.routeCrossHierarchyEdgesToBorders) {
     return input;
   }
+
   const placedById = indexPlacedNodes(firstPass.nodes);
   const inputNodesById = indexInputNodes(input.nodes);
+  const crossHierarchyEndpointIds = collectCrossHierarchyEndpointIds(
+    input.edges,
+    buildInputTreeData(input.nodes, input.id).parentById,
+  );
   const effectiveDirection = resolveElkDirection(input, layoutOptions);
 
   return {
     ...input,
     edges: input.edges.map((edge, index) => {
-      if (edge.id.startsWith(ORDERING_EDGE_PREFIX)) {
+      if (edge.sourcePort || edge.targetPort) return edge;
+      if (crossHierarchyEndpointIds.has(edge.source) || crossHierarchyEndpointIds.has(edge.target)) {
         return edge;
       }
-      if (edge.sourcePort || edge.targetPort) return edge;
       const sourcePlaced = placedById.get(edge.source);
       const targetPlaced = placedById.get(edge.target);
       const sourceInput = inputNodesById.get(edge.source);
@@ -192,34 +385,43 @@ export async function layoutLayered(
   options: LayoutLayeredOptions = {},
 ): Promise<GraphLayoutResult> {
   const familyDirection = input.direction;
-  const baseConfig: LayeredLayoutConfig = options.config ?? {
+  const configuredBase: LayeredLayoutConfig = options.config ?? {
     direction: familyDirection,
     spacingProfile: input.spacingProfile ?? 'normal',
     optionOverrides: options.optionOverrides,
   };
-  if (options.optionOverrides) {
-    baseConfig.optionOverrides = {
-      ...baseConfig.optionOverrides,
-      ...options.optionOverrides,
-    };
+  const mergedOptionOverrides = {
+    ...(configuredBase.optionOverrides ?? {}),
+    ...(options.optionOverrides ?? {}),
+  };
+  if (
+    input.routeCrossHierarchyEdgesToBorders
+    && mergedOptionOverrides['elk.layered.mergeEdges'] == null
+  ) {
+    mergedOptionOverrides['elk.layered.mergeEdges'] = 'true';
   }
+  const baseConfig: LayeredLayoutConfig = {
+    ...configuredBase,
+    optionOverrides: mergedOptionOverrides,
+  };
   const layoutOptions = buildLayeredLayoutOptions(baseConfig);
+  const authoredPortInput = withAuthoredOrderPortRefs(input, layoutOptions);
 
-  const elkGraph = buildElkGraph(input, layoutOptions);
+  const elkGraph = buildElkGraph(authoredPortInput, layoutOptions);
   const elk = getElk();
   const laidOut = await elk.layout(elkGraph);
   const firstPass = normalizeElkLayoutResult(
-    input,
+    authoredPortInput,
     laidOut as Parameters<typeof normalizeElkLayoutResult>[1],
   );
-  if (input.edges.length === 0) {
+  if (authoredPortInput.edges.length === 0) {
     return firstPass;
   }
 
-  const secondPassInput = withRelationshipAwarePortRefs(input, firstPass, layoutOptions);
+  const secondPassInput = withRelationshipAwarePortRefs(authoredPortInput, firstPass, layoutOptions);
   const changed = secondPassInput.edges.some((edge, index) => (
-    edge.sourcePort !== input.edges[index]?.sourcePort ||
-    edge.targetPort !== input.edges[index]?.targetPort
+    edge.sourcePort !== authoredPortInput.edges[index]?.sourcePort ||
+    edge.targetPort !== authoredPortInput.edges[index]?.targetPort
   ));
   if (!changed) {
     return firstPass;

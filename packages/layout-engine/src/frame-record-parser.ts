@@ -73,7 +73,16 @@ function parseLine(raw: unknown): Line {
   if (typeof raw === 'string') return createLine(raw);
   if (raw && typeof raw === 'object') {
     const d = raw as Record<string, unknown>;
-    return createLine(String(d.text ?? ''));
+    if ('text' in d || 'content' in d) {
+      return createLine(String(d.text ?? d.content ?? ''));
+    }
+    const entries = Object.entries(d);
+    if (entries.length === 1) {
+      const [key, value] = entries[0]!;
+      const renderedValue = String(value ?? '').trim();
+      return createLine(renderedValue.length > 0 ? `${key}: ${renderedValue}` : key);
+    }
+    return createLine(String(raw ?? ''));
   }
   return createLine(String(raw ?? ''));
 }

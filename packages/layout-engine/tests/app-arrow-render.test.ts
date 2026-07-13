@@ -99,10 +99,11 @@ class FakeDocument {
 }
 
 function collectMatches(root: FakeNode, selector: string): FakeElement[] {
-  if (selector === ':scope > text') {
+  if (selector === ':scope > text' || selector === ':scope > rect') {
+    const tagName = selector.endsWith('rect') ? 'rect' : 'text';
     return root.childNodes
       .filter((node): node is FakeElement => node instanceof FakeElement)
-      .filter((node) => node.tagName === 'text');
+      .filter((node) => node.tagName === tagName);
   }
 
   const matches: FakeElement[] = [];
@@ -278,6 +279,45 @@ describe('preview arrow render helpers', () => {
     expect(text?.getAttribute('text-anchor')).toBe('middle');
     expect(tspan?.getAttribute('fill')).toBe('#666666');
     expect(Number(tspan?.getAttribute('y') || '0')).toBeGreaterThan(50);
+  });
+
+  it('renders ELK edge labels through the annotation class contract', () => {
+    const ownerDocument = new FakeDocument();
+
+    const fragment = createPreviewArrowSvgFragment({
+      ownerDocument: ownerDocument as unknown as Document,
+      routedArrows: [{
+        componentId: 'edge-elk',
+        points: [[0, 20], [120, 20]],
+        start: [0, 20],
+        end: [120, 20],
+        waypoints: [],
+        color: '#E95420',
+        elkLabels: [{
+          text: 'certificates\ninterface: tls-certificates',
+          x: 40,
+          y: 64,
+          width: 208,
+          height: 64,
+        }],
+      } as any],
+      boundsMap: {},
+    });
+
+    const group = fragment.firstChild as unknown as FakeElement;
+    const labelRect = group.querySelectorAll('rect')[0];
+    const text = group.querySelector('text');
+    const tspans = text?.childNodes as FakeElement[] | undefined;
+
+    expect(labelRect?.getAttribute('fill')).toBe('transparent');
+    expect(labelRect?.getAttribute('stroke')).toBe('none');
+    expect(text?.getAttribute('text-anchor')).toBeNull();
+    expect(text?.getAttribute('dominant-baseline')).toBeNull();
+    expect(tspans?.[0]?.getAttribute('x')).toBe('40');
+    expect(tspans?.[0]?.getAttribute('y')).toBe('88.92');
+    expect(tspans?.[0]?.getAttribute('fill')).toBe('#666666');
+    expect(tspans?.[0]?.getAttribute('font-weight')).toBe('400');
+    expect(tspans?.[1]?.getAttribute('x')).toBe('40');
   });
 
   it('syncs routed arrow payloads back into the preview model with stable ids', () => {

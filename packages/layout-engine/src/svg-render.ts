@@ -25,6 +25,7 @@ export function renderFrameDiagramToSvg(
     adapter,
     {
       iconMarkupByName: options?.iconMarkupByName,
+      previewElkLabels: true,
     },
   ));
 }
