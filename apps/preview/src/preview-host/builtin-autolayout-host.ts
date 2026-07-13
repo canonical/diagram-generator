@@ -75,7 +75,14 @@ function resolveSvgExportSlug(pathname: string): string | null {
   const rawName = pathname.startsWith("/svg/")
     ? pathname.slice("/svg/".length)
     : pathname.slice("/v3/svg/".length);
-  const safeName = path.posix.basename(rawName);
+  let decodedName: string;
+  try {
+    decodedName = decodeURIComponent(rawName);
+  } catch {
+    return null;
+  }
+  if (decodedName.includes("/") || decodedName.includes("\\")) return null;
+  const safeName = path.posix.basename(decodedName);
   return safeName
     .replace(/-onbrand-v3-grid\.svg$/i, "")
     .replace(/-onbrand-v3\.svg$/i, "");
@@ -85,7 +92,14 @@ function resolveDrawioExportSlug(pathname: string): string | null {
   const rawName = pathname.startsWith("/drawio/")
     ? pathname.slice("/drawio/".length)
     : pathname.slice("/v3/drawio/".length);
-  const safeName = path.posix.basename(rawName);
+  let decodedName: string;
+  try {
+    decodedName = decodeURIComponent(rawName);
+  } catch {
+    return null;
+  }
+  if (decodedName.includes("/") || decodedName.includes("\\")) return null;
+  const safeName = path.posix.basename(decodedName);
   return safeName.replace(/\.drawio$/i, "");
 }
 
@@ -308,9 +322,10 @@ export function createAutolayoutPreviewHostViewerRoute(
 ): PreviewHostViewerRouteDescriptor {
   const resolveDocContext = (
     slug: string,
-  ): { deps: typeof deps.framePreviewDocumentDeps; slug: string } => {
-    const resolved = deps.resolveFrameDir?.(slug);
-    if (!resolved) return { deps: deps.framePreviewDocumentDeps, slug };
+  ): { deps: typeof deps.framePreviewDocumentDeps; slug: string } | null => {
+    if (!deps.resolveFrameDir) return { deps: deps.framePreviewDocumentDeps, slug };
+    const resolved = deps.resolveFrameDir(slug);
+    if (!resolved) return null;
     return {
       deps: { ...deps.framePreviewDocumentDeps, framesDir: resolved.framesDir },
       slug: resolved.slug,
@@ -323,10 +338,11 @@ export function createAutolayoutPreviewHostViewerRoute(
     listSlugs: () => deps.listAutolayoutDiagrams(),
     hasDocument: (slug: string) => {
       const docCtx = resolveDocContext(slug);
-      return frameDiagramExists(docCtx.slug, docCtx.deps);
+      return docCtx !== null && frameDiagramExists(docCtx.slug, docCtx.deps);
     },
     buildHtml: (slug: string) => {
       const docCtx = resolveDocContext(slug);
+      if (!docCtx) throw new Error(`Unknown diagram: ${slug}`);
       const {
         authoredLayoutEngine,
         documentKind,

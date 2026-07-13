@@ -62,7 +62,11 @@ export class WorkspaceRegistry {
    */
   resolve(address: string): ResolvedDiagramAddress | null {
     const qualified = parseQualifiedSlug(address);
-    if (qualified) {
+    // A colon is reserved for qualified source addresses. Do not reinterpret a
+    // malformed qualified-looking value as a bare filename in the default
+    // source; that would bypass the source boundary and its slug allowlist.
+    if (address.includes(":")) {
+      if (!qualified) return null;
       const source = this.byId.get(qualified.sourceId);
       return source ? { source, slug: qualified.slug } : null;
     }

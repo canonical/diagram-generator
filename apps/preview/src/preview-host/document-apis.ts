@@ -55,13 +55,18 @@ export function createFramePreviewHostDocumentEndpoints(
   options: CreateFramePreviewHostDocumentApiOptions,
 ): readonly PreviewHostDocumentEndpointDescriptor[] {
   const resolveDoc = (slug: string): { deps: FramePreviewDocumentDeps; slug: string } => {
-    const resolved = options.resolveFrameDir?.(slug);
-    if (!resolved) return { deps: options.framePreviewDocumentDeps, slug };
+    // Keep the old single-directory behavior for narrow legacy helpers that
+    // do not provide a workspace resolver. Once a resolver is installed, null
+    // means the address is not a document in any registered source.
+    if (!options.resolveFrameDir) return { deps: options.framePreviewDocumentDeps, slug };
+    const resolved = options.resolveFrameDir(slug);
+    if (!resolved) throw new Error(`Unknown frame slug: ${slug}`);
     return { deps: { ...options.framePreviewDocumentDeps, framesDir: resolved.framesDir }, slug: resolved.slug };
   };
   const resolveRender = (slug: string): { deps: FramePreviewRenderDeps; slug: string } => {
-    const resolved = options.resolveFrameDir?.(slug);
-    if (!resolved) return { deps: options.framePreviewRenderDeps, slug };
+    if (!options.resolveFrameDir) return { deps: options.framePreviewRenderDeps, slug };
+    const resolved = options.resolveFrameDir(slug);
+    if (!resolved) throw new Error(`Unknown frame slug: ${slug}`);
     return { deps: { ...options.framePreviewRenderDeps, framesDir: resolved.framesDir }, slug: resolved.slug };
   };
   return [

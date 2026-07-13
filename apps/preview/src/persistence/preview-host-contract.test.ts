@@ -36,6 +36,7 @@ import {
 } from "../preview-host/builtin-host-deps.js";
 import { createBuiltinPreviewHostInstallDeps } from "../preview-host/builtin-host-runtime.js";
 import { createBuiltinPreviewHostServerRoutes } from "../preview-host/builtin-server-routes.js";
+import { createServerRootSource } from "../preview-host/workspace/server-root-source.js";
 import { createPreviewHostDocumentGetJsonRoute } from "../preview-host/document-api-routes.js";
 import { routeRegisteredPreviewHostRequest } from "../preview-host/request-router.js";
 import {
@@ -1915,12 +1916,16 @@ test("builtin preview host install preserves frame-yaml document ownership acros
   const forceDefinitionsDir = path.join(tempDir, "force");
   const forceSpecPath = path.join(forceDefinitionsDir, "force-stakeholders.yaml");
   const framesDir = path.join(tempDir, "frames");
+  const otherFramesDir = path.join(tempDir, "other-frames");
   const sourceFramePath = path.join(REPO_ROOT, "diagrams", "1.input", "complex-routing-usecase.yaml");
   const tempFramePath = path.join(framesDir, "complex-routing-usecase.yaml");
+  const otherFramePath = path.join(otherFramesDir, "complex-routing-usecase.yaml");
   const sequenceFramePath = path.join(framesDir, "service-handshake-sequence.yaml");
   mkdirSync(framesDir, { recursive: true });
+  mkdirSync(otherFramesDir, { recursive: true });
   mkdirSync(forceDefinitionsDir, { recursive: true });
   copyFileSync(sourceFramePath, tempFramePath);
+  copyFileSync(sourceFramePath, otherFramePath);
   writeFileSync(forceSpecPath, "nodes:\n  - id: alpha\nlinks: []\n", "utf8");
   writeFileSync(
     sequenceFramePath,
@@ -1981,6 +1986,10 @@ test("builtin preview host install preserves frame-yaml document ownership acros
     removeSseClient: () => {},
     corpusRefDir: path.join(tempDir, "corpus"),
     inputDirs: [path.join(tempDir, "input")],
+    workspaceSources: [
+      createServerRootSource({ id: "default", label: "Diagrams", dir: framesDir }),
+      createServerRootSource({ id: "other", label: "Other", dir: otherFramesDir }),
+    ],
   }));
 
   try {
@@ -2238,6 +2247,112 @@ test("builtin preview host install preserves frame-yaml document ownership acros
     assert.equal(readFileSync(tempFramePath, "utf8"), baselineFrameText);
     assert.ok(frameOverridesPayload && typeof frameOverridesPayload === "object");
     assert.equal((frameOverridesPayload as Record<string, unknown>).ok, true);
+
+    // The registered request path must preserve a qualified address through
+    // save -> reload, including the URL-encoded colon used by browsers.
+    const qualifiedPreviewMatch = resolveRegisteredPreviewHostApiRoute(
+      "GET",
+      "/api/preview-document/other%3Acomplex-routing-usecase",
+      normalizePreviewSlug,
+    );
+    assert.ok(qualifiedPreviewMatch);
+    let qualifiedPreviewPayload: unknown = null;
+    await qualifiedPreviewMatch.route.handle(qualifiedPreviewMatch, {
+      req: {} as never,
+      res: {} as never,
+      pathname: qualifiedPreviewMatch.pathname,
+      sendJson: (_statusCode, payload) => {
+        qualifiedPreviewPayload = payload;
+      },
+      sendText: () => {
+        throw new Error("did not expect qualified preview route to send plain text");
+      },
+      sendBytes: () => {
+        throw new Error("did not expect qualified preview route to send bytes");
+      },
+      readJsonBody: async () => ({}),
+    });
+    assert.equal((qualifiedPreviewPayload as Record<string, unknown>).slug, "complex-routing-usecase");
+
+    const defaultBeforeQualifiedSave = readFileSync(tempFramePath, "utf8");
+    const otherBeforeQualifiedSave = readFileSync(otherFramePath, "utf8");
+    const qualifiedSaveMatch = resolveRegisteredPreviewHostApiRoute(
+      "POST",
+      "/api/overrides/other%3Acomplex-routing-usecase",
+      normalizePreviewSlug,
+    );
+    assert.ok(qualifiedSaveMatch);
+    let qualifiedSavePayload: unknown = null;
+    await qualifiedSaveMatch.route.handle(qualifiedSaveMatch, {
+      req: {} as never,
+      res: {} as never,
+      pathname: qualifiedSaveMatch.pathname,
+      sendJson: (_statusCode, payload) => {
+        qualifiedSavePayload = payload;
+      },
+      sendText: () => {
+        throw new Error("did not expect qualified save route to send plain text");
+      },
+      sendBytes: () => {
+        throw new Error("did not expect qualified save route to send bytes");
+      },
+      readJsonBody: async () => ({ grid_overrides: { outer_margin: 17 } }),
+    });
+    assert.equal((qualifiedSavePayload as Record<string, unknown>).ok, true);
+    assert.equal(readFileSync(tempFramePath, "utf8"), defaultBeforeQualifiedSave);
+    assert.notEqual(readFileSync(otherFramePath, "utf8"), otherBeforeQualifiedSave);
+
+    const qualifiedReloadMatch = resolveRegisteredPreviewHostApiRoute(
+      "GET",
+      "/api/preview-document/other%3Acomplex-routing-usecase",
+      normalizePreviewSlug,
+    );
+    assert.ok(qualifiedReloadMatch);
+    let qualifiedReloadPayload: unknown = null;
+    await qualifiedReloadMatch.route.handle(qualifiedReloadMatch, {
+      req: {} as never,
+      res: {} as never,
+      pathname: qualifiedReloadMatch.pathname,
+      sendJson: (_statusCode, payload) => {
+        qualifiedReloadPayload = payload;
+      },
+      sendText: () => {
+        throw new Error("did not expect qualified reload route to send plain text");
+      },
+      sendBytes: () => {
+        throw new Error("did not expect qualified reload route to send bytes");
+      },
+      readJsonBody: async () => ({}),
+    });
+    assert.equal((qualifiedReloadPayload as Record<string, unknown>).slug, "complex-routing-usecase");
+
+    for (const [pathname, expectedType] of [
+      ["/svg/other%3Acomplex-routing-usecase-onbrand-v3.svg", "svg"],
+      ["/drawio/other%3Acomplex-routing-usecase.drawio", "drawio"],
+    ] as const) {
+      const exportMatch = resolveRegisteredPreviewHostApiRoute("GET", pathname, normalizePreviewSlug);
+      assert.ok(exportMatch);
+      let exportPayload: Buffer | null = null;
+      let exportStatus = 0;
+      await exportMatch.route.handle(exportMatch, {
+        req: {} as never,
+        res: {} as never,
+        pathname: exportMatch.pathname,
+        sendJson: () => {
+          throw new Error(`did not expect ${expectedType} route to send json`);
+        },
+        sendText: (statusCode) => {
+          exportStatus = statusCode;
+        },
+        sendBytes: (statusCode, _contentType, bytes) => {
+          exportStatus = statusCode;
+          exportPayload = bytes;
+        },
+        readJsonBody: async () => ({}),
+      });
+      assert.equal(exportStatus, 200);
+      assert.ok(exportPayload && exportPayload.length > 0);
+    }
 
     const specMatch = resolveRegisteredPreviewHostApiRoute(
       "GET",

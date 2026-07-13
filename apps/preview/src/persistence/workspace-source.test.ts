@@ -75,6 +75,9 @@ test("WorkspaceRegistry preserves order, rejects duplicate ids, and resolves add
   assert.deepEqual(registry.resolve("beta:diagram"), { source: b, slug: "diagram" });
   // Unknown source id resolves to null.
   assert.equal(registry.resolve("gamma:diagram"), null);
+  // A malformed qualified-looking address must not fall back to the default
+  // source as a bare filename.
+  assert.equal(registry.resolve("beta:diagram:extra"), null);
 
   // An empty registry cannot resolve anything.
   assert.equal(new WorkspaceRegistry().resolve("diagram"), null);
