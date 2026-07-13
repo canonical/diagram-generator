@@ -306,13 +306,27 @@ export function installBuiltinAutolayoutPreviewHostApiRoutes(
 export function createAutolayoutPreviewHostViewerRoute(
   deps: BuiltinAutolayoutPreviewHostModuleDeps,
 ): PreviewHostViewerRouteDescriptor {
+  const resolveDocContext = (
+    slug: string,
+  ): { deps: typeof deps.framePreviewDocumentDeps; slug: string } => {
+    const resolved = deps.resolveFrameDir?.(slug);
+    if (!resolved) return { deps: deps.framePreviewDocumentDeps, slug };
+    return {
+      deps: { ...deps.framePreviewDocumentDeps, framesDir: resolved.framesDir },
+      slug: resolved.slug,
+    };
+  };
   return {
     key: "autolayout",
     lane: AUTOLAYOUT_HOST_LANE,
     routePrefixes: ["/view/"],
     listSlugs: () => deps.listAutolayoutDiagrams(),
-    hasDocument: (slug: string) => frameDiagramExists(slug, deps.framePreviewDocumentDeps),
+    hasDocument: (slug: string) => {
+      const docCtx = resolveDocContext(slug);
+      return frameDiagramExists(docCtx.slug, docCtx.deps);
+    },
     buildHtml: (slug: string) => {
+      const docCtx = resolveDocContext(slug);
       const {
         authoredLayoutEngine,
         documentKind,
@@ -321,8 +335,8 @@ export function createAutolayoutPreviewHostViewerRoute(
         compatibleEngines,
         hasReference,
       } = resolveFramePreviewViewerContext(
-        slug,
-        deps.framePreviewDocumentDeps,
+        docCtx.slug,
+        docCtx.deps,
         {
           normalizeLayoutEngine: deps.normalizeLayoutEngine,
           findReferenceImage: deps.findReferenceImage,
@@ -401,6 +415,7 @@ export function createAutolayoutPreviewHostViewerRoute(
       framePreviewRenderDeps: deps.framePreviewRenderDeps,
       parseYaml: deps.parseYaml,
       normalizeLayoutEngine: deps.normalizeLayoutEngine,
+      resolveFrameDir: deps.resolveFrameDir,
     }),
   };
 }

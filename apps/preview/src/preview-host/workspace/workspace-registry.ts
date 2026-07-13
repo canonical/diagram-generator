@@ -17,6 +17,11 @@ export interface ResolvedDiagramAddress {
   readonly slug: string;
 }
 
+/** A resolved disk-backed address: the source directory plus the bare slug. */
+export interface ResolvedFrameDirAddress extends ResolvedDiagramAddress {
+  readonly framesDir: string;
+}
+
 export class WorkspaceRegistry {
   private readonly sources: DiagramWorkspaceSource[] = [];
   private readonly byId = new Map<string, DiagramWorkspaceSource>();
@@ -68,5 +73,17 @@ export class WorkspaceRegistry {
   /** Aggregate diagram entries across every source, in registration order. */
   listEntries(): DiagramEntry[] {
     return this.sources.flatMap((source) => source.list());
+  }
+
+  /**
+   * Resolve an address to the disk directory + bare slug for a disk-backed
+   * source. Returns `null` when the address is unknown or the source has no
+   * backing directory (e.g. a browser `local-folder`). Bridges qualified
+   * addresses onto the downstream single-directory `{ framesDir }` contract.
+   */
+  resolveFrameDir(address: string): ResolvedFrameDirAddress | null {
+    const resolved = this.resolve(address);
+    if (!resolved || typeof resolved.source.directory !== "string") return null;
+    return { ...resolved, framesDir: resolved.source.directory };
   }
 }

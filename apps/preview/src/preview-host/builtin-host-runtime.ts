@@ -19,6 +19,7 @@ import { buildIndexPageHtml } from "./pages.js";
 import { buildRegisteredPreviewBrowseSections } from "./registry.js";
 import { createServerRootSource } from "./workspace/server-root-source.js";
 import { WorkspaceRegistry } from "./workspace/workspace-registry.js";
+import type { DiagramWorkspaceSource } from "./workspace/diagram-workspace-source.js";
 import type { FramePreviewDocumentDeps, FramePreviewRenderDeps } from "./frame-documents.js";
 import type { ForcePreviewDocumentDeps } from "./force-documents.js";
 import type { PreviewHostModuleInstallDeps } from "./modules.js";
@@ -48,6 +49,13 @@ export interface CreateBuiltinPreviewHostInstallDepsOptions
   readonly framesDir: string;
   readonly corpusRefDir: string;
   readonly inputDirs: readonly string[];
+  /**
+   * Ordered workspace sources (spec 075). When provided, diagram listing and
+   * per-request folder resolution route through these instead of the single
+   * default frames directory. The first source is the default (bare-slug)
+   * source; additional sources emit qualified `sourceId:slug` entries.
+   */
+  readonly workspaceSources?: readonly DiagramWorkspaceSource[];
 }
 
 function isSafeSlug(slug: string): boolean {
@@ -156,16 +164,35 @@ export function createBuiltinPreviewHostInstallDeps(
       parseYaml: options.parseYaml,
     });
 
-  // Route diagram listing through the typed workspace-source abstraction
-  // (spec 075). Phase 0 registers a single default `server-root` source over
-  // the historical frames directory, so listing behaviour is unchanged.
-  const workspaceRegistry = new WorkspaceRegistry([
-    createServerRootSource({
-      id: "default",
-      label: "Diagrams",
-      dir: options.framePreviewDocumentDeps.framesDir,
-    }),
-  ]);
+  // Route diagram listing and per-request folder resolution through the typed
+  // workspace-source abstraction (spec 075). When no sources are configured,
+  // register a single default `server-root` over the historical frames
+  // directory so behaviour is unchanged.
+  const workspaceRegistry = new WorkspaceRegistry(
+    options.workspaceSources && options.workspaceSources.length > 0
+      ? [...options.workspaceSources]
+      : [
+          createServerRootSource({
+            id: "default",
+            label: "Diagrams",
+            dir: options.framePreviewDocumentDeps.framesDir,
+          }),
+        ],
+  );
+
+  // The default (first) source keeps bare slugs for backward-compatible deep
+  // links; additional sources are addressed with qualified `sourceId:slug`.
+  const listWorkspaceDiagramSlugs = (): string[] =>
+    workspaceRegistry
+      .list()
+      .flatMap((source, index) =>
+        source.list().map((entry) => (index === 0 ? entry.slug : entry.qualifiedId)),
+      );
+
+  const resolveFrameDir = (slug: string): { framesDir: string; slug: string } | null => {
+    const resolved = workspaceRegistry.resolveFrameDir(slug);
+    return resolved ? { framesDir: resolved.framesDir, slug: resolved.slug } : null;
+  };
 
   const moduleContexts = new Map<string, unknown>([
     [
@@ -175,10 +202,11 @@ export function createBuiltinPreviewHostInstallDeps(
         framePreviewDocumentDeps: options.framePreviewDocumentDeps,
         framePreviewRenderDeps: options.framePreviewRenderDeps,
         listAutolayoutDiagrams(): string[] {
-          return workspaceRegistry.defaultSource()?.list().map((entry) => entry.slug) ?? [];
+          return listWorkspaceDiagramSlugs();
         },
         findReferenceImage: referenceImageResolver,
         normalizeLayoutEngine,
+        resolveFrameDir,
       } satisfies BuiltinAutolayoutPreviewHostModuleDeps,
     ],
     [

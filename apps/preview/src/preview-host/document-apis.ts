@@ -20,6 +20,13 @@ export interface CreateFramePreviewHostDocumentApiOptions {
   readonly framePreviewRenderDeps: FramePreviewRenderDeps;
   readonly parseYaml: (raw: string) => unknown;
   readonly normalizeLayoutEngine: (layoutEngine: string | undefined) => string;
+  /**
+   * Optional workspace-source resolver (spec 075). Given a possibly-qualified
+   * `sourceId:slug` address, returns the source directory and the bare slug so
+   * each endpoint operates on the correct folder. When omitted, endpoints keep
+   * the historical single-directory behaviour.
+   */
+  readonly resolveFrameDir?: (slug: string) => { framesDir: string; slug: string } | null;
 }
 
 export interface CreateForcePreviewHostDocumentApiOptions {
@@ -47,30 +54,58 @@ export const FORCE_PREVIEW_HOST_DOCUMENT_ENDPOINTS = {
 export function createFramePreviewHostDocumentEndpoints(
   options: CreateFramePreviewHostDocumentApiOptions,
 ): readonly PreviewHostDocumentEndpointDescriptor[] {
+  const resolveDoc = (slug: string): { deps: FramePreviewDocumentDeps; slug: string } => {
+    const resolved = options.resolveFrameDir?.(slug);
+    if (!resolved) return { deps: options.framePreviewDocumentDeps, slug };
+    return { deps: { ...options.framePreviewDocumentDeps, framesDir: resolved.framesDir }, slug: resolved.slug };
+  };
+  const resolveRender = (slug: string): { deps: FramePreviewRenderDeps; slug: string } => {
+    const resolved = options.resolveFrameDir?.(slug);
+    if (!resolved) return { deps: options.framePreviewRenderDeps, slug };
+    return { deps: { ...options.framePreviewRenderDeps, framesDir: resolved.framesDir }, slug: resolved.slug };
+  };
   return [
     {
       kind: FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS.previewDocument,
-      handler: (slug: string) => previewDocumentForSlug(slug, options.framePreviewDocumentDeps),
+      handler: (slug: string) => {
+        const r = resolveDoc(slug);
+        return previewDocumentForSlug(r.slug, r.deps);
+      },
     },
     {
       kind: FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS.frameTree,
-      handler: (slug: string) => frameTreeForSlug(slug, options.framePreviewDocumentDeps),
+      handler: (slug: string) => {
+        const r = resolveDoc(slug);
+        return frameTreeForSlug(r.slug, r.deps);
+      },
     },
     {
       kind: FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS.componentTree,
-      handler: (slug: string) => componentTreeForSlug(slug, options.framePreviewDocumentDeps),
+      handler: (slug: string) => {
+        const r = resolveDoc(slug);
+        return componentTreeForSlug(r.slug, r.deps);
+      },
     },
     {
       kind: FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS.gridInfo,
-      handler: (slug: string) => gridInfoForSlug(slug, options.framePreviewDocumentDeps),
+      handler: (slug: string) => {
+        const r = resolveDoc(slug);
+        return gridInfoForSlug(r.slug, r.deps);
+      },
     },
     {
       kind: FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS.svgExport,
-      handler: (slug: string) => renderSvgForSlug(slug, options.framePreviewRenderDeps),
+      handler: (slug: string) => {
+        const r = resolveRender(slug);
+        return renderSvgForSlug(r.slug, r.deps);
+      },
     },
     {
       kind: FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS.drawioExport,
-      handler: (slug: string) => renderDrawioForSlug(slug, options.framePreviewRenderDeps),
+      handler: (slug: string) => {
+        const r = resolveRender(slug);
+        return renderDrawioForSlug(r.slug, r.deps);
+      },
     },
     {
       kind: FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS.mermaidExport,
@@ -82,12 +117,14 @@ export function createFramePreviewHostDocumentEndpoints(
     },
     {
       kind: FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS.saveDocument,
-      handler: (slug: string, payload: unknown) =>
-        saveFramePreviewDocument(slug, payload, {
-          framePreviewDocumentDeps: options.framePreviewDocumentDeps,
+      handler: (slug: string, payload: unknown) => {
+        const r = resolveDoc(slug);
+        return saveFramePreviewDocument(r.slug, payload, {
+          framePreviewDocumentDeps: r.deps,
           parseYaml: options.parseYaml,
           normalizeLayoutEngine: options.normalizeLayoutEngine,
-        }),
+        });
+      },
     },
   ] as const;
 }

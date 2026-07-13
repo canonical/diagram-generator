@@ -33,6 +33,13 @@ export interface DiagramWorkspaceSource {
   readonly label: string;
   readonly kind: DiagramSourceKind;
   readonly writable: boolean;
+  /**
+   * Absolute directory backing a disk source, when applicable. Present for
+   * `server-root` / `bundled-examples`; absent for a browser `local-folder`.
+   * Used at the request boundary to build per-source `{ framesDir }` deps
+   * without changing the downstream single-directory contract.
+   */
+  readonly directory?: string;
   /** List the diagrams available in this source, sorted by slug. */
   list(): DiagramEntry[];
   /** Whether a diagram with this bare slug exists in the source. */

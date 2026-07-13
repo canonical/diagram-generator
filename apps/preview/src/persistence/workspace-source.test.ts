@@ -166,3 +166,72 @@ test("realpath containment rejects symlink escape", (t) => {
   assert.ok(!source.has("escape"));
   assert.throws(() => source.read("escape"));
 });
+
+test("registry aggregates two roots and resolves qualified addresses to the right folder", () => {
+  const defaultDir = tempDir("dg-ws-default-");
+  const otherDir = tempDir("dg-ws-other-");
+  fs.writeFileSync(path.join(defaultDir, "shared.yaml"), "engine: v3\n# default\n", "utf8");
+  fs.writeFileSync(path.join(otherDir, "shared.yaml"), "engine: v3\n# other\n", "utf8");
+  fs.writeFileSync(path.join(otherDir, "unique.yaml"), "engine: v3\n", "utf8");
+
+  const registry = new WorkspaceRegistry([
+    createServerRootSource({ id: "default", label: "Diagrams", dir: defaultDir }),
+    createServerRootSource({ id: "other", label: "Other", dir: otherDir }),
+  ]);
+
+  // Duplicate filenames across sources stay distinct via qualified ids (SC-001).
+  assert.deepEqual(
+    registry.listEntries().map((entry) => entry.qualifiedId),
+    ["default:shared", "other:shared", "other:unique"],
+  );
+
+  // A bare slug resolves to the default root's directory.
+  assert.deepEqual(registry.resolveFrameDir("shared"), {
+    source: registry.get("default"),
+    slug: "shared",
+    framesDir: defaultDir,
+  });
+  // A qualified slug resolves to the named root's directory + bare slug.
+  assert.deepEqual(registry.resolveFrameDir("other:unique"), {
+    source: registry.get("other"),
+    slug: "unique",
+    framesDir: otherDir,
+  });
+  // Unknown source id resolves to null.
+  assert.equal(registry.resolveFrameDir("ghost:unique"), null);
+});
+
+test("registry resolveFrameDir returns null for directory-less sources", () => {
+  const memorySource: DiagramWorkspaceSource = {
+    id: "local",
+    label: "Local folder",
+    kind: "local-folder",
+    writable: true,
+    list: () => [],
+    has: () => false,
+    read: () => "",
+    write: () => undefined,
+  };
+  const registry = new WorkspaceRegistry([memorySource]);
+  assert.equal(registry.resolveFrameDir("local:anything"), null);
+});
+
+test("persist -> reload to a non-default root addresses the correct folder", () => {
+  const defaultDir = tempDir("dg-ws-persist-default-");
+  const otherDir = tempDir("dg-ws-persist-other-");
+  const registry = new WorkspaceRegistry([
+    createServerRootSource({ id: "default", label: "Diagrams", dir: defaultDir }),
+    createServerRootSource({ id: "other", label: "Other", dir: otherDir }),
+  ]);
+
+  const yaml = "engine: v3\nroot:\n  id: page\n  children: []\narrows: []\n";
+  registry.get("other")!.write("doc", yaml);
+
+  // The qualified address resolves to the other root's dir and reloads identically.
+  const resolved = registry.resolveFrameDir("other:doc");
+  assert.ok(resolved);
+  assert.equal(resolved!.framesDir, otherDir);
+  assert.equal(fs.readFileSync(path.join(resolved!.framesDir, `${resolved!.slug}.yaml`), "utf8"), yaml);
+  // Nothing leaked into the default root.
+  assert.ok(!fs.existsSync(path.join(defaultDir, "doc.yaml")));
+});

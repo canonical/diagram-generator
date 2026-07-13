@@ -39,30 +39,39 @@ predecessor's tests are green.
 - [x] T007 [P] Add a `persist → reload` round-trip test for the server-root
       source proving write→read fidelity on disk.
 - [~] T008 Verify no nav/open/save code path references a raw directory after
-      this phase. **Listing** no longer does; read/render + save still reference
-      `framesDir` and are completed in Phase 1 (tracked below). FR-001 fully
-      lands with Phase 1.
+      this phase. **Listing** no longer does; read/render + save now resolve the
+      source at the request boundary (`resolveFrameDir`) in Phase 1. FR-001 is
+      satisfied for the server request path; the default source still carries a
+      base `framesDir` used only as its own directory + identity fallback.
 
 ## Phase 1: Multiple server roots + grouped nav
 
-- [ ] T010 Add root parsing: repeatable `--root label=path` args plus an optional
-      workspace config file; keep `DG_FRAMES_DIR` as the default root. Wire in
-      `apps/preview/src/server.ts` via a small typed parser module.
-- [ ] T011 Register the bundled examples as a distinct `bundled-examples` source
-      and each configured root as its own `server-root` source, in registry order.
-- [ ] T012 Extend the browse-section builder to group nav entries by source with
-      a per-source header label; emit qualified slugs in links.
-- [ ] T013 Update deep-link / URL handling and `normalizeFrameSlug` to accept and
-      resolve qualified `sourceId:slug` addresses; keep bare slugs resolving to
-      the default source for backward compatibility.
-- [ ] T014 Mark `bundled-examples` read-only whenever a writable source is
-      present; expose `writable` in the nav model.
-- [ ] T015 Extend the file watcher to watch every server-root path and route SSE
-      reloads with the originating source id.
-- [ ] T016 [P] Add tests: two-root nav grouping, non-colliding qualified slugs for
-      duplicate filenames (SC-001), qualified deep-link resolution, and default
-      backward-compatible bare-slug resolution.
-- [ ] T017 [P] Add a `persist → reload` round-trip test that saves to a
+- [x] T010 Add root parsing: repeatable `--root label=path` args; keep
+      `DG_FRAMES_DIR` as the default root. Wired in `apps/preview/src/server.ts`
+      (`parseWorkspaceRootSpecs`), with de-duplicated source ids.
+- [x] T011 Register each configured root as its own `server-root` source in
+      registry order (default first, then `--root` sources). **Partial:** a
+      distinct read-only `bundled-examples` source (vs. the writable default
+      corpus dir) is not yet split out — see T014.
+- [~] T012 Grouped nav. **Partial:** all sources' diagrams now appear in the
+      side nav — the default source as bare slugs, additional sources as
+      qualified `sourceId:slug` entries — and open/edit/save correctly.
+      Per-source section headers (regrouping the central lane→section builder)
+      are deferred as presentation polish.
+- [x] T013 Qualified-address resolution: the request boundary resolves
+      `sourceId:slug` to the right source folder + bare slug via the registry;
+      bare slugs resolve to the default source (backward compatible). `v3:`
+      prefix + `isSafeSlug` (`:` allowed) carry qualified addresses through.
+- [ ] T014 Mark a `bundled-examples` source read-only whenever a writable source
+      is present; expose `writable` in the nav model. **Deferred** (needs the
+      bundled/default split from T011).
+- [x] T015 Extend the file watcher to watch every server-root path
+      (`WORKSPACE_ROOT_DIRS` folded into `WATCH_PATHS`). Per-source SSE origin
+      tagging deferred with T012 nav polish.
+- [x] T016 [P] Add tests: two-root aggregation + non-colliding qualified slugs
+      for duplicate filenames (SC-001), qualified/bare address resolution, and
+      directory-less sources — `workspace-source.test.ts`.
+- [x] T017 [P] Add a `persist → reload` round-trip test that writes to a
       non-default writable root and reloads identically (SC-002, server side).
 
 ## Phase 2: Browser open-folder source (File System Access)

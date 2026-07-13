@@ -83,6 +83,7 @@ export function createServerRootSource(options: ServerRootSourceOptions): Diagra
     label,
     kind,
     writable,
+    directory: dir,
     list(): DiagramEntry[] {
       if (!existsSync(dir)) return [];
       return readdirSync(dir, { withFileTypes: true })

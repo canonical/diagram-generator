@@ -58,6 +58,12 @@ export interface BuiltinAutolayoutPreviewHostModuleDeps
   readonly listAutolayoutDiagrams: () => string[];
   readonly findReferenceImage: (slug: string) => string | null;
   readonly normalizeLayoutEngine: (layoutEngine: string | undefined) => string;
+  /**
+   * Optional workspace-source resolver (spec 075): maps a possibly-qualified
+   * `sourceId:slug` address to the backing source directory + bare slug. When
+   * omitted, the host keeps the historical single-directory behaviour.
+   */
+  readonly resolveFrameDir?: (slug: string) => { framesDir: string; slug: string } | null;
 }
 
 export interface BuiltinForcePreviewHostModuleDeps

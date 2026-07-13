@@ -19,6 +19,8 @@ import {
 import { createBuiltinPreviewHostInstallDeps } from "./preview-host/builtin-host-runtime.js";
 import { installBuiltinPreviewHost } from "./preview-host/install-builtins.js";
 import { routeRegisteredPreviewHostRequest } from "./preview-host/request-router.js";
+import { createServerRootSource } from "./preview-host/workspace/server-root-source.js";
+import type { DiagramWorkspaceSource } from "./preview-host/workspace/diagram-workspace-source.js";
 
 const DEFAULT_PORT = 8100;
 const SPEC_HOME = "docs/spec-archive/045-preview-host-engine-modularity/";
@@ -31,6 +33,53 @@ const REPO_ROOT = path.resolve(APP_ROOT, "..", "..");
 const SCRIPTS_DIR = path.join(REPO_ROOT, "scripts");
 const PREVIEW_DIR = path.join(SCRIPTS_DIR, "preview");
 const FRAMES_DIR = path.resolve(process.env.DG_FRAMES_DIR ?? path.join(REPO_ROOT, "diagrams", "1.input"));
+
+/**
+ * Parse repeatable `--root label=path` args (spec 075) into labelled diagram
+ * sources. Ids are derived from labels and de-duplicated so qualified
+ * `sourceId:slug` addresses never collide.
+ */
+function parseWorkspaceRootSpecs(
+  argv: readonly string[],
+): { id: string; label: string; dir: string }[] {
+  const specs: { label: string; path: string }[] = [];
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index] ?? "";
+    let raw: string | undefined;
+    if (arg === "--root" && index + 1 < argv.length) {
+      raw = argv[index + 1];
+      index += 1;
+    } else if (arg.startsWith("--root=")) {
+      raw = arg.slice("--root=".length);
+    }
+    if (!raw) continue;
+    const eq = raw.indexOf("=");
+    const label = eq > 0 ? raw.slice(0, eq).trim() : path.basename(path.resolve(raw));
+    const target = eq > 0 ? raw.slice(eq + 1).trim() : raw.trim();
+    if (target) specs.push({ label: label || target, path: target });
+  }
+  const usedIds = new Set<string>(["default"]);
+  return specs.map(({ label, path: target }) => {
+    const base = label.replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "root";
+    let id = base;
+    let suffix = 2;
+    while (usedIds.has(id)) {
+      id = `${base}-${suffix}`;
+      suffix += 1;
+    }
+    usedIds.add(id);
+    return { id, label, dir: path.resolve(target) };
+  });
+}
+
+const WORKSPACE_ROOT_SPECS = parseWorkspaceRootSpecs(process.argv.slice(2));
+const WORKSPACE_SOURCES: DiagramWorkspaceSource[] = [
+  createServerRootSource({ id: "default", label: "Diagrams", dir: FRAMES_DIR }),
+  ...WORKSPACE_ROOT_SPECS.map((spec) =>
+    createServerRootSource({ id: spec.id, label: spec.label, dir: spec.dir }),
+  ),
+];
+const WORKSPACE_ROOT_DIRS = WORKSPACE_ROOT_SPECS.map((spec) => spec.dir);
 const FORCE_DEFINITIONS_DIR = path.resolve(
   process.env.DG_FORCE_DEFINITIONS_DIR ?? path.join(SCRIPTS_DIR, "diagrams", "force"),
 );
@@ -109,7 +158,7 @@ const framePreviewRenderDeps: FramePreviewRenderDeps = {
   textAdapterPromise,
 };
 const WATCH_EXTENSIONS = new Set([".yaml", ".yml", ".json", ".html", ".css", ".js", ".svg", ".ttf", ".woff", ".woff2"]);
-const WATCH_PATHS = [FRAMES_DIR, FORCE_DEFINITIONS_DIR, PREVIEW_DIR, BF_VENDOR_ROOT, path.join(REPO_ROOT, "packages", "layout-engine", "dist")];
+const WATCH_PATHS = [FRAMES_DIR, ...WORKSPACE_ROOT_DIRS, FORCE_DEFINITIONS_DIR, PREVIEW_DIR, BF_VENDOR_ROOT, path.join(REPO_ROOT, "packages", "layout-engine", "dist")];
 let rebuildGeneration = 0;
 let lastRebuildError: string | null = null;
 let watchIntervalHandle: NodeJS.Timeout | null = null;
@@ -445,6 +494,7 @@ installBuiltinPreviewHost(createBuiltinPreviewHostInstallDeps({
   },
   corpusRefDir: CORPUS_REF_DIR,
   inputDirs: INPUT_DIRS,
+  workspaceSources: WORKSPACE_SOURCES,
 }));
 
 function contentTypeForPath(filePath: string): string {
