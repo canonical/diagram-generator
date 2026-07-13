@@ -1154,6 +1154,28 @@ test("upsertFrameDiagram applies the real telecom effective payload sizing", asy
   resetTestState();
   fetchState.payload = await createFrameDiagramPayload("ai-infra-telecom-services-stack");
 
+  const regionalEdge = findPayloadNode(fetchState.payload.root, "regional_edge");
+  const regionalRow = findPayloadNode(fetchState.payload.root, "regional_row1");
+  assert.ok(regionalEdge, "missing Regional edge panel in payload");
+  assert.ok(regionalRow, "missing Regional edge row in payload");
+  assert.deepEqual(
+    {
+      panelSizingH: regionalEdge.sizingH,
+      bodySizingH: regionalEdge.bodySizingH,
+      bodyHeight: regionalEdge.bodyHeight,
+      rowSizingH: regionalRow.sizingH,
+      rowHeight: regionalRow.height,
+    },
+    {
+      panelSizingH: "HUG",
+      bodySizingH: "HUG",
+      bodyHeight: regionalRow.height,
+      rowSizingH: "HUG",
+      rowHeight: regionalRow.height,
+    },
+    "Regional edge must let its SlotNode body hug the directed row rather than constrain it to a fixed height",
+  );
+
   const result = await testables.upsertFrameDiagram("http://localhost:3846", "ai-infra-telecom-services-stack");
   const importedRoot = fakeFigma.currentPage.selection[0]!;
 

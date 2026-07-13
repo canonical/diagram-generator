@@ -209,3 +209,23 @@ for automatic icon selection. Then rerun the connector inspection and record:
 - slot layer name or marker
 - whether slot content can be mutated while preserving instance semantics
 - icon component names/keys for every YAML icon id used by the target diagrams
+
+## 2026-07-13 Regional edge sizing correction (repo evidence)
+
+The `regional_edge` source node had an explicit `sizing_h: fill` override.
+Although its directed `regional_row1` body correctly hugged its three leaf
+children (216px), the effective payload forced the panel to `FIXED` height and
+the synthetic body to `FILL`. In the live component-slot hierarchy that allows
+the SlotNode's authored height to constrain the generated body and overflow the
+last child.
+
+The override was removed so normal V3 vertical Hug behavior applies. The
+fixture regression asserts the resulting effective chain is `HUG` for the
+Regional edge panel, its generated slot body, and `regional_row1`, with the
+body height equal to the row height. This is protected by
+`upsertFrameDiagram applies the real telecom effective payload sizing` in
+`apps/figma-plugin/src/code.test.ts`.
+
+This is payload/test evidence only. Re-import the fixture into the actual Figma
+component file after reloading the rebuilt plugin and record the live visual
+result before declaring the gate passed.

@@ -24,6 +24,14 @@ valid diagram solely for opaque slot content. Effective V3 `FIXED` geometry is
 reapplied after final auto-layout reparenting; HUG and FILL remain auto-layout
 semantics.
 
+**2026-07-13 Regional edge sizing fix:** the fixture's explicit
+`regional_edge.sizing_h: fill` forced a fixed panel with a fill-sized synthetic
+slot body, while its `regional_row1` children correctly hugged. Removing that
+override restores the V3 effective vertical chain to panel/body/row `HUG`.
+The real-telecom payload regression asserts the body is exactly as tall as the
+row; it protects against a clipped final child without changing component
+master layers.
+
 The branch is queued for an independent adversarial merge review. Give Opus
 [`docs/spec-reviews/opus-review-prompt-2026-07-13-spec-079-merge.md`](docs/spec-reviews/opus-review-prompt-2026-07-13-spec-079-merge.md);
 it must write its verdict to

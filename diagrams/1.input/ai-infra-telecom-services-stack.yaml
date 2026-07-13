@@ -282,7 +282,6 @@ root:
             - Automation and
             - orchestration
             icon: Operations.svg
-        sizing_h: fill
         label:
         - Clean network fabric
       - id: far_edge
