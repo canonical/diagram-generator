@@ -17,8 +17,8 @@ adversarial reviews → `docs/spec-reviews/`.
 validation **26/26**; focused TLS preview render/browser tests **2/2**;
 `packages/layout-engine build:browser`, `check-browser-bundle-fresh.mjs`,
 `check-preview-shell-size-budgets.mjs`, and `check_no_new_python.mjs` green.
-Full layout-engine validation is **1023/1024** and full preview validation is
-**167/168**, with only the unrelated baselines recorded below.
+Full layout-engine validation is **1024/1024**. Full preview validation is
+**167/168**, with only the editor live-repaint baseline remaining below.
 
 ---
 
@@ -54,13 +54,7 @@ SVG regression. T054 remains open pending clean full-suite baselines.
 
 
 **Still open at spec level:**
-- T054 full validation remains open: the layout-engine suite has one unrelated
-  draw.io golden mismatch against the committed exporter baseline, and the
-  preview suite has one unrelated
-  editor-live-repaint default-options failure. Focused TLS/layout/portability
-  validation is green.
-- Full `npm --prefix packages/layout-engine test` currently fails only in
-  `export-frame-drawio.test.ts` for
-  `specs/077-yaml-drawio-export/golden/ai-infra-production-contract.drawio`.
-  The mismatch is outside TLS scope but is now a committed baseline discrepancy;
-  do not mark T054 complete until it is triaged and the full suite is green.
+- T054 full validation remains open only because the preview suite has one
+  `editor-live-repaint` default-options failure. The stale draw.io reference was
+  regenerated from the YAML-selected ELK export on 2026-07-13; the full
+  layout-engine suite is now green.

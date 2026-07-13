@@ -9,17 +9,18 @@ The post-rebase focused TLS and portability checks are green:
 - `node scripts/check_no_new_python.mjs`: pass.
 - `node scripts/check-preview-shell-size-budgets.mjs`: pass.
 
-The required full suites still have unrelated baseline failures:
+The draw.io reference mismatch was resolved on 2026-07-13. The committed
+reference had captured an older layout even though its YAML selected ELK; it was
+regenerated from the current deterministic exporter.
 
-- `npm --prefix packages/layout-engine test`: **1023/1024**; the only failure is
-  `export-frame-drawio.test.ts` because the committed
-  `specs/077-yaml-drawio-export/golden/ai-infra-production-contract.drawio`
-  disagrees with the current exporter. This is outside TLS scope, but it is a
-  real baseline discrepancy that must be triaged before T054 closes.
+- `npm --prefix packages/layout-engine test`: **1024/1024**.
+
+The preview suite still has one unrelated baseline failure:
+
 - `npm --prefix apps/preview test`: **167/168**; the only failure is the existing
   `editor-live-repaint-regression.test.ts` default ELK-options assertion, where
   two blank fields differ (`elk.aspectRatio` and
   `elk.layered.spacing.baseValue`).
 
-The unrelated draw.io edits and root PNG artifacts remain preserved in the named
-pre-rebase stash and are not part of the TLS branch.
+The unrelated root PNG artifacts remain preserved in the named pre-rebase stash
+and are not part of the TLS branch.

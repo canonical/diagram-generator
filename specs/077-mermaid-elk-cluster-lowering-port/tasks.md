@@ -207,8 +207,8 @@
       `node scripts/check-browser-bundle-fresh.mjs`;
       `node scripts/check_no_new_python.mjs`;
       `node scripts/check-preview-shell-size-budgets.mjs`.
-      **Evidence**: `evidence/validation-2026-07-13.md` (the two remaining
-      failures are unrelated draw.io/editor-live-repaint baselines).
+      **Evidence**: `evidence/validation-2026-07-13.md` (the remaining preview
+      editor-live-repaint baseline failure).
 
 ## Done-when (closeout)
 
