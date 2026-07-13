@@ -47,6 +47,23 @@ State explicitly when no P0/P1 finding is present.
      content-driven and Fill must remain an auto-layout behavior.
    - Inspect the fixture YAML changes as part of the branch; verify they are
      intentional V3 authoring changes rather than workaround geometry.
+   - Investigate the supplied live-Figma reproduction: `regional_row1` hugs
+     its three vertical leaf children correctly, but it is nested inside
+     `regional_edge/body`, whose height is fixed too small; the final child
+     overflows the Regional edge panel. Trace the full ownership chain rather
+     than treating the immediate child as the defect:
+     `regional_edge` live instance → `contents` SlotNode → importer-owned
+     `regional_edge/body` → raw `regional_row1` frame → leaf instances.
+     In particular, audit the two-frame structural pattern used for each
+     semantic container (vertical header/content stack, then the directed
+     body row/column). Determine, with exact payload values and code paths,
+     whether the wrong fixed height originates in the V3 synthetic body,
+     `resolveEffectiveSizing`/coercion, component-instance sizing, or
+     post-append fixed-axis restoration. It is not sufficient to recommend
+     setting the child to fixed or masking overflow: the desired outcome is
+     correct Hug/Fill propagation across both wrappers, so all contents fit
+     without an unnecessary fixed-height ancestor. Require a regression that
+     asserts the Regional edge chain's effective sizing and no overflow.
 
 4. Component contract and icon ownership
    - Text properties are preferred, with the narrowly targeted master-text-id
