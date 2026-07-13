@@ -64,3 +64,12 @@ Legend:
 | `D2_MISSING_*` | Export invalid ref |
 | `IMPORT_MERMAID_UNSUPPORTED_*` | Import skip |
 | `IMPORT_D2_UNSUPPORTED_*` | Import skip |
+
+## Known import limitations (v1)
+
+Documented, non-blocking behaviours outside the v1 import subset. Each is diagnosed – none is a silent loss.
+
+| Construct | Behaviour | Diagnostic |
+|-----------|-----------|------------|
+| Mermaid chained edges (`a --> b --> c`) | Nodes still import; both edge segments are skipped (outside the FR-004 `a --> b` / `a -->|label| b` subset). Author them as separate edges to recover connectivity. | `IMPORT_MERMAID_UNSUPPORTED_EDGE` |
+| D2 shape whose block holds only styling (e.g. `x: label { class: leaf }`) | Imports as a heading container with empty children rather than a labelled leaf. The label text is preserved as `heading`; only the frame role differs, matching D2's container block semantics. | `IMPORT_D2_UNSUPPORTED_CLASS` |
