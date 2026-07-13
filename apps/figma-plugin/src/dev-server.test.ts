@@ -318,6 +318,7 @@ test("telecom payload keeps headingless groups structural and panel heights cont
   ]) {
     const node = findPayloadNode(payload.root, id);
     assert.ok(node, `missing ${id}`);
+    assert.equal(node.kind, "panel", `${id} must retain semantic Parent component chrome`);
     assert.equal(node.sizingH, "HUG", `${id} panel height`);
     assert.equal(node.bodySizingH, "HUG", `${id} slot-body height`);
   }

@@ -149,9 +149,12 @@ function hasSemanticContainerText(frame: any) {
   // An explicit level may provide styling in the V3 source, but a headed/textless
   // container is still a layout grouping. Importing it as a Parent component
   // would expose the master's default title (for example, "Parent") and add
-  // unnecessary live slots. Only containers with visible, frame-owned text are
-  // semantic component candidates; rows and stacks stay raw auto-layout frames.
-  return frameOwnedTextBlocks(frame).length > 0;
+  // unnecessary live slots. Heading synthesis moves a real container title
+  // into a synthetic heading child, so recognize both locations. Rows and
+  // stacks without visible text stay raw auto-layout frames.
+  const syntheticHeading = findSyntheticHeading(frame);
+  return frameOwnedTextBlocks(frame).length > 0
+    || Boolean(syntheticHeading && frameOwnedTextBlocks(syntheticHeading).length > 0);
 }
 
 function normalizeSizing(value: unknown): FigmaSizing {
