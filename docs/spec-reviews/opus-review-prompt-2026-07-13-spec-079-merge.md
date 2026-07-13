@@ -30,6 +30,17 @@ State explicitly when no P0/P1 finding is present.
      alone is not semantic content: a container must have frame-owned visible
      text before it receives Parent component chrome. Check the implementation
      and tests for both halves of this boundary.
+   - Audit the cross-diagram reproduction in
+     `diagrams/1.input/ai-infra-telco-value-map.yaml` (local visual evidence:
+     `image copy.png`, not a commit artifact). Its headed non-leaf nodes such
+     as `operational_ai`, `customer_ai`, `network_ai`, and
+     `ai_services_revenue` currently import as ordinary generated frames.
+     Determine whether the semantic classifier's level gate incorrectly
+     demotes visible headed containers at level 1. The component-preservation
+     rule must work for arbitrary selected YAML, not only the telecom fixture:
+     a semantic headed container must remain a live mapped box instance, while
+     a genuinely textless row/stack remains raw. Require a component-mode
+     regression that proves both identities in this fixture without detaching.
 
 2. Slot lifecycle and refresh safety
    - Content slots must replace importer-owned content with exactly one raw
@@ -68,6 +79,15 @@ State explicitly when no P0/P1 finding is present.
      correct Hug/Fill propagation across both wrappers, so all contents fit
      without an unnecessary fixed-height ancestor. Require a regression that
      asserts the Regional edge chain's effective sizing and no overflow.
+   - Audit transparent structural wrappers independently from semantic boxes.
+     They must carry no paint/chrome and still use the V3 effective Hug/Fill
+     contract after direct SlotNode insertion. In the value-map reproduction,
+     trace `value_quadrants` and its row/stack descendants: identify every
+     fixed-height or non-hugging transparent wrapper, its payload sizing, and
+     whether it comes from serializer sizing, slot-body collapse, or Figma
+     reparenting. Do not accept a fix that merely makes a transparent frame
+     invisible while it continues to reserve fixed empty space. Require a
+     second-fixture no-overflow/Hug regression.
 
 4. Component contract and icon ownership
    - Text properties are preferred, with the narrowly targeted master-text-id
@@ -96,5 +116,6 @@ State explicitly when no P0/P1 finding is present.
 - `apps/figma-plugin/src/code.test.ts`
 - `apps/figma-plugin/src/dev-server.ts`
 - `diagrams/1.input/ai-infra-telecom-services-stack.yaml`
+- `diagrams/1.input/ai-infra-telco-value-map.yaml`
 - `specs/079-figma-component-variant-import/`
 - `AGENT-INBOX.md`
