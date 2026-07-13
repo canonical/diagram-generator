@@ -3,7 +3,7 @@
 Current state only. Invariants live in `AGENTS.md`; operating guidance lives in
 `docs/agent-index.md`; durable spec detail lives under `specs/`.
 
-**Last-known-green (2026-07-13, spec 079):** `apps/figma-plugin` **42/42**;
+**Last-known-green (2026-07-13, spec 079):** `apps/figma-plugin` **44/44**;
 plugin build and `check_no_new_python.mjs` pass; dev server health is 200 at
 `http://localhost:3846`.
 
@@ -33,6 +33,15 @@ and unnecessary slots from leaking into structural groups. Explicit vertical
 their panel/body/row chains use V3 `HUG`; the tallest child now determines the
 height. Payload regressions cover both contracts without changing component
 master layers.
+
+**2026-07-13 slot-body and icon contract correction:** a mapped content slot
+contains exactly one raw directional frame. If a semantic node has one
+automatic structural child, that child is inserted directly as the slot body;
+the importer does not add a redundant `<semantic-id>/body`. Structural frames
+are neutral (zero padding, transparent/no stroke, no component chrome). The
+component contract recognizes a Boolean `hasIcon` definition even without a
+direct icon-layer reference and always sets it false for icon-less payload
+nodes; no detachment or ordinary instance edit is involved.
 
 The branch is queued for an independent adversarial merge review. Give Opus
 [`docs/spec-reviews/opus-review-prompt-2026-07-13-spec-079-merge.md`](docs/spec-reviews/opus-review-prompt-2026-07-13-spec-079-merge.md);

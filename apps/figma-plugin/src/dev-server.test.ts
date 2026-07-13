@@ -306,6 +306,10 @@ test("telecom payload keeps headingless groups structural and panel heights cont
     const node = findPayloadNode(payload.root, id);
     assert.ok(node, `missing ${id}`);
     assert.equal(node.kind, "container", `${id} must not create an empty Parent component`);
+    assert.deepEqual(node.padding, { top: 0, right: 0, bottom: 0, left: 0 }, `${id} padding`);
+    assert.equal(node.fill, "transparent", `${id} fill`);
+    assert.equal(node.stroke, "none", `${id} stroke`);
+    assert.equal(node.strokeWidth, 0, `${id} stroke width`);
   }
 
   for (const id of [

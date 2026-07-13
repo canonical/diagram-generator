@@ -777,6 +777,7 @@ type BoxVariantPropertyOptions = {
 type BoxComponentSetOptions = {
   slotRejectsMutation?: boolean;
   slotLimitViolations?: string[];
+  hasIconProperty?: boolean;
   roleProperties?: Partial<Record<BoxRole, BoxVariantPropertyOptions>>;
 };
 
@@ -862,6 +863,7 @@ function installBoxComponentSet(options: BoxComponentSetOptions = {}, parent: Fa
     "Helper text#helper": { type: "TEXT", defaultValue: "Helper text" },
     "Show helper#showHelper": { type: "BOOLEAN", defaultValue: true },
     "Show icon#showIcon": { type: "BOOLEAN", defaultValue: true },
+    ...(options.hasIconProperty ? { "hasIcon#hasIcon": { type: "BOOLEAN", defaultValue: true } } : {}),
   };
   set.appendChild(makeBoxVariant("Child", false, { properties: options.roleProperties?.Child }));
   set.appendChild(makeBoxVariant("Parent", true, {
@@ -1374,6 +1376,35 @@ test("upsertYamlDiagram clears the default icon SLOT when a variant has no icon 
   assert.equal(iconSlot.children.length, 0);
 });
 
+test("upsertYamlDiagram sets a declared hasIcon Boolean false without an icon-layer reference", async () => {
+  resetTestState();
+  installBoxComponentSet({
+    hasIconProperty: true,
+    roleProperties: {
+      Child: { iconVisible: false },
+    },
+  });
+  fetchState.payload = {
+    slug: "component-has-icon",
+    title: "Component hasIcon",
+    source: {
+      kind: "selected-yaml",
+      name: "has-icon.yaml",
+    },
+    root: makeRoot([makeLeaf({ id: "no-icon", name: "No icon", icon: null })]),
+  };
+
+  const result = await testables.upsertYamlDiagram(
+    "http://localhost:3846",
+    "title: Component hasIcon\nroot:\n  id: page\n",
+    "has-icon.yaml",
+  );
+  assert.equal(result.componentMode, "box");
+
+  const instance = findImportedById(fakeFigma.currentPage, "no-icon");
+  assert.equal(componentPropertyValue(instance, "hasIcon#hasIcon"), false);
+});
+
 test("upsertYamlDiagram uses box component variants and instance slots when available", async () => {
   resetTestState();
   installBoxComponentSet();
@@ -1458,6 +1489,9 @@ test("upsertYamlDiagram keeps V3 structural containers as raw auto-layout frames
   assert.equal(wrapper?.type, "FRAME");
   assert.equal(wrapper?.layoutMode, "HORIZONTAL");
   assert.equal(wrapper?.getSharedPluginData("dgp", "componentRole"), "");
+  assert.equal(wrapper?.getSharedPluginData("dgp", "slotStrategy"), "instance-slot-direct");
+  assert.equal(wrapper?.getSharedPluginData("dgp", "slotOwner"), "semantic-section");
+  assert.equal(findImportedById(importedRoot, "semantic-section:body"), null);
   assert.equal(mappedPanel?.type, "INSTANCE");
 });
 

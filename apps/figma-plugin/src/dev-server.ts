@@ -388,6 +388,7 @@ export function serializeDiagramNode(
     ? reconcileChildSizingForFigma(rawBodySizing, nodeSizing)
     : rawBodySizing;
   const childParentSizing = bodyFrame ? bodySizing : nodeSizing;
+  const structuralContainer = semanticState.kind === "container";
   const headingFrame = findSyntheticHeading(frame);
   const iconColumn = frame.icon ? ICON_COLUMN : 0;
   const headingIconColumn = headingFrame?.icon ? ICON_COLUMN : 0;
@@ -410,15 +411,17 @@ export function serializeDiagramNode(
     positionType: frame.positionType ?? "AUTO",
     x: Number.isFinite(frame.x) ? frame.x : 0,
     y: Number.isFinite(frame.y) ? frame.y : 0,
-    padding: {
-      top: frame.paddingTop,
-      right: frame.paddingRight,
-      bottom: frame.paddingBottom,
-      left: frame.paddingLeft,
-    },
-    fill: frame.resolvedFill ?? "transparent",
-    stroke: frame.resolvedStroke ?? "none",
-    strokeWidth: effectiveResolvedStrokeWidth(frame),
+    padding: structuralContainer
+      ? { top: 0, right: 0, bottom: 0, left: 0 }
+      : {
+          top: frame.paddingTop,
+          right: frame.paddingRight,
+          bottom: frame.paddingBottom,
+          left: frame.paddingLeft,
+        },
+    fill: structuralContainer ? "transparent" : (frame.resolvedFill ?? "transparent"),
+    stroke: structuralContainer ? "none" : (frame.resolvedStroke ?? "none"),
+    strokeWidth: structuralContainer ? 0 : effectiveResolvedStrokeWidth(frame),
     textFill: frame.resolvedTextFill ?? "#000000",
     iconFill: frame.resolvedIconFill ?? "#000000",
     icon: serializeIcon(frame),

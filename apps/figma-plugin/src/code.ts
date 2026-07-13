@@ -11,6 +11,7 @@ const IMPORT_KIND_KEY = "importKind";
 const COMPONENT_ROLE_KEY = "componentRole";
 const COMPONENT_VARIANT_KEY = "componentVariant";
 const SLOT_STRATEGY_KEY = "slotStrategy";
+const SLOT_OWNER_KEY = "slotOwner";
 const BOX_COMPONENT_SET_NAME = "box";
 const BOX_SLOT_LAYER_NAME = "slot";
 const BOX_ROLE_VARIANTS = {
@@ -933,6 +934,7 @@ function countImportedSubtreeNodes(root: any, context?: ImportBuildContext | nul
 function collectPayloadSizingExpectations(
   node: DiagramNodePayload,
   expectations: SizingExpectation[] = [],
+  componentMode = false,
 ) {
   expectations.push({
     importId: node.id,
@@ -941,7 +943,10 @@ function collectPayloadSizingExpectations(
     sizingH: normalizeSizing(node.sizingH),
   });
 
-  if (node.textBlocks.length > 0 && node.children.length > 0) {
+  const usesStructuralChildAsSlotBody = componentMode
+    && isMappedComponentNode(node)
+    && canUseStructuralChildAsSlotBody(node);
+  if (node.textBlocks.length > 0 && node.children.length > 0 && !usesStructuralChildAsSlotBody) {
     expectations.push({
       importId: `${node.id}:body`,
       label: `${node.id}/body`,
@@ -951,7 +956,7 @@ function collectPayloadSizingExpectations(
   }
 
   for (const child of node.children) {
-    collectPayloadSizingExpectations(child, expectations);
+    collectPayloadSizingExpectations(child, expectations, componentMode);
   }
 
   return expectations;
@@ -1040,7 +1045,8 @@ async function validateImportedDiagramSizing(
   const mismatches: string[] = [];
   let checked = 0;
 
-  for (const expected of collectPayloadSizingExpectations(payloadRoot)) {
+  const componentMode = Boolean(context?.componentSetName);
+  for (const expected of collectPayloadSizingExpectations(payloadRoot, [], componentMode)) {
     const node = nodesById.get(expected.importId);
     if (!node) {
       // Figma may make an already-inserted live-slot descendant opaque to both
@@ -1110,28 +1116,39 @@ async function validateImportedComponentStructure(
     }
 
     if (isMappedComponentNode(node) && node.children.length > 0) {
-      const body = nodesById.get(`${node.id}:body`);
+      const usesStructuralChildAsBody = canUseStructuralChildAsSlotBody(node);
+      const structuralChild = usesStructuralChildAsBody ? node.children[0]! : null;
+      const bodyImportId = structuralChild ? structuralChild.id : `${node.id}:body`;
+      const body = nodesById.get(bodyImportId);
       if (!body) {
-        if (!isOpaqueLiveSlotImport(context, `${node.id}:body`)) {
+        if (!isOpaqueLiveSlotImport(context, bodyImportId)) {
           mismatches.push(`${node.id}/body: missing component slot body`);
         }
       } else {
         checked += 1;
         const strategy = getImportData(body, SLOT_STRATEGY_KEY);
-        if (strategy !== "instance-slot") {
+        const expectedStrategy = structuralChild ? "instance-slot-direct" : "instance-slot";
+        if (strategy !== expectedStrategy) {
           mismatches.push(`${node.id}/body: missing slot strategy`);
         }
-        if (body.layoutMode !== node.direction) {
-          mismatches.push(`${node.id}/body: expected ${node.direction} layout, got ${body.layoutMode}`);
+        const expectedDirection = structuralChild ? structuralChild.direction : node.direction;
+        if (body.layoutMode !== expectedDirection) {
+          mismatches.push(`${node.id}/body: expected ${expectedDirection} layout, got ${body.layoutMode}`);
         }
-        const childIds = safeGetChildren(body)
-          .map((child: any) => getImportData(child, IMPORT_ID_KEY))
-          .filter(Boolean);
-        const expectedChildIds = node.children.map((child) => child.id);
-        if (childIds.join("\n") !== expectedChildIds.join("\n")) {
-          mismatches.push(
-            `${node.id}/body: expected child order ${expectedChildIds.join(", ")}, got ${childIds.join(", ")}`,
-          );
+        if (structuralChild) {
+          if (getImportData(body, SLOT_OWNER_KEY) !== node.id) {
+            mismatches.push(`${node.id}/body: direct structural slot body has the wrong owner`);
+          }
+        } else {
+          const childIds = safeGetChildren(body)
+            .map((child: any) => getImportData(child, IMPORT_ID_KEY))
+            .filter(Boolean);
+          const expectedChildIds = node.children.map((child) => child.id);
+          if (childIds.join("\n") !== expectedChildIds.join("\n")) {
+            mismatches.push(
+              `${node.id}/body: expected child order ${expectedChildIds.join(", ")}, got ${childIds.join(", ")}`,
+            );
+          }
         }
       }
     }
@@ -1454,6 +1471,19 @@ function getReferencedProperty(
   return definitionType === expectedType ? propertyName : null;
 }
 
+function findHasIconBooleanProperty(definitions: Record<string, any>) {
+  for (const [propertyName, definition] of Object.entries(definitions)) {
+    const semanticName = propertyName
+      .split("#", 1)[0]!
+      .replace(/[^a-z0-9]/gi, "")
+      .toLowerCase();
+    if (semanticName === "hasicon" && String(definition?.type || "").toUpperCase() === "BOOLEAN") {
+      return propertyName;
+    }
+  }
+  return null;
+}
+
 function analyzeBoxComponentContract(
   componentSet: any,
   role: BoxRole,
@@ -1528,6 +1558,7 @@ function analyzeBoxComponentContract(
   }
 
   const iconSlot = iconSlots[0] ?? null;
+  iconVisibleProperty ||= findHasIconBooleanProperty(definitions);
   return {
     role,
     component,
@@ -1716,6 +1747,13 @@ function isMappedComponentNode(node: DiagramNodePayload) {
   // V3 uses `container` for structural wrappers such as rows, stack groups,
   // and icon/label pairs. They are raw auto-layout frames, not semantic boxes.
   return node.kind !== "root" && node.kind !== "container";
+}
+
+function canUseStructuralChildAsSlotBody(node: DiagramNodePayload) {
+  const child = node.children[0];
+  return node.children.length === 1
+    && child?.kind === "container"
+    && normalizePositionType(child.positionType) === "AUTO";
 }
 
 function createRoleContractUsage(): RoleContractUsage {
@@ -1967,14 +2005,10 @@ async function applyInstanceComponentProperties(
     }
   }
 
-  if (node.icon) {
-    if (contract.iconVisibleProperty) {
-      properties[contract.iconVisibleProperty] = true;
-    }
-  } else if (contract.iconSlotHasDefaultContent) {
-    if (contract.iconVisibleProperty) {
-      properties[contract.iconVisibleProperty] = false;
-    } else if (contract.iconSlotMasterId) {
+  if (contract.iconVisibleProperty) {
+    properties[contract.iconVisibleProperty] = Boolean(node.icon);
+  } else if (!node.icon && contract.iconSlotHasDefaultContent) {
+    if (contract.iconSlotMasterId) {
       // applyInstanceIconOverride clears the real SlotNode after properties are
       // applied, so no visibility property is needed for this case.
     } else {
@@ -2370,6 +2404,26 @@ async function populateComponentSlot(
 ) {
   clearSlotChildren(slot, "content slot", node.id);
 
+  const structuralChild = canUseStructuralChildAsSlotBody(node) ? node.children[0]! : null;
+  if (structuralChild) {
+    const body = await buildDiagramFrameNode(structuralChild, serverUrl, context, componentMapping);
+    setPluginData(body, SLOT_STRATEGY_KEY, "instance-slot-direct");
+    setPluginData(body, SLOT_OWNER_KEY, node.id);
+    appendAutoLayoutChild(
+      slot,
+      body,
+      normalizeSizing(structuralChild.sizingW),
+      normalizeSizing(structuralChild.sizingH),
+      "AUTO",
+      0,
+      0,
+      context,
+    );
+    refreshImportedNodeIds(context);
+    assertSlotLimits(slot, "content slot", node.id);
+    return body;
+  }
+
   const bodyWidth = Math.max(1, node.bodyWidth ?? node.width);
   const bodyHeight = Math.max(
     1,
@@ -2435,7 +2489,9 @@ async function populateSlotWithRuntimeStrategy(
   }
 
   const body = await populateComponentSlot(slot, node, serverUrl, context, componentMapping);
-  setPluginData(body, SLOT_STRATEGY_KEY, "instance-slot");
+  if (!getImportData(body, SLOT_STRATEGY_KEY)) {
+    setPluginData(body, SLOT_STRATEGY_KEY, "instance-slot");
+  }
   context.instanceSlotCount += 1;
   return instance;
 }

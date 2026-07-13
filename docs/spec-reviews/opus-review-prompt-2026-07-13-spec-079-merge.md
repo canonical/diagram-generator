@@ -32,9 +32,11 @@ State explicitly when no P0/P1 finding is present.
      and tests for both halves of this boundary.
 
 2. Slot lifecycle and refresh safety
-   - Content slots must replace importer-owned content with exactly one body
-     frame per semantic parent/section; reruns must not create wrapper or
-     instance duplication.
+   - Content slots must replace importer-owned content with exactly one raw
+     directional frame per semantic parent/section. Where there is exactly one
+     automatic structural child, that child must be the direct slot body;
+     otherwise the importer-owned `<semantic-id>/body` owns child order and
+     direction. Reruns must not create wrapper or instance duplication.
    - Verify master-slot to live-instance addressing, `limitViolations` checks,
      icon slot clearing/replacement, and the opacity policy for post-insert
      Figma descendants. Ensure the opacity policy does not mask an unknown
@@ -71,6 +73,9 @@ State explicitly when no P0/P1 finding is present.
    - Text properties are preferred, with the narrowly targeted master-text-id
      override as the no-detach fallback.
    - Helper/default-icon policy must not leave visible placeholder content.
+   - A Boolean `hasIcon` component definition is an icon-visibility contract
+     even without a direct icon-layer reference; it must be true with an icon
+     and explicitly false without one.
    - Icon sources must remain copied local Figma components/instances or
      explicitly cloneable local SVG-named assets; no silent raw-SVG fallback in
      component mode.

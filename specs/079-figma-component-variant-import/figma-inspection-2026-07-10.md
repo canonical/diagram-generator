@@ -234,3 +234,26 @@ the Regional edge body height against its directed row.
 This is payload/test evidence only. Re-import the fixture into the actual Figma
 component file after reloading the rebuilt plugin and record the live visual
 result before declaring the gate passed.
+
+## 2026-07-13 slot-body collapse and icon-Boolean requirements
+
+The structural-wrapper rule needs one additional constraint: raw `container`
+nodes carry auto-layout semantics only. They must serialize/import with no
+fill, stroke, padding, title, helper, icon, or component chrome. Source
+level-derived visual styling belongs only to semantic Section/Panel/leaf boxes,
+not to a transparent row or stack.
+
+Each live content SlotNode must still have exactly one raw auto-layout child,
+because the slot itself is not the importer-owned directional layout owner.
+When a semantic node has exactly one automatic structural `container` child,
+that child *is* the slot body. Do not add a redundant generated
+`<semantic-id>/body` between the SlotNode and that row/stack. For multiple
+children, absolute children, or no structural child, retain the generated body
+that owns the semantic node's direction and child order. Validation must accept
+both forms without falling back to instance-sublayer traversal.
+
+The box component contract also has a Boolean `hasIcon` property. Treat it as
+the icon-visibility property even when its Boolean reference is not attached
+directly to the icon SlotNode. Set it to `true` for a supplied icon and always
+set it to `false` when the payload has no icon; clearing a default icon slot is
+only the fallback when no such Boolean exists.
