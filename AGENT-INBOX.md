@@ -54,7 +54,9 @@ review history is in
 The two re-review follow-ups are implemented in the working tree: upstream
 `resolveStyles` normalizes headed level-1 containers to panel chrome, and
 headed containers nested directly in a panel remain structural to avoid nested
-Parent boxes. Real-Figma visual verification remains a release gate.
+Parent boxes. The final stale production-contract draw.io golden was regenerated
+from committed YAML; the full layout-engine suite is 1011/1011. Real-Figma
+visual verification remains a release gate.
 
 Remaining live gate: verify the rebuilt plugin against the actual Figma file
 for sizing and visual component fidelity. Do not claim that gate passed without

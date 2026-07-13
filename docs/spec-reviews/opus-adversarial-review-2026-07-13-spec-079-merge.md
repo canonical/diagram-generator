@@ -1,16 +1,111 @@
 # Opus adversarial merge review — Spec 079 (figma component variant import)
 
-**Verdict (re-review): Merge with follow-ups.** The P1 blocker from the first
-pass has been fixed in the working tree and is now guarded by two new
-regressions; only narrow, fixture-uncovered residuals and the standing real-Figma
-visual gate remain. See the re-review update immediately below; the original
-first-pass finding is retained further down as history and marked resolved.
+**Verdict (post-remediation): Merge with follow-ups.** The final-pass stale
+golden was regenerated from the committed production-contract fixture and the
+full layout-engine suite now passes. The real-Figma visual check remains the
+release gate.
 
-> **First-pass verdict was: Do not merge.** It is superseded by the re-review.
+> Verdict history: first pass **Do not merge** → re-review **Merge with
+> follow-ups** → final pass **Do not merge as-is** (stale golden) →
+> post-remediation **Merge with follow-ups**.
+
+---
+
+## Post-review remediation (2026-07-13)
+
+The production-contract draw.io golden was regenerated with the local YAML WIP
+stashed, and `npm --prefix packages/layout-engine test` passes **1011/1011**
+against the committed fixture. The relevant semantic node is `regional_site`:
+it is the only one of the three site nodes with children, so it is correctly
+promoted to panel chrome. `core_cloud` and `edge_site` have no children and
+remain leaf chrome, as required by the headed **non-leaf** rule.
+
+---
+
+## Final pre-merge review (2026-07-13, third pass)
+
+Two new commits landed since the re-review:
+`62664f1 fix(figma): preserve headed container components` (the classifier +
+chrome fix the re-review evaluated, now committed) and
+`c5c833b fix(layout): normalize headed container chrome` (which addresses F1 and
+F2 upstream). Both follow-ups are resolved correctly:
+
+- **F1 resolved, palette-general.** The fixture-coupled `resolveSerializedChrome`
+  grey special-case is deleted. `packages/layout-engine/src/resolve-styles.ts`
+  now promotes any headed non-leaf level-1 container to level-2 chrome
+  (`if (!isHighlight && level < 2 && hasSemanticContainerText(root)) level = 2;`)
+  *before* the nesting constraints, so chrome resolves through the normal level
+  path for any palette. The serializer reads `frame.resolvedFill`/`resolvedStroke`
+  generically. New layout-engine test asserts a headed level-1 container resolves
+  `#F3F3F3` fill/stroke.
+- **F2 resolved.** The classifier gained `&& !context.parentIsPanel`, and the
+  resolveStyles promotion runs before the `level >= 2 && parentIsPanel` demotion,
+  so a headed container nested directly inside a panel stays structural
+  (transparent/black), not nested grey-on-grey. Regression tests were added at
+  both layers (`resolve-styles.test.ts` and `dev-server.test.ts`).
+
+**Test status:**
+- `apps/figma-plugin` → **46/46 pass**.
+- `packages/layout-engine` → **1010 pass, 1 FAIL**: `export-frame-drawio >
+  matches golden draw.io for ai-infra-production-contract`.
+
+### Blocker — stale `ai-infra-production-contract` golden (verified at HEAD)
+
+**Evidence.** With the uncommitted production-contract WIP stashed (i.e. the
+fully committed branch state), `matches golden draw.io for
+ai-infra-production-contract` still fails, while `ai-infra-telco-value-map` and
+`ai-infra-telecom-services-stack` pass.
+
+**Cause.** `c5c833b`'s shared `resolveStyles` change promotes headed level-1
+containers to grey panel chrome. Committed `ai-infra-production-contract.yaml`
+contains three such containers — `Core cloud - central control and governance`,
+`Regional site - policy enforcement and aggregation`, and `Edge site - local
+execution (degraded mode OK)` — so their exported fill/stroke changed. `c5c833b`
+regenerated the value-map and telecom goldens (confirmed: it is the last commit
+to touch both), but did not regenerate the production-contract golden (last
+touched by the unrelated `31d56f4`). So the branch ships a red golden.
+
+**Impact.** CI-visible test failure at HEAD; the three production-contract site
+containers now render as grey panels in the draw.io deliverable, an intended but
+unverified visual change.
+
+**Remediation (smallest safe).** Regenerate only that golden and eyeball the
+result:
+
+```
+# stash the uncommitted production-contract WIP first so the golden encodes the
+# COMMITTED yaml, not local edits:
+git stash push -- diagrams/1.input/ai-infra-production-contract.yaml
+UPDATE_DRAWIO_GOLDEN=1 npm --prefix packages/layout-engine test -- export-frame-drawio
+git stash pop
+```
+
+Confirm the three headed site containers are meant to become grey panels (they
+now match the value-map quadrant treatment). If that treatment is *not* desired
+for production-contract, the fix belongs in the fixture/level authoring, not a
+golden bump. Either way, HEAD must not ship a failing golden.
+
+**Blast radius is contained.** The full layout-engine suite (1011 tests) has
+exactly this one failure, so no SVG goldens or other diagrams regressed.
+
+### Data-integrity note
+
+The user's genuine WIP — the uncommitted `ai-infra-production-contract.yaml`
+edit (44+/43-) and local `image copy.png` — is intact and was not committed.
+(The production-contract `.drawio` golden briefly showed as modified at the start
+of this pass but matched HEAD and was not part of the user's stated WIP; it is
+now clean.)
+
+**Bottom line:** resolve the one stale golden (regenerate + visual confirm), then
+the branch is mergeable. Everything else on the branch is in good shape:
+component preservation is general, chrome fidelity is palette-independent, nested
+demotion is correct, and all four are guarded by regressions. The real-Figma
+visual verification remains a release gate.
 
 ---
 
 ## Re-review update (2026-07-13, second pass)
+
 
 The working tree now carries an uncommitted fix (not yet in a commit) that
 resolves the first-pass P1. `npm --prefix apps/figma-plugin test` → **46/46 pass**
