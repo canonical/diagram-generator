@@ -1,7 +1,7 @@
 # Spec 075: Preview folder workspaces
 
 **Feature Branch**: `feat/075-preview-folder-workspaces`
-**Status**: Draft
+**Status**: In progress — Phase 0 (source abstraction) landed; Phases 1–4 pending
 **Created**: 2026-07-06
 **Support files**: [`plan.md`](./plan.md), [`tasks.md`](./tasks.md)
 

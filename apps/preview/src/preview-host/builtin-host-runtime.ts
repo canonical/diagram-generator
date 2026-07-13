@@ -17,6 +17,8 @@ import type {
 } from "./builtin-host-deps.js";
 import { buildIndexPageHtml } from "./pages.js";
 import { buildRegisteredPreviewBrowseSections } from "./registry.js";
+import { createServerRootSource } from "./workspace/server-root-source.js";
+import { WorkspaceRegistry } from "./workspace/workspace-registry.js";
 import type { FramePreviewDocumentDeps, FramePreviewRenderDeps } from "./frame-documents.js";
 import type { ForcePreviewDocumentDeps } from "./force-documents.js";
 import type { PreviewHostModuleInstallDeps } from "./modules.js";
@@ -154,6 +156,17 @@ export function createBuiltinPreviewHostInstallDeps(
       parseYaml: options.parseYaml,
     });
 
+  // Route diagram listing through the typed workspace-source abstraction
+  // (spec 075). Phase 0 registers a single default `server-root` source over
+  // the historical frames directory, so listing behaviour is unchanged.
+  const workspaceRegistry = new WorkspaceRegistry([
+    createServerRootSource({
+      id: "default",
+      label: "Diagrams",
+      dir: options.framePreviewDocumentDeps.framesDir,
+    }),
+  ]);
+
   const moduleContexts = new Map<string, unknown>([
     [
       AUTOLAYOUT_MODULE_KEY,
@@ -162,7 +175,7 @@ export function createBuiltinPreviewHostInstallDeps(
         framePreviewDocumentDeps: options.framePreviewDocumentDeps,
         framePreviewRenderDeps: options.framePreviewRenderDeps,
         listAutolayoutDiagrams(): string[] {
-          return listYamlSlugs(options.framePreviewDocumentDeps.framesDir);
+          return workspaceRegistry.defaultSource()?.list().map((entry) => entry.slug) ?? [];
         },
         findReferenceImage: referenceImageResolver,
         normalizeLayoutEngine,

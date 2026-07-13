@@ -10,32 +10,38 @@ predecessor's tests are green.
 
 ## Phase 0: Source abstraction (behaviour-identical)
 
-- [ ] T001 Read the current single-dir flow end to end and note exact seams:
+- [x] T001 Read the current single-dir flow end to end and note exact seams:
       `apps/preview/src/server.ts` (`FRAMES_DIR`, install deps, `WATCH_PATHS`),
       `apps/preview/src/preview-host/builtin-host-runtime.ts` (`listYamlSlugs`,
       `isSafeSlug`, `createBuiltinPreviewHostInstallDeps`),
       `apps/preview/src/preview-host/frame-document-actions.ts`,
       `apps/preview/src/persistence/frame-diagram.ts`.
-- [ ] T002 Add the typed `DiagramWorkspaceSource` interface
+- [x] T002 Add the typed `DiagramWorkspaceSource` interface
       (`id`, `label`, `kind`, `writable`, `list()`, `read(slug)`,
-      `write(slug, yaml)`, optional `watch(onChange)`) and a `DiagramEntry`
+      `write(slug, yaml)`, `has`, optional `resolvePath`) and a `DiagramEntry`
       model (qualified id, slug, source id, title, writable) in
       `apps/preview/src/preview-host/workspace/diagram-workspace-source.ts`.
-- [ ] T003 Add a `WorkspaceRegistry` that holds an ordered source list and
+- [x] T003 Add a `WorkspaceRegistry` that holds an ordered source list and
       parses/formats qualified slugs (`sourceId:slug`), rejecting malformed ids,
       in `apps/preview/src/preview-host/workspace/workspace-registry.ts`.
-- [ ] T004 Implement `server-root-source.ts` wrapping the current directory
-      behaviour (`list` via `listYamlSlugs`, `read`/`write` via the existing
-      save/read helpers), with realpath containment for `slug → path`.
-- [ ] T005 Refactor `createBuiltinPreviewHostInstallDeps` and the autolayout
-      host so listing, reading, and saving go through the registry/source, with
-      the default single root registered from `FRAMES_DIR`/`DG_FRAMES_DIR`.
-- [ ] T006 [P] Add unit tests: qualified-slug parse/format, registry ordering,
-      server-root `list/read/write`, and realpath containment rejection.
-- [ ] T007 [P] Add a `persist → reload` round-trip test for the single default
-      server root proving Phase 0 changed no observable behaviour.
-- [ ] T008 Verify no nav/open/save code path references a raw directory after
-      this phase (grep guard test or review note).
+- [x] T004 Implement `server-root-source.ts` wrapping the current directory
+      behaviour (`list` via a yaml-stem scan, `read`/`write` by slug), with
+      realpath containment for `slug → path` (`resolveContainedFramePath`).
+- [x] T005 Route the autolayout diagram listing in
+      `createBuiltinPreviewHostInstallDeps` through the registry/default source
+      (single default root registered from `framesDir`/`DG_FRAMES_DIR`).
+      **Partial:** listing is rerouted; the render/read + save request paths
+      still key off `framesDir` directly and move onto the source in Phase 1.
+- [x] T006 [P] Add unit tests: qualified-slug parse/format, registry ordering +
+      duplicate rejection + address resolution, server-root `list/read/write`,
+      and realpath containment rejection (traversal, absolute, separator,
+      symlink escape) — `apps/preview/src/persistence/workspace-source.test.ts`.
+- [x] T007 [P] Add a `persist → reload` round-trip test for the server-root
+      source proving write→read fidelity on disk.
+- [~] T008 Verify no nav/open/save code path references a raw directory after
+      this phase. **Listing** no longer does; read/render + save still reference
+      `framesDir` and are completed in Phase 1 (tracked below). FR-001 fully
+      lands with Phase 1.
 
 ## Phase 1: Multiple server roots + grouped nav
 
