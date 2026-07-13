@@ -1,5 +1,5 @@
 const DEFAULT_SERVER_URL = "http://localhost:3846";
-const IMPORTER_BUILD_ID = "079-slot-opaque-readback-20260713.4";
+const IMPORTER_BUILD_ID = "079-v3-geometry-after-reparent-20260713.5";
 const DEFAULT_DIAGRAM_SLUG = "ai-infra-telecom-services-stack";
 const DEFAULT_FONT = { family: "Ubuntu Sans", style: "Regular" };
 const DEFAULT_BOLD_FONT = { family: "Ubuntu Sans", style: "Bold" };
@@ -121,6 +121,7 @@ interface ImportBuildContext {
   createdNodes: Set<any>;
   importedNodeIds: Map<string, string>;
   importedNodes: Map<string, any>;
+  importedGeometry: Map<string, ImportedGeometry>;
   componentInstanceCount: number;
   componentSetName: string | null;
   instanceSlotCount: number;
@@ -170,6 +171,13 @@ interface IconSource {
 interface SizingExpectation {
   importId: string;
   label: string;
+  sizingW: "FIXED" | "HUG" | "FILL";
+  sizingH: "FIXED" | "HUG" | "FILL";
+}
+
+interface ImportedGeometry {
+  width: number;
+  height: number;
   sizingW: "FIXED" | "HUG" | "FILL";
   sizingH: "FIXED" | "HUG" | "FILL";
 }
@@ -243,12 +251,29 @@ function createImportBuildContext(): ImportBuildContext {
     createdNodes: new Set<any>(),
     importedNodeIds: new Map<string, string>(),
     importedNodes: new Map<string, any>(),
+    importedGeometry: new Map<string, ImportedGeometry>(),
     componentInstanceCount: 0,
     componentSetName: null,
     instanceSlotCount: 0,
     missingIconNames: new Set<string>(),
     missingIconReasons: new Map<string, Set<string>>(),
   };
+}
+
+function registerImportedGeometry(
+  context: ImportBuildContext | null | undefined,
+  importId: string,
+  width: number,
+  height: number,
+  sizingW: "FIXED" | "HUG" | "FILL",
+  sizingH: "FIXED" | "HUG" | "FILL",
+) {
+  context?.importedGeometry.set(importId, {
+    width: clampSize(width),
+    height: clampSize(height),
+    sizingW: normalizeSizing(sizingW),
+    sizingH: normalizeSizing(sizingH),
+  });
 }
 
 function trackCreatedNode<T>(context: ImportBuildContext | null | undefined, node: T) {
@@ -448,6 +473,19 @@ function appendAutoLayoutChild(
   applyChildPositioning(child, positionType, x, y);
   const importId = getImportData(child, IMPORT_ID_KEY);
   if (importId) {
+    const geometry = context?.importedGeometry.get(importId);
+    if (geometry) {
+      // Figma may recalculate a mapped instance when it crosses into an
+      // auto-layout parent. Restore only effective FIXED axes from V3; Hug
+      // remains owned by the component/slot content.
+      resizeFrameForFixedAxes(
+        child,
+        geometry.width,
+        geometry.height,
+        geometry.sizingW,
+        geometry.sizingH,
+      );
+    }
     trackImportedNode(context, child, importId);
   }
   return child;
@@ -2184,6 +2222,7 @@ async function buildContainerNode(
             normalizePositionType(child.positionType),
             child.x,
             child.y,
+            context,
           );
         }
 
@@ -2278,6 +2317,7 @@ async function buildContainerNode(
           normalizePositionType(child.positionType),
           child.x,
           child.y,
+          context,
         );
       }
 
@@ -2308,6 +2348,7 @@ async function buildContainerNode(
       normalizePositionType(child.positionType),
       child.x,
       child.y,
+      context,
     );
   }
   finalizeFrameOwnSizing(frame, node.width, node.height, importedSizing.sizingW, importedSizing.sizingH);
@@ -2356,6 +2397,14 @@ async function populateComponentSlot(
   }
 
   setImportData(body, `${node.id}:body`, "component-slot-body");
+  registerImportedGeometry(
+    context,
+    `${node.id}:body`,
+    bodyWidth,
+    bodyHeight,
+    node.bodySizingW,
+    node.bodySizingH,
+  );
   finalizeFrameOwnSizing(body, bodyWidth, bodyHeight, node.bodySizingW, node.bodySizingH);
   appendAutoLayoutChild(slot, body, node.bodySizingW, node.bodySizingH, "AUTO", 0, 0, context);
   // Figma can re-key nodes when this body becomes content of a live instance
@@ -2391,8 +2440,10 @@ function markMappedComponentNode(
   role: BoxRole,
   variantName: string,
   importKind: string,
+  context: ImportBuildContext,
 ) {
   setImportData(target, node.id, importKind);
+  registerImportedGeometry(context, node.id, node.width, node.height, node.sizingW, node.sizingH);
   setPluginData(target, COMPONENT_ROLE_KEY, role);
   setPluginData(target, COMPONENT_VARIANT_KEY, variantName);
 }
@@ -2418,7 +2469,7 @@ async function buildComponentMappedNode(
   context.componentInstanceCount += 1;
   context.componentSetName = componentMapping.componentSet.name || BOX_COMPONENT_SET_NAME;
   instance.name = node.name || node.id;
-  markMappedComponentNode(instance, node, role, variantName, `component:${node.kind}`);
+  markMappedComponentNode(instance, node, role, variantName, `component:${node.kind}`, context);
 
   await applyInstanceComponentProperties(instance, node, contract);
   await applyInstanceIconOverride(instance, node, componentMapping, contract, context, true);

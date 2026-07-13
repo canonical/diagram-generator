@@ -116,6 +116,9 @@ class FakeSceneNode {
   set layoutSizingHorizontal(value: string) {
     this.validateLayoutSizing("HORIZONTAL", value);
     this._layoutSizingHorizontal = value;
+    if (fakeFigma.resetsFixedGeometryOnAutoLayoutInsert && value === "FIXED" && this.isAutoLayoutChild()) {
+      this.width = 1;
+    }
   }
 
   get layoutSizingVertical() {
@@ -125,6 +128,9 @@ class FakeSceneNode {
   set layoutSizingVertical(value: string) {
     this.validateLayoutSizing("VERTICAL", value);
     this._layoutSizingVertical = value;
+    if (fakeFigma.resetsFixedGeometryOnAutoLayoutInsert && value === "FIXED" && this.isAutoLayoutChild()) {
+      this.height = 1;
+    }
   }
 
   get componentPropertyDefinitions() {
@@ -449,6 +455,7 @@ class FakeFigma {
   loadAllPagesAsyncCount = 0;
   rekeyLiveSlotContentIds = false;
   hideLiveSlotContentFromLookup = false;
+  resetsFixedGeometryOnAutoLayoutInsert = false;
 
   reset() {
     fakeNodeSequence = 1;
@@ -462,6 +469,7 @@ class FakeFigma {
     this.loadAllPagesAsyncCount = 0;
     this.rekeyLiveSlotContentIds = false;
     this.hideLiveSlotContentFromLookup = false;
+    this.resetsFixedGeometryOnAutoLayoutInsert = false;
   }
 
   createPage(name: string) {
@@ -1347,6 +1355,7 @@ test("upsertYamlDiagram clears the default icon SLOT when a variant has no icon 
 test("upsertYamlDiagram uses box component variants and instance slots when available", async () => {
   resetTestState();
   installBoxComponentSet();
+  fakeFigma.resetsFixedGeometryOnAutoLayoutInsert = true;
   fetchState.payload = {
     slug: "component-diagram",
     title: "Component diagram",
@@ -1381,6 +1390,7 @@ test("upsertYamlDiagram uses box component variants and instance slots when avai
   assert.equal(panel?.height, 136);
   assert.equal(panel?.layoutSizingVertical, "HUG");
   assert.equal(child?.type, "INSTANCE");
+  assert.equal(child?.height, 120, "V3 effective fixed height is restored after auto-layout reparenting");
   assert.equal(slotBody?.name, "panel-1/body");
   assert.equal(componentPropertyValue(panel, "Title#title"), "Leaf label");
   assert.equal(componentPropertyValue(panel, "Show helper#showHelper"), false);

@@ -108,6 +108,9 @@
   order.
 - [x] T043 Apply payload gap, padding, and effective body sizing to slot
   containers.
+- [x] T043b Reapply V3 effective `FIXED` geometry after a mapped instance or
+  generated body enters its final Figma auto-layout parent; preserve HUG/FILL
+  axes as auto-layout behavior.
 - [ ] T043a Re-check live output for hardcoded height regressions: mapped
   instances, generated slot containers, and slot children must read back the
   payload's effective Fill/Hug/Fixed sizing unless the payload says `FIXED`.

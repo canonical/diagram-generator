@@ -312,6 +312,10 @@ content updates while the allowed Figma override remains.
   `limitViolations` assertion rather than roll back the diagram solely for a
   missing post-build node. After content or icon mutation, the importer MUST
   fail if that real `SlotNode` reports any `limitViolations`.
+- **FR-021**: Component-mode import MUST preserve the V3 payload's effective
+  geometry across Figma auto-layout reparenting: restore only `FIXED` width or
+  height after the child enters its final auto-layout parent; leave `HUG` axes
+  content-driven and retain `FILL` as an auto-layout sizing mode.
 
 ### Non-Goals
 

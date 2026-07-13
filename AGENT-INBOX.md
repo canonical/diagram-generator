@@ -109,6 +109,11 @@ mutation-time verified after sizing application plus empty `limitViolations`;
 it never traverses an instance. The fake re-keys, hides, and invalidates this
 subtree; content/icon mutations still fail on non-empty `limitViolations`.
 
+Latest code fix (awaiting live visual confirmation): component-mode import now
+records V3 effective geometry and reapplies only `FIXED` axes after Figma
+auto-layout reparenting, which can otherwise replace fixed dimensions with
+master/default geometry. Hug axes remain component/slot-content driven.
+
 Next owner/action: Terra should execute
 [`specs/079-figma-component-variant-import/terra-live-fix-runbook.md`](specs/079-figma-component-variant-import/terra-live-fix-runbook.md).
 Further changes are blocked until the runbook identifies a failed live
