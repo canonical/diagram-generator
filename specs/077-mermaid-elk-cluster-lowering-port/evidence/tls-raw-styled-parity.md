@@ -83,10 +83,10 @@ carriers, and ELK owns their detached placement.
 - `node scripts/check-preview-shell-size-budgets.mjs`
 - `git diff --check` (passes; Git reports line-ending warnings only)
 
-Known unrelated blocker for full `npm --prefix packages/layout-engine test`:
-`export-frame-drawio.test.ts` still fails on
-`ai-infra-production-contract.drawio` because the working tree already contains a
-dirty `specs/077-yaml-drawio-export/golden/ai-infra-production-contract.drawio`
-golden mismatch. The full preview app suite is also currently 167/168 because
+Known blockers for full `npm --prefix packages/layout-engine test`:
+`export-frame-drawio.test.ts` fails because the committed
+`ai-infra-production-contract.drawio` golden disagrees with the current exporter;
+this is outside TLS scope but remains a real baseline discrepancy. The full
+preview app suite is also currently 167/168 because
 `editor-live-repaint-regression.test.ts` expects two blank ELK option fields that
 the current registry omits; the focused TLS preview tests above are 2/2 green.

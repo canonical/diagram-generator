@@ -55,11 +55,12 @@ SVG regression. T054 remains open pending clean full-suite baselines.
 
 **Still open at spec level:**
 - T054 full validation remains open: the layout-engine suite has one unrelated
-  draw.io golden failure, and the preview suite has one unrelated
+  draw.io golden mismatch against the committed exporter baseline, and the
+  preview suite has one unrelated
   editor-live-repaint default-options failure. Focused TLS/layout/portability
   validation is green.
 - Full `npm --prefix packages/layout-engine test` currently fails only in
   `export-frame-drawio.test.ts` for
   `specs/077-yaml-drawio-export/golden/ai-infra-production-contract.drawio`.
-  Those draw.io golden files were already dirty/unrelated; do not revert or sweep
-  them into the TLS branch without an explicit decision.
+  The mismatch is outside TLS scope but is now a committed baseline discrepancy;
+  do not mark T054 complete until it is triaged and the full suite is green.
