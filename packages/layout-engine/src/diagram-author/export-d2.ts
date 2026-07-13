@@ -1,43 +1,15 @@
 import { extractArrowRefId, extractBaseFrameId } from './ref-grammar.js';
+import {
+  pushUnsupportedArrowStyleWarning,
+  pushUnsupportedIconWarning,
+  pushUnsupportedLayoutWarning,
+} from './export-shared.js';
 import type { AuthorArrow, AuthorFrameNode, DiagramDocument, Diagnostic, FrameIndexEntry } from './types.js';
 
 export interface D2ExportResult {
   d2: string;
   warnings: Diagnostic[];
 }
-
-const UNSUPPORTED_LAYOUT_FIELDS: (keyof AuthorFrameNode)[] = [
-  'direction',
-  'gap',
-  'padding',
-  'paddingTop',
-  'paddingRight',
-  'paddingBottom',
-  'paddingLeft',
-  'sizing',
-  'sizingW',
-  'sizingH',
-  'fillWeight',
-  'width',
-  'height',
-  'minWidth',
-  'maxWidth',
-  'maxWidthChars',
-  'minHeight',
-  'maxHeight',
-  'align',
-  'justify',
-  'wrap',
-  'fill',
-  'border',
-  'position',
-  'x',
-  'y',
-  'colSpan',
-  'level',
-  'variant',
-  'role',
-];
 
 function escapeD2String(text: string): string {
   return text.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
@@ -89,23 +61,9 @@ function buildD2Path(
 }
 
 function collectFrameWarnings(node: AuthorFrameNode, path: string, warnings: Diagnostic[]): void {
-  if (node.icon || node.iconFill) {
-    warnings.push({
-      code: 'D2_UNSUPPORTED_ICON',
-      level: 'warning',
-      message: `D2 export ignores icon metadata for frame: ${node.id}`,
-      path,
-    });
-  }
+  pushUnsupportedIconWarning('D2', node, path, warnings);
 
-  if (UNSUPPORTED_LAYOUT_FIELDS.some(field => node[field] !== undefined)) {
-    warnings.push({
-      code: 'D2_UNSUPPORTED_LAYOUT',
-      level: 'warning',
-      message: `D2 export ignores layout metadata for frame: ${node.id}`,
-      path,
-    });
-  }
+  pushUnsupportedLayoutWarning('D2', node, path, warnings);
 
   node.children.forEach((child, index) => {
     collectFrameWarnings(child, `${path}.children[${index}]`, warnings);
@@ -208,14 +166,7 @@ function renderArrow(
     });
   }
 
-  if (arrow.style || arrow.color || arrow.labelGap != null) {
-    warnings.push({
-      code: 'D2_UNSUPPORTED_ARROW_STYLE',
-      level: 'warning',
-      message: `D2 export ignores arrow style metadata: ${arrow.source} -> ${arrow.target}`,
-      path: `arrows[${index}]`,
-    });
-  }
+  pushUnsupportedArrowStyleWarning('D2', arrow, index, warnings);
 
   if (!frameIndex[sourceBase]) {
     warnings.push({

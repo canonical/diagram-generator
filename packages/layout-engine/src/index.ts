@@ -263,6 +263,12 @@ export { exportMermaid } from './diagram-author/export-mermaid.js';
 export type { MermaidExportResult } from './diagram-author/export-mermaid.js';
 export { exportD2 } from './diagram-author/export-d2.js';
 export type { D2ExportResult } from './diagram-author/export-d2.js';
+export { importD2 } from './diagram-author/import-d2.js';
+export type { D2ImportOptions } from './diagram-author/import-d2.js';
+export { importMermaid } from './diagram-author/import-mermaid.js';
+export type { MermaidImportOptions } from './diagram-author/import-mermaid.js';
+export { serializeDiagramYaml } from './diagram-author/serialize-yaml.js';
+export type { DiagramImportResult } from './diagram-author/import-result.js';
 export type {
   AuthorArrow,
   AuthorFrameNode,

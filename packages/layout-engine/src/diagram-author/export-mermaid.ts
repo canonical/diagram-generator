@@ -1,43 +1,15 @@
 import { extractArrowRefId, extractBaseFrameId } from './ref-grammar.js';
+import {
+  pushUnsupportedArrowStyleWarning,
+  pushUnsupportedIconWarning,
+  pushUnsupportedLayoutWarning,
+} from './export-shared.js';
 import type { AuthorArrow, AuthorFrameNode, DiagramDocument, Diagnostic } from './types.js';
 
 export interface MermaidExportResult {
   mermaid: string;
   warnings: Diagnostic[];
 }
-
-const UNSUPPORTED_LAYOUT_FIELDS: (keyof AuthorFrameNode)[] = [
-  'direction',
-  'gap',
-  'padding',
-  'paddingTop',
-  'paddingRight',
-  'paddingBottom',
-  'paddingLeft',
-  'sizing',
-  'sizingW',
-  'sizingH',
-  'fillWeight',
-  'width',
-  'height',
-  'minWidth',
-  'maxWidth',
-  'maxWidthChars',
-  'minHeight',
-  'maxHeight',
-  'align',
-  'justify',
-  'wrap',
-  'fill',
-  'border',
-  'position',
-  'x',
-  'y',
-  'colSpan',
-  'level',
-  'variant',
-  'role',
-];
 
 function escapeMermaidLabel(text: string): string {
   return text.replace(/"/g, '#quot;');
@@ -54,14 +26,7 @@ function formatNodeLabel(node: AuthorFrameNode): string {
 }
 
 function collectFrameWarnings(node: AuthorFrameNode, path: string, warnings: Diagnostic[]): void {
-  if (node.icon || node.iconFill) {
-    warnings.push({
-      code: 'MERMAID_UNSUPPORTED_ICON',
-      level: 'warning',
-      message: `Mermaid export ignores icon metadata for frame: ${node.id}`,
-      path,
-    });
-  }
+  pushUnsupportedIconWarning('MERMAID', node, path, warnings);
 
   if (node.children.length > 0 && (node.label?.length || node.heading)) {
     warnings.push({
@@ -72,14 +37,7 @@ function collectFrameWarnings(node: AuthorFrameNode, path: string, warnings: Dia
     });
   }
 
-  if (UNSUPPORTED_LAYOUT_FIELDS.some(field => node[field] !== undefined)) {
-    warnings.push({
-      code: 'MERMAID_UNSUPPORTED_LAYOUT',
-      level: 'warning',
-      message: `Mermaid export ignores layout metadata for frame: ${node.id}`,
-      path,
-    });
-  }
+  pushUnsupportedLayoutWarning('MERMAID', node, path, warnings);
 
   node.children.forEach((child, index) => {
     collectFrameWarnings(child, `${path}.children[${index}]`, warnings);
@@ -178,6 +136,7 @@ function renderArrow(
       path: `arrows[${index}]`,
     });
   }
+  pushUnsupportedArrowStyleWarning('MERMAID', arrow, index, warnings);
   if (arrow.waypoints?.length) {
     warnings.push({
       code: 'MERMAID_UNSUPPORTED_WAYPOINTS',
