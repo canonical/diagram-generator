@@ -24,12 +24,14 @@ valid diagram solely for opaque slot content. Effective V3 `FIXED` geometry is
 reapplied after final auto-layout reparenting; HUG and FILL remain auto-layout
 semantics.
 
-**2026-07-13 Regional edge sizing fix:** the fixture's explicit
-`regional_edge.sizing_h: fill` forced a fixed panel with a fill-sized synthetic
-slot body, while its `regional_row1` children correctly hugged. Removing that
-override restores the V3 effective vertical chain to panel/body/row `HUG`.
-The real-telecom payload regression asserts the body is exactly as tall as the
-row; it protects against a clipped final child without changing component
+**2026-07-13 semantic grouping and sizing fix:** headingless level-2 groups
+now serialize as raw `container` frames, even if they have an explicit source
+level; only non-leaf level-2 nodes with frame-owned visible text receive the
+live Parent component. This prevents the master placeholder `Parent` chrome
+and unnecessary slots from leaking into structural groups. Explicit vertical
+`sizing_h: fill` overrides were removed from content-driven fixture panels, so
+their panel/body/row chains use V3 `HUG`; the tallest child now determines the
+height. Payload regressions cover both contracts without changing component
 master layers.
 
 The branch is queued for an independent adversarial merge review. Give Opus

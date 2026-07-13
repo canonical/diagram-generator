@@ -210,21 +210,26 @@ for automatic icon selection. Then rerun the connector inspection and record:
 - whether slot content can be mutated while preserving instance semantics
 - icon component names/keys for every YAML icon id used by the target diagrams
 
-## 2026-07-13 Regional edge sizing correction (repo evidence)
+## 2026-07-13 semantic grouping and sizing correction (repo evidence)
 
-The `regional_edge` source node had an explicit `sizing_h: fill` override.
-Although its directed `regional_row1` body correctly hugged its three leaf
-children (216px), the effective payload forced the panel to `FIXED` height and
-the synthetic body to `FILL`. In the live component-slot hierarchy that allows
-the SlotNode's authored height to constrain the generated body and overflow the
-last child.
+Two fixture failures exposed a general importer boundary, not Figma-specific
+exceptions. A headingless `level: 2` container such as `compute_nodes` was
+being serialized as a semantic Parent, which exposed the master component's
+placeholder `Parent` title and created an unnecessary live slot. The serializer
+now requires frame-owned visible text before a non-leaf level-2 node becomes a
+Parent; headingless groups remain raw auto-layout containers.
 
-The override was removed so normal V3 vertical Hug behavior applies. The
-fixture regression asserts the resulting effective chain is `HUG` for the
-Regional edge panel, its generated slot body, and `regional_row1`, with the
-body height equal to the row height. This is protected by
-`upsertFrameDiagram applies the real telecom effective payload sizing` in
-`apps/figma-plugin/src/code.test.ts`.
+The fixture also had explicit `sizing_h: fill` overrides on content-driven
+panels. They forced fixed panels and fill-sized synthetic slot bodies even
+though their child rows correctly hugged. Those overrides were removed,
+restoring the V3 vertical contract to panel/body/row `HUG`; the tallest child
+therefore determines the panel height rather than a fixed slot ancestor.
+
+The real-telecom payload regressions now assert both boundaries: headingless
+groups serialize as `container`, and `ai_workflows`, `data_streaming`,
+`training_inference`, `scheduling`, `storage_retrieval`, and `far_edge` use
+`HUG` panel and slot-body height. The focused importer regression also protects
+the Regional edge body height against its directed row.
 
 This is payload/test evidence only. Re-import the fixture into the actual Figma
 component file after reloading the rebuilt plugin and record the live visual

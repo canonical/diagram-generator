@@ -112,7 +112,6 @@ root:
           label:
           - MLflow
           icon: Bar chart with cost.svg
-        sizing_h: fill
       - id: data_streaming
         level: 2
         heading: Data streaming
@@ -131,7 +130,6 @@ root:
           label:
           - Spark
           icon: App data.svg
-        sizing_h: fill
       - id: training_inference
         level: 2
         heading: Training and inference
@@ -148,7 +146,6 @@ root:
           label:
           - Feast
           icon: Storage object.svg
-        sizing_h: fill
       - id: scheduling
         level: 2
         heading: Scheduling
@@ -160,7 +157,6 @@ root:
           label:
           - Slurm
           icon: Cluster.svg
-        sizing_h: fill
       - id: storage_retrieval
         level: 2
         heading: Storage and retrieval
@@ -307,7 +303,6 @@ root:
             - Virtualization and
             - container platforms
             icon: containers.svg
-        sizing_h: fill
   - id: physical_layer
     level: 3
     heading: Physical infrastructure

@@ -24,10 +24,12 @@ State explicitly when no P0/P1 finding is present.
    - Only real `SLOT` nodes may receive structural edits. There must be no
      detach fallback, ordinary instance-sublayer traversal, or structural edit
      of `contents`, text wrappers, or other non-Slot instance descendants.
-   - V3 `kind: container` nodes are structural rows/stacks/icon-label groups;
-     they must be raw generated auto-layout frames, not `Role=Parent`
-     instances. Check the implementation and tests for both halves of this
-     boundary.
+   - V3 `kind: container` nodes are structural rows/stacks/icon-label groups,
+     including headingless level-2 group frames; they must be raw generated
+     auto-layout frames, not `Role=Parent` instances. Explicit source level
+     alone is not semantic content: a container must have frame-owned visible
+     text before it receives Parent component chrome. Check the implementation
+     and tests for both halves of this boundary.
 
 2. Slot lifecycle and refresh safety
    - Content slots must replace importer-owned content with exactly one body

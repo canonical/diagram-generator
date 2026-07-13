@@ -57,6 +57,15 @@ function collectFillUnderHugViolations(node: any): string[] {
   return violations;
 }
 
+function findPayloadNode(node: any, id: string): any | null {
+  if (node.id === id) return node;
+  for (const child of node.children ?? []) {
+    const match = findPayloadNode(child, id);
+    if (match) return match;
+  }
+  return null;
+}
+
 test("serializeDiagramNode preserves authored absolute positioning metadata", () => {
   const child = new Frame({
     id: "absolute_leaf",
@@ -252,22 +261,34 @@ test("serializeDiagramNode derives semantic kinds from frame structure, not fill
     border: Border.NONE,
     label: [createLine("Note")],
   });
+  const structuralLeaf = new Frame({
+    id: "structural-child",
+    label: [createLine("Structural child")],
+  });
+  const headinglessLevelTwoGroup = new Frame({
+    id: "headingless-level-two-group",
+    level: 2,
+    direction: Direction.HORIZONTAL,
+    children: [structuralLeaf],
+  });
   const root = new Frame({
     id: "page",
     direction: Direction.VERTICAL,
-    children: [panel, section, annotation],
+    children: [panel, section, annotation, headinglessLevelTwoGroup],
   });
 
   setPlacedSize(panel, 192, 64);
   setPlacedSize(section, 384, 160);
   setPlacedSize(annotation, 192, 24);
+  setPlacedSize(structuralLeaf, 192, 64);
+  setPlacedSize(headinglessLevelTwoGroup, 192, 64);
   setPlacedSize(root, 800, 600);
 
   const payload = serializeDiagramNode(root);
 
   assert.deepEqual(
     payload.children.map((child: any) => child.kind),
-    ["panel", "section", "annotation"],
+    ["panel", "section", "annotation", "container"],
   );
 });
 
@@ -276,6 +297,30 @@ test("telecom frame-diagram payload contains no Figma-illegal fill under hug", a
   const violations = collectFillUnderHugViolations(payload.root);
 
   assert.deepEqual(violations, []);
+});
+
+test("telecom payload keeps headingless groups structural and panel heights content-driven", async () => {
+  const payload = await createFrameDiagramPayload("ai-infra-telecom-services-stack");
+
+  for (const id of ["compute_nodes", "network_fabric", "edge_transport"]) {
+    const node = findPayloadNode(payload.root, id);
+    assert.ok(node, `missing ${id}`);
+    assert.equal(node.kind, "container", `${id} must not create an empty Parent component`);
+  }
+
+  for (const id of [
+    "ai_workflows",
+    "data_streaming",
+    "training_inference",
+    "scheduling",
+    "storage_retrieval",
+    "far_edge",
+  ]) {
+    const node = findPayloadNode(payload.root, id);
+    assert.ok(node, `missing ${id}`);
+    assert.equal(node.sizingH, "HUG", `${id} panel height`);
+    assert.equal(node.bodySizingH, "HUG", `${id} slot-body height`);
+  }
 });
 
 test("createFrameDiagramPayloadFromYaml supports arbitrary selected frame YAML", async () => {

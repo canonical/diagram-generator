@@ -145,6 +145,15 @@ function isLayoutWrapperFrame(frame: any) {
   return String(frame?.id || "").includes("__");
 }
 
+function hasSemanticContainerText(frame: any) {
+  // An explicit level may provide styling in the V3 source, but a headed/textless
+  // container is still a layout grouping. Importing it as a Parent component
+  // would expose the master's default title (for example, "Parent") and add
+  // unnecessary live slots. Only containers with visible, frame-owned text are
+  // semantic component candidates; rows and stacks stay raw auto-layout frames.
+  return frameOwnedTextBlocks(frame).length > 0;
+}
+
 function normalizeSizing(value: unknown): FigmaSizing {
   if (value === "FIXED" || value === "HUG" || value === "FILL") {
     return value;
@@ -309,7 +318,7 @@ function resolveFrameSemanticState(
     } else if (level >= 3) {
       kind = "section";
       isSection = true;
-    } else if (level >= 2) {
+    } else if (level >= 2 && (frame.isLeaf || hasSemanticContainerText(frame))) {
       kind = "panel";
       isPanel = true;
     } else if (frame.isLeaf) {
