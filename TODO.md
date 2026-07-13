@@ -25,14 +25,11 @@ after ELK (box-moving + local arrow rerouting), and closed on non-rendering snip
 asserts, so the raw-ELK view is structurally wrong and nothing cold-starts. Do not
 resume 076.
 
-**077 Mermaid ELK cluster lowering port is the active Mermaid-composite work
-(highest priority, Epic A).** Port Mermaid's *layout-only* cluster→ELK lowering
-into TS on the existing `elkjs`; ELK owns geometry, the product styles thinly and
-never redraws after ELK. GPT starts at
-[`specs/077-mermaid-elk-cluster-lowering-port/handoff.md`](specs/077-mermaid-elk-cluster-lowering-port/handoff.md)
-(branch strategy, salvage list, keep/rewrite, hard rules), then executes
-`specs/077-.../tasks.md` in order on a fresh `feat/077-…` branch cut from `main`.
-No Dagre; no `@mermaid-js/layout-elk` dependency.
+**077 Mermaid ELK cluster lowering port is complete (2026-07-13).** Its generic
+cluster-lowering seam is now available to Epic A work; the completed package is
+archived at
+[`docs/spec-archive/077-mermaid-elk-cluster-lowering-port/`](docs/spec-archive/077-mermaid-elk-cluster-lowering-port/).
+No Dagre or `@mermaid-js/layout-elk` dependency was added.
 
 ### Roles (do not blur these)
 
@@ -53,8 +50,8 @@ gated stages**. Do them in this order; do not skip the gate.
    (`specs/004-mermaid-composite-lowering-audit/`, requested in that repo's
    `AGENT-INBOX.md`) of every Mermaid ELK lowering trick. Not this repo's code.
 2. **Spec 028 — Mermaid import** (`specs/028-diagram-interchange-mermaid-d2/`),
-   reusing the 077 cluster->ELK lowering
-   (`specs/077-mermaid-elk-cluster-lowering-port/`). No Dagre.
+   reusing the archived 077 cluster->ELK lowering
+   (`docs/spec-archive/077-mermaid-elk-cluster-lowering-port/`). No Dagre.
 
 ### Lane B — standing user-facing regressions (parallel, independent of Epic A)
 

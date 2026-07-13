@@ -65,6 +65,7 @@ Completed or retired spec packages live here so `specs/` stays focused on curren
 - `073-layout-node-model-param-unification`
 - `074-layout-algorithm-consolidation`
 - `076-tls-mermaid-cold-start-fit`
+- `077-mermaid-elk-cluster-lowering-port`
 - `078-figma-autolayout-plugin`
 - `035-compatible-engine-switcher`
 - `036-headingless-wrapper-contract`

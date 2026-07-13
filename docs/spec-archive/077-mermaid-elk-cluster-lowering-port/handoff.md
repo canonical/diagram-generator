@@ -37,7 +37,7 @@ git switch -c feat/077-mermaid-elk-cluster-lowering-port main
 # 077 spec package (committed on feat/076 as da889e7) + the cold-start wiring +
 # the salvage files. feat/076 is strictly ahead of main, so these are safe.
 git checkout feat/076-tls-mermaid-cold-start-fit -- \
-  specs/077-mermaid-elk-cluster-lowering-port/ \
+  docs/spec-archive/077-mermaid-elk-cluster-lowering-port/ \
   AGENT-INBOX.md TODO.md docs/specs.md \
   scripts/diagrams/frames/tls-certificate-provider-topology.yaml \
   packages/layout-engine/src/resolve-styles.ts \

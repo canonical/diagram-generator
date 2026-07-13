@@ -3,7 +3,7 @@
 - Reviewer: Cline (adversarial pass)
 - Date: 2026-07-10
 - Branch: `feat/077-mermaid-elk-cluster-lowering-port`
-- Request: `specs/077-mermaid-elk-cluster-lowering-port/evidence/opus-adversarial-review-request-2026-07-10.md`
+- Request: `docs/spec-archive/077-mermaid-elk-cluster-lowering-port/evidence/opus-adversarial-review-request-2026-07-10.md`
 - Oracle consulted: `H:\WSL_dev_projects\mermaid-js-monorepo\packages\mermaid-layout-elk\src\render.ts` (MIT, `@mermaid-js/layout-elk@0.2.1`)
 
 ## Verdict

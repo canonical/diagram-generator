@@ -160,7 +160,7 @@
       **Evidence**: `packages/layout-engine/tests/preview-engine-graph-control-inventory.test.ts`,
       `packages/graph-layout-elk/tests/elk-option-audit.test.ts`,
       `packages/graph-layout-elk/src/elk-option-audit.ts`,
-      `specs/077-mermaid-elk-cluster-lowering-port/evidence/elk-option-discoverability-audit.md`,
+      `docs/spec-archive/077-mermaid-elk-cluster-lowering-port/evidence/elk-option-discoverability-audit.md`,
       and the focused preview registry/browser-entry validation.
 
 ## Phase 5 — Gate: real render + cold-start portability
@@ -199,7 +199,7 @@
       the G2/G3 functions; rendered arrow points equal ELK sections.
       **Evidence**: `packages/layout-engine/tests/elk-layout-architecture.test.ts`
       plus the focused layout-engine validation in this handoff.
-- [ ] **T054** SC-005 full validation:
+- [x] **T054** SC-005 full validation:
       `npm --prefix packages/graph-layout-elk test`;
       `npm --prefix packages/layout-engine test`;
       `npm --prefix apps/preview test`;
@@ -207,8 +207,8 @@
       `node scripts/check-browser-bundle-fresh.mjs`;
       `node scripts/check_no_new_python.mjs`;
       `node scripts/check-preview-shell-size-budgets.mjs`.
-      **Evidence**: `evidence/validation-2026-07-13.md` (the remaining preview
-      editor-live-repaint baseline failure).
+      **Evidence**: `evidence/validation-2026-07-13.md` (all required checks
+      pass after a clean browser-bundle rebuild).
 
 ## Done-when (closeout)
 

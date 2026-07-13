@@ -84,7 +84,5 @@ carriers, and ELK owns their detached placement.
 - `git diff --check` (passes; Git reports line-ending warnings only)
 
 The draw.io reference was regenerated from the YAML-selected ELK export on
-2026-07-13, and full `npm --prefix packages/layout-engine test` is now green
-(1024/1024). The full preview app suite is still currently 167/168 because
-`editor-live-repaint-regression.test.ts` expects two blank ELK option fields that
-the current registry omits; the focused TLS preview tests above are 2/2 green.
+2026-07-13. Full layout-engine and preview validation now pass after rebuilding
+the browser bundle; the focused TLS preview tests above remain 2/2 green.

@@ -15,12 +15,19 @@ regenerated from the current deterministic exporter.
 
 - `npm --prefix packages/layout-engine test`: **1024/1024**.
 
-The preview suite still has one unrelated baseline failure:
+## Closeout rerun
 
-- `npm --prefix apps/preview test`: **167/168**; the only failure is the existing
-  `editor-live-repaint-regression.test.ts` default ELK-options assertion, where
-  two blank fields differ (`elk.aspectRatio` and
-  `elk.layered.spacing.baseValue`).
+The complete required set passed after rebuilding the browser bundle:
+
+- `npm --prefix packages/graph-layout-elk test`: **74/74**.
+- `npm --prefix packages/layout-engine test`: **1024/1024**.
+- `npm --prefix apps/preview test`: pass.
+- `npm --prefix apps/preview test -- editor-live-repaint-regression.test.ts`:
+  pass. The earlier failure was against outdated built browser code.
+- `npm --prefix packages/layout-engine run build:browser`: pass.
+- `node scripts/check-browser-bundle-fresh.mjs`: pass.
+- `node scripts/check_no_new_python.mjs`: pass.
+- `node scripts/check-preview-shell-size-budgets.mjs`: pass.
 
 The unrelated root PNG artifacts remain preserved in the named pre-rebase stash
 and are not part of the TLS branch.

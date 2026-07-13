@@ -20,10 +20,10 @@ you supersede. Do not revert or stage unrelated dirty files, especially root
 - `AGENT-INBOX.md`
 - `docs/agent-index.md`
 - `DIAGRAM.md`
-- `specs/077-mermaid-elk-cluster-lowering-port/spec.md`
-- `specs/077-mermaid-elk-cluster-lowering-port/tasks.md`
-- `specs/077-mermaid-elk-cluster-lowering-port/handoff.md`
-- `specs/077-mermaid-elk-cluster-lowering-port/evidence/tls-raw-styled-parity.md`
+- `docs/spec-archive/077-mermaid-elk-cluster-lowering-port/spec.md`
+- `docs/spec-archive/077-mermaid-elk-cluster-lowering-port/tasks.md`
+- `docs/spec-archive/077-mermaid-elk-cluster-lowering-port/handoff.md`
+- `docs/spec-archive/077-mermaid-elk-cluster-lowering-port/evidence/tls-raw-styled-parity.md`
 
 ## Review Scope
 
