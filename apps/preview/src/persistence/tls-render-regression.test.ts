@@ -16,7 +16,7 @@ import {
 import { buildFrameDiagramState, renderSvgForSlug } from "../preview-host/frame-documents.js";
 
 const REPO_ROOT = path.resolve(process.cwd(), "..", "..");
-const FRAMES_DIR = path.join(REPO_ROOT, "scripts", "diagrams", "frames");
+const FRAMES_DIR = path.join(REPO_ROOT, "diagrams", "1.input");
 const ICONS_DIR = path.join(REPO_ROOT, "assets", "icons");
 const FONT_PATH = path.join(REPO_ROOT, "assets", "UbuntuSans[wdth,wght].ttf");
 

@@ -72,7 +72,7 @@ carriers, and ELK owns their detached placement.
 - `npm --prefix packages/layout-engine test -- level-promotion-corpus.test.ts frame-role-assignment.test.ts elk-layout.test.ts elk-layout-architecture.test.ts frame-class-contract-drift.test.ts`
 - `npm --prefix packages/layout-engine run build`
 - `npm --prefix packages/layout-engine run build:browser`
-- `npm --prefix apps/preview test`
+- `node --import tsx --test src/persistence/tls-render-regression.test.ts src/persistence/tls-browser-parity-regression.test.ts` (from `apps/preview`)
 - `npm --prefix packages/graph-layout-elk test -- elk-layout-options.test.ts elk-clustered-layout.test.ts`
 - `npm --prefix packages/graph-layout-elk test -- elk-layout-options.test.ts elk-layered.test.ts elk-clustered-layout.test.ts engine-capabilities.test.ts`
 - `npm --prefix packages/layout-engine test -- elk-layout.test.ts frame-style.test.ts frame-role-assignment.test.ts`
@@ -87,4 +87,6 @@ Known unrelated blocker for full `npm --prefix packages/layout-engine test`:
 `export-frame-drawio.test.ts` still fails on
 `ai-infra-production-contract.drawio` because the working tree already contains a
 dirty `specs/077-yaml-drawio-export/golden/ai-infra-production-contract.drawio`
-golden mismatch. The TLS/layout tests above and full preview app test are green.
+golden mismatch. The full preview app suite is also currently 167/168 because
+`editor-live-repaint-regression.test.ts` expects two blank ELK option fields that
+the current registry omits; the focused TLS preview tests above are 2/2 green.

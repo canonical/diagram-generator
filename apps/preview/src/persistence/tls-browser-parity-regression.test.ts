@@ -15,7 +15,7 @@ import { buildFrameDiagramState } from "../preview-host/frame-documents.js";
 
 const REPO_ROOT = path.resolve(process.cwd(), "..", "..");
 const APP_ROOT = path.join(REPO_ROOT, "apps", "preview");
-const FRAMES_DIR = path.join(REPO_ROOT, "scripts", "diagrams", "frames");
+const FRAMES_DIR = path.join(REPO_ROOT, "diagrams", "1.input");
 const ICONS_DIR = path.join(REPO_ROOT, "assets", "icons");
 const FONT_PATH = path.join(REPO_ROOT, "assets", "UbuntuSans[wdth,wght].ttf");
 const TSX_CLI = path.join(APP_ROOT, "node_modules", "tsx", "dist", "cli.mjs");

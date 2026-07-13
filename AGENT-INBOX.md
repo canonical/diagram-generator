@@ -12,13 +12,13 @@ spec catalog/status → [`docs/specs.md`](docs/specs.md) · human notes →
 [`INBOX.md`](INBOX.md) · durable per-spec detail → `specs/<id>-<slug>/` ·
 adversarial reviews → `docs/spec-reviews/`.
 
-**Last-known-green (2026-07-11, spec 077 option audit focus):**
-`packages/graph-layout-elk test` **74/74**; preview registry/runtime/browser-entry
-focused suite **57/57**; preview `frame-diagram.test.ts` persistence file
-**49/49**; `packages/layout-engine build:browser`,
-`check-browser-bundle-fresh.mjs`, `check-preview-shell-size-budgets.mjs`, and
-`check_no_new_python.mjs` green. Full `packages/layout-engine test` is not green
-because of the unrelated dirty draw.io golden noted below.
+**Last-known-green (2026-07-13, spec 077 closeout focus):**
+`packages/graph-layout-elk test` **74/74**; focused layout/TLS/portability
+validation **26/26**; focused TLS preview render/browser tests **2/2**;
+`packages/layout-engine build:browser`, `check-browser-bundle-fresh.mjs`,
+`check-preview-shell-size-budgets.mjs`, and `check_no_new_python.mjs` green.
+Full layout-engine validation is **1023/1024** and full preview validation is
+**167/168**, with only the unrelated baselines recorded below.
 
 ---
 
@@ -49,15 +49,15 @@ our arrow labels are transparent by design. The current fix keeps the behavior
 configurable: layered ELK labels default to detached (`elk.edgeLabels.inline:
 false`), expose documented label spacing/side/layer controls, and TLS pins those
 controls in YAML. Product tests now assert no arrow segment crosses an ELK-owned
-label box. T051 (second cold-start fixture) and T054 (full validation, blocked
-only by the unrelated draw.io golden below) still block spec closeout.
+label box. T051 is now complete via the non-TLS portability fixture and product
+SVG regression. T054 remains open pending clean full-suite baselines.
 
 
 **Still open at spec level:**
-- T051 second cold-start clustered fixture remains open.
-- T054 full layout-engine validation remains blocked by the unrelated draw.io
-  golden below; focused TLS/layout and full graph-layout/preview validation are
-  green.
+- T054 full validation remains open: the layout-engine suite has one unrelated
+  draw.io golden failure, and the preview suite has one unrelated
+  editor-live-repaint default-options failure. Focused TLS/layout/portability
+  validation is green.
 - Full `npm --prefix packages/layout-engine test` currently fails only in
   `export-frame-drawio.test.ts` for
   `specs/077-yaml-drawio-export/golden/ai-infra-production-contract.drawio`.

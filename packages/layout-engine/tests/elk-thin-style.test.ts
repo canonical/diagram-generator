@@ -8,7 +8,7 @@ import { renderFrameDiagramToSvg } from '../src/svg-render.js';
 import { MockTextAdapter } from '../src/text-measure.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
-const FRAMES_DIR = join(__dirname, '../../..', 'scripts/diagrams/frames');
+const FRAMES_DIR = join(__dirname, '../../..', 'diagrams/1.input');
 
 type FrameLike = {
   id: string;

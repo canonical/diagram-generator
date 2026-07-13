@@ -185,11 +185,12 @@
       `evidence/render/tls-certificate-provider-topology.raw-elk.svg`,
       `evidence/render/tls-certificate-provider-topology.product.svg`, and
       `evidence/tls-raw-styled-parity.md`.
-- [ ] **T051** SC-002 cold-start fixture: author a second, structurally different
+- [x] **T051** SC-002 cold-start fixture: author a second, structurally different
       clustered fixture (different row sizes / counts, not TLS-derived) and prove it
       renders correctly through the same generic lowering with zero fixture-keyed
       code.
-      **Evidence**: second fixture + render test.
+      **Evidence**: `diagrams/1.input/elk-cluster-portability.yaml` and
+      `packages/layout-engine/tests/elk-cluster-portability.test.ts`.
 - [x] **T052** SC-003 raw-ELK correctness: assert the raw-ELK view for the TLS
       fixture is itself structurally faithful and that no G2/G3 pass executed.
       **Evidence**: `packages/layout-engine/tests/elk-layout-architecture.test.ts`
@@ -206,7 +207,8 @@
       `node scripts/check-browser-bundle-fresh.mjs`;
       `node scripts/check_no_new_python.mjs`;
       `node scripts/check-preview-shell-size-budgets.mjs`.
-      **Evidence**: command transcript summary in this package.
+      **Evidence**: `evidence/validation-2026-07-13.md` (the two remaining
+      failures are unrelated draw.io/editor-live-repaint baselines).
 
 ## Done-when (closeout)
 
