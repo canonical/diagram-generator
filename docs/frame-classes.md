@@ -37,6 +37,10 @@ Plus two special cases that are not user-authored:
   (level 1). It must not contain another section.
 - A **panel** (level 2) may contain leaves (level 1). It must not
   contain another panel (grey-on-grey has no visible boundary).
+- A headed non-leaf authored at level 1 is normalized to panel chrome for
+  compatibility with arbitrary V3 YAML. The nesting safety rule still demotes
+  it inside a panel, where it remains a structural container rather than a
+  nested Parent box.
 - A **leaf** (level 1) has no headed children.
 - An **annotation** has `variant: annotation` or `border: none` and is
   a borderless text label with lighter grey text. It may appear at any

@@ -19,6 +19,8 @@ import {
   FRAME_CLASS_DEFS,
   strokeWidthForClass,
 } from './frame-classes.js';
+import { findSyntheticHeading } from './heading-synthesis.js';
+import { frameOwnedTextBlocks } from './resolved-spec-typography.js';
 
 /**
  * Compute the effective prominence level for a frame.
@@ -57,6 +59,15 @@ interface ResolveStylesContext {
   parentIsPanel: boolean;
   parentIsSection: boolean;
   parentIsHighlight: boolean;
+}
+
+function hasSemanticContainerText(frame: Frame): boolean {
+  if (!frame.isContainer) {
+    return false;
+  }
+  const heading = findSyntheticHeading(frame);
+  return frameOwnedTextBlocks(frame).length > 0
+    || Boolean(heading && frameOwnedTextBlocks(heading).length > 0);
 }
 
 /**
@@ -98,6 +109,13 @@ export function resolveStyles(root: Frame, ctx?: Partial<ResolveStylesContext>):
     thisIsHighlight = isHighlight;
     // Normal frame: resolve from level
     let level = computeLevel(root, depth);
+
+    // A headed non-leaf is semantic panel chrome even when its authored level
+    // is 1. Apply this before the nesting constraints so a panel's headed
+    // child is still demoted instead of producing grey-on-grey chrome.
+    if (!isHighlight && level < 2 && hasSemanticContainerText(root)) {
+      level = 2;
+    }
 
     // Nesting constraints: grey-on-grey has no visible boundary,
     // and section-in-section is not meaningful.

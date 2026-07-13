@@ -292,6 +292,33 @@ test("serializeDiagramNode derives semantic kinds from frame structure, not fill
   );
 });
 
+test("serializeDiagramNode keeps headed containers nested in panels structural", () => {
+  const nested = new Frame({
+    id: "nested-headed-container",
+    level: 1,
+    heading: createLine("Nested heading"),
+    children: [new Frame({ id: "nested-leaf", label: [createLine("Nested leaf")] })],
+  });
+  const outer = new Frame({
+    id: "outer-panel",
+    level: 2,
+    heading: createLine("Outer panel"),
+    children: [nested],
+  });
+  const root = new Frame({ id: "page", children: [outer] });
+
+  setPlacedSize(nested.children[0]!, 192, 64);
+  setPlacedSize(nested, 240, 120);
+  setPlacedSize(outer, 320, 240);
+  setPlacedSize(root, 640, 480);
+
+  const payload = serializeDiagramNode(root);
+  const nestedPayload = payload.children[0]?.children[0];
+
+  assert.equal(payload.children[0]?.kind, "panel");
+  assert.equal(nestedPayload?.kind, "container");
+});
+
 test("telecom frame-diagram payload contains no Figma-illegal fill under hug", async () => {
   const payload = await createFrameDiagramPayload("ai-infra-telecom-services-stack");
   const violations = collectFillUnderHugViolations(payload.root);

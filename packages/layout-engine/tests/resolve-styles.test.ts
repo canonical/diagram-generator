@@ -68,6 +68,19 @@ describe('resolveStyles', () => {
     expect(heading.resolvedHeadingSmallCaps).toBe(false);
   });
 
+  it('promotes a headed non-leaf level-one container to panel chrome', () => {
+    const heading = new Frame({ id: '__heading', role: 'heading', label: [createLine('Panel')] });
+    const body = new Frame({ id: '__body', children: [new Frame({ id: 'leaf', label: [createLine('Body')] })] });
+    const panel = new Frame({ id: 'p', level: 1, children: [heading, body] });
+    const root = new Frame({ id: 'root', children: [panel] });
+
+    resolveStyles(root);
+
+    expect(panel.resolvedFill).toBe('#F3F3F3');
+    expect(panel.resolvedStroke).toBe('#F3F3F3');
+    expect(heading.resolvedHeadingWeight).toBe('700');
+  });
+
   it('panel (level=2) with cleared heading text stays visible (not level 0)', () => {
     const heading = new Frame({ id: '__heading', role: 'heading', label: [createLine('')] });
     const body = new Frame({ id: '__body', children: [new Frame({ id: 'leaf', label: [createLine('body')] })] });
@@ -152,6 +165,27 @@ describe('resolveStyles', () => {
     // Outer should be panel
     expect(outer.resolvedFill).toBe('#F3F3F3');
     // Inner should be demoted to leaf (level 1) — no grey-on-grey
+    expect(inner.resolvedFill).toBe('transparent');
+    expect(inner.resolvedStroke).toBe('#000000');
+  });
+
+  it('nesting constraint demotes a headed level-one container inside a panel', () => {
+    const innerHeading = new Frame({ id: '__heading2', role: 'heading', label: [createLine('Inner')] });
+    const inner = new Frame({
+      id: 'inner',
+      level: 1,
+      children: [innerHeading, new Frame({ id: 'inner_leaf', label: [createLine('inner')] })],
+    });
+    const outer = new Frame({
+      id: 'outer',
+      level: 2,
+      children: [new Frame({ id: '__heading1', role: 'heading', label: [createLine('Outer')] }), inner],
+    });
+    const root = new Frame({ id: 'root', children: [outer] });
+
+    resolveStyles(root);
+
+    expect(outer.resolvedFill).toBe('#F3F3F3');
     expect(inner.resolvedFill).toBe('transparent');
     expect(inner.resolvedStroke).toBe('#000000');
   });

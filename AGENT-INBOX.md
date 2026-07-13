@@ -3,7 +3,7 @@
 Current state only. Invariants live in `AGENTS.md`; operating guidance lives in
 `docs/agent-index.md`; durable spec detail lives under `specs/`.
 
-**Last-known-green (2026-07-13, spec 079):** `apps/figma-plugin` **46/46**;
+**Last-known-green (2026-07-13, spec 079):** `apps/figma-plugin` **47/47**;
 plugin build and `check_no_new_python.mjs` pass; dev server health is 200 at
 `http://localhost:3846`.
 
@@ -51,11 +51,10 @@ value-map payload and component-mode regressions guard the behavior. The full
 review history is in
 `docs/spec-reviews/opus-adversarial-review-2026-07-13-spec-079-merge.md`.
 
-Follow-ups: restore semantic headed-container chrome upstream in
-`resolveStyles` (the importer currently needs a grey/solid compatibility
-bridge), and confirm whether headed containers nested directly in panels should
-be demoted rather than yielding nested Parent components. Real-Figma visual
-verification remains a release gate.
+The two re-review follow-ups are implemented in the working tree: upstream
+`resolveStyles` normalizes headed level-1 containers to panel chrome, and
+headed containers nested directly in a panel remain structural to avoid nested
+Parent boxes. Real-Figma visual verification remains a release gate.
 
 Remaining live gate: verify the rebuilt plugin against the actual Figma file
 for sizing and visual component fidelity. Do not claim that gate passed without
