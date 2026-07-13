@@ -12,6 +12,8 @@ Current scope:
   component children into real Figma `SLOT` nodes
 - inserts matched copied icons into real icon `SLOT` nodes on the mapped
   component instances
+- sets title/helper text and helper/icon visibility only through exposed Figma
+  component properties; it does not edit ordinary instance text/icon sublayers
 - falls back to nested native Figma auto-layout frames only when no `box`
   component set is available
 - derives both payloads from repo YAML through the local layout engine
@@ -44,6 +46,9 @@ Current scope:
 - section/panel wrappers preserve padding, gaps, and heading/body separation
 - copied icon assets in the current Figma file are matched by stable names such
   as `Gateway.svg`, including when nested inside frames/folders
+- the `box` variants expose component-property references for title text,
+  helper/body text, helper visibility, and icon visibility; missing properties
+  fail component mode with a contract error
 - mapped boxes remain component instances; the importer must not detach them or
   replace ordinary instance sublayers
 - rerunning the same import refreshes the existing imported root in place
@@ -58,5 +63,8 @@ Current scope:
   `.svg`-named cloneable icon nodes. Matching icons are inserted into icon
   `SLOT` nodes. Missing or unapplied YAML icons fail the import; they are not
   silently redrawn as raw SVG fallback.
+- Component mode discovers slots on the master `box` component and addresses
+  the corresponding live instance slots by stable instance-sublayer id. It does
+  not recursively traverse live component instances to find slots.
 - If you change plugin code, rebuild and reload the development plugin in
   Figma before retesting.

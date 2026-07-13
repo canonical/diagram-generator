@@ -39,6 +39,12 @@ fallback.
 
 ## Current Blockers
 
+The executable live-Figma handoff is
+[`terra-live-fix-runbook.md`](terra-live-fix-runbook.md). Terra should follow it
+in order; it separates Figma component authoring failures from slot-addressing,
+slot-mutation, sizing, and refresh defects so the next error cannot become
+another per-id patch.
+
 - Remote Brand icons library import by key is still not implemented. Automatic
   icon selection is supported for current-file copies whose stable layer or
   component names normalize to YAML icon names. The importer searches outside
@@ -51,6 +57,18 @@ fallback.
   not a durable full path. Same-basename files need a user-approved identity
   strategy, such as explicit source id entry, folder picker workflow, or
   selected existing root replacement.
+- The latest live visual rerun shows component-mode regressions that block
+  closeout: hardcoded-height behavior, visible authored helper text defaults,
+  visible default icon placeholders, icons appearing as raw SVG recreation
+  instead of copied Figma component/instance sources, and duplicated
+  parent/section nesting with repeated generated slot/body wrappers.
+- The post-review implementation removes ordinary live-instance sublayer
+  traversal for slot discovery. It prefers component properties for text and
+  visibility, while falling back to a stable master-id-addressed, non-structural
+  text override when a title/helper property is absent. An icon-less node clears
+  its real icon SlotNode when no icon-visibility property exists. Remaining live
+  risk: real Figma must still prove converted slot mutation is legal and helper
+  visibility properties must exist where defaults need to be hidden.
 
 ## Design Direction
 
@@ -75,6 +93,11 @@ fallback.
    - First slice can require components to exist in the current Figma file.
    - Add an inspectable manifest and a validator that reports missing or
      ambiguous mappings before creating nodes.
+   - Text/helper content prefers importer-owned component-property overrides.
+     If a text property is absent, use one master-id-addressed `TEXT` target as
+     a non-structural fallback. Helper visibility remains a component-property
+     contract; an icon-less node clears the real icon SlotNode if no icon
+     visibility property exists. Never walk instance sublayers to locate targets.
 
 4. Use the strict slot strategy for component-mode structure.
    - Figma docs say `InstanceNode.setProperties()` cannot set `SLOT`
@@ -82,6 +105,9 @@ fallback.
    - Content insertion targets exactly one live `SLOT` named `slot`.
    - Icon insertion targets exactly one live non-content `SLOT` in the mapped
      box instance.
+   - Slot targets are resolved from master-component slot IDs and addressed
+     directly on the instance; the importer must not recursively traverse a
+     live `INSTANCE` to find slots.
    - If either slot is absent, ambiguous, or rejects child mutation, fail import
      rather than detaching or rewriting ordinary instance sublayers.
    - Record live Figma validation before marking implementation closeout-ready.
@@ -98,6 +124,9 @@ fallback.
    - Keep existing Fill/Hug/Fixed readback checks.
    - Add component identity and property readback.
    - Add slot existence, direction, child order, and generated-subtree checks.
+   - Add checks for helper/icon visibility defaults, component icon source
+     usage, hardcoded height regressions, and rerun slot replacement rather
+     than slot-content appending.
    - Negative tests must fail for missing mapping, ambiguous mapping, and wrong
      slot direction.
 
@@ -115,7 +144,8 @@ Deliverables:
 - A short findings file or validation section recording the user's component
   set names, expected variants, slot marker, and live mutation result.
 - A hardened fake-Figma probe that models immutable ordinary instance
-  sublayers and mutable `SLOT` nodes.
+  sublayers and mutable `SLOT` nodes, including re-keying content inserted into
+  a live slot and reporting SlotNode limit violations.
 - A recorded decision that mapped imports preserve intact instances by mutating
   only real `SLOT` nodes; they do not detach or wrap for nested content.
 
@@ -186,6 +216,13 @@ Deliverables:
   slice should require local components in the open file.
 - A generic fallback frame path could hide mapping failures. Tests and readback
   must prove when component instances are expected.
+- Slot insertion can create visually plausible but semantically wrong trees if
+  generated bodies are appended on rerun instead of replacing prior
+  importer-owned slot content. Validation must inspect wrapper depth and import
+  IDs, not just rendered appearance.
+- Authored component defaults for helper text and placeholder icons can leak
+  into imported diagrams unless the importer drives the relevant component
+  properties, slot visibility, or slot contents explicitly.
 - File picker behavior may differ between Figma Desktop and browser; fallback
   input is required.
 
@@ -198,3 +235,5 @@ Deliverables:
   exports change
 - `node scripts/check_no_new_python.mjs`
 - Live Figma validation against the user's component variants before closeout
+  must include: representative sizing readback, helper/icon default visibility,
+  icon source type, and rerun slot-replacement/idempotence checks.

@@ -9,12 +9,19 @@ type PluginTestables = {
   resolveComponentMapping: () => Promise<any>;
   upsertFrameDiagram: (serverUrl: string, slug: string) => Promise<any>;
   upsertYamlDiagram: (serverUrl: string, yamlText: string, sourceName: string) => Promise<any>;
-  validateImportedComponentStructure: (rootFrame: any, payloadRoot: any) => number;
-  validateImportedDiagramSizing: (rootFrame: any, payloadRoot: any) => number;
+  validateImportedComponentStructure: (rootFrame: any, payloadRoot: any, context?: any) => Promise<number>;
+  validateImportedDiagramSizing: (rootFrame: any, payloadRoot: any, context?: any) => Promise<number>;
   formatErrorMessage: (error: unknown) => string;
 };
 
+let fakeNodeSequence = 1;
+
+function nextFakeNodeId() {
+  return `0:${fakeNodeSequence++}`;
+}
+
 class FakeSceneNode {
+  private _id = nextFakeNodeId();
   type: string;
   private _name = "";
   width = 100;
@@ -52,11 +59,21 @@ class FakeSceneNode {
   constraints: { horizontal: string; vertical: string } | null = null;
   rejectChildMutation = false;
   instanceSublayer = false;
+  sourceComponentNodeId: string | null = null;
   mainComponent: FakeSceneNode | null = null;
+  private _componentPropertyDefinitions: Record<string, { type: string; defaultValue?: unknown }> = {};
+  componentPropertyReferences: Record<string, string> | null = null;
+  componentProperties: Record<string, { type: string; value: unknown }> = {};
+  limitViolations: string[] = [];
+  hiddenFromGlobalLookup = false;
   private readonly pluginData = new Map<string, Map<string, string>>();
 
   constructor(type: string) {
     this.type = type;
+  }
+
+  get id() {
+    return this._id;
   }
 
   get name() {
@@ -82,7 +99,7 @@ class FakeSceneNode {
   }
 
   get children() {
-    if (this.throwOnChildrenRead) {
+    if (this.throwOnChildrenRead || (this.instanceSublayer && this.type !== "SLOT")) {
       throw new Error(`in get_children: The node with id "${this._name || this.type}" does not exist`);
     }
     return this._children;
@@ -110,6 +127,17 @@ class FakeSceneNode {
     this._layoutSizingVertical = value;
   }
 
+  get componentPropertyDefinitions() {
+    if (this.type === "COMPONENT" && this._parent?.type === "COMPONENT_SET") {
+      throw new Error("in get_componentPropertyDefinitions: Can only get component property definitions of a component set or non-variant component");
+    }
+    return this._componentPropertyDefinitions;
+  }
+
+  set componentPropertyDefinitions(value: Record<string, { type: string; defaultValue?: unknown }>) {
+    this._componentPropertyDefinitions = value;
+  }
+
   appendChild(child: FakeSceneNode) {
     if (this.rejectsChildMutation()) {
       throw new Error(`Child mutation rejected by ${this._name || this.type}`);
@@ -122,6 +150,7 @@ class FakeSceneNode {
     }
     child.parent = this;
     this.children.push(child);
+    this.rekeyLiveSlotContent(child);
     return child;
   }
 
@@ -138,6 +167,7 @@ class FakeSceneNode {
     child.parent = this;
     const boundedIndex = Math.max(0, Math.min(index, this.children.length));
     this.children.splice(boundedIndex, 0, child);
+    this.rekeyLiveSlotContent(child);
     return child;
   }
 
@@ -169,6 +199,46 @@ class FakeSceneNode {
     };
     visit(this);
     return matches;
+  }
+
+  findByIdRaw(id: string): FakeSceneNode | null {
+    if (!this.hiddenFromGlobalLookup && this.id === id) {
+      return this;
+    }
+    for (const child of this._children) {
+      const hit = child.findByIdRaw(id);
+      if (hit) {
+        return hit;
+      }
+    }
+    return null;
+  }
+
+  findAllRaw(predicate: (node: FakeSceneNode) => boolean) {
+    const matches: FakeSceneNode[] = [];
+    const visit = (node: FakeSceneNode) => {
+      for (const child of node._children) {
+        if (predicate(child)) {
+          matches.push(child);
+        }
+        visit(child);
+      }
+    };
+    visit(this);
+    return matches;
+  }
+
+  findInstanceSublayerBySourceId(sourceNodeId: string): FakeSceneNode | null {
+    if (this.sourceComponentNodeId === sourceNodeId) {
+      return this;
+    }
+    for (const child of this._children) {
+      const hit = child.findInstanceSublayerBySourceId(sourceNodeId);
+      if (hit) {
+        return hit;
+      }
+    }
+    return null;
   }
 
   resizeWithoutConstraints(width: number, height: number) {
@@ -252,12 +322,19 @@ class FakeSceneNode {
     clone.constraints = this.constraints ? { ...this.constraints } : null;
     clone.mainComponent = this.mainComponent;
     clone.instanceSublayer = instanceSublayer;
+    clone.sourceComponentNodeId = instanceSublayer ? this.id : null;
+    clone._componentPropertyDefinitions = { ...this._componentPropertyDefinitions };
+    clone.componentPropertyReferences = this.componentPropertyReferences
+      ? { ...this.componentPropertyReferences }
+      : null;
+    clone.componentProperties = { ...this.componentProperties };
+    clone.limitViolations = [...this.limitViolations];
     const cloneType = typeOverride || this.type;
     const childInstanceSublayer = instanceSublayer || cloneType === "INSTANCE";
-    for (const child of this.children) {
+    for (const child of this._children) {
       const childClone = child.cloneTree(undefined, preserveMutationLocks, childInstanceSublayer);
       childClone.parent = clone;
-      clone.children.push(childClone);
+      clone._children.push(childClone);
     }
     clone.rejectChildMutation = preserveMutationLocks ? this.rejectChildMutation : false;
     return clone;
@@ -265,6 +342,20 @@ class FakeSceneNode {
 
   private rejectsChildMutation() {
     return this.rejectChildMutation || (this.instanceSublayer && this.type !== "SLOT");
+  }
+
+  private rekeyLiveSlotContent(child: FakeSceneNode) {
+    if (fakeFigma.rekeyLiveSlotContentIds && this.type === "SLOT" && this.instanceSublayer) {
+      child.rekeySubtree();
+    }
+  }
+
+  private rekeySubtree() {
+    this._id = nextFakeNodeId();
+    this.hiddenFromGlobalLookup = fakeFigma.hideLiveSlotContentFromLookup;
+    for (const child of this._children) {
+      child.rekeySubtree();
+    }
   }
 
   private invalidateRemovedSubtree() {
@@ -325,6 +416,21 @@ class FakeSceneNode {
   getSharedPluginData(namespace: string, key: string) {
     return this.pluginData.get(namespace)?.get(key) ?? "";
   }
+
+  setProperties(properties: Record<string, string | boolean>) {
+    const mainComponentParent = this.mainComponent ? this.mainComponent.parent : null;
+    const definitions = {
+      ...(mainComponentParent?.componentPropertyDefinitions ?? {}),
+      ...this._componentPropertyDefinitions,
+    };
+    for (const [propertyName, value] of Object.entries(properties)) {
+      const type = definitions[propertyName]?.type || "TEXT";
+      if (type === "SLOT") {
+        throw new Error("cannotSetSlotProperty");
+      }
+      this.componentProperties[propertyName] = { type, value };
+    }
+  }
 }
 
 class FakeFigma {
@@ -341,8 +447,11 @@ class FakeFigma {
   command: string | undefined = undefined;
   notifications: Array<{ text: string; options: unknown }> = [];
   loadAllPagesAsyncCount = 0;
+  rekeyLiveSlotContentIds = false;
+  hideLiveSlotContentFromLookup = false;
 
   reset() {
+    fakeNodeSequence = 1;
     this.root = new FakeSceneNode("DOCUMENT");
     this.currentPage = new FakeSceneNode("PAGE");
     this.currentPage.name = "Page 1";
@@ -351,6 +460,8 @@ class FakeFigma {
     this.viewport.center = { x: 0, y: 0 };
     this.notifications = [];
     this.loadAllPagesAsyncCount = 0;
+    this.rekeyLiveSlotContentIds = false;
+    this.hideLiveSlotContentFromLookup = false;
   }
 
   createPage(name: string) {
@@ -387,6 +498,25 @@ class FakeFigma {
 
   async loadAllPagesAsync() {
     this.loadAllPagesAsyncCount += 1;
+  }
+
+  getNodeById(id: string) {
+    return this.lookupNodeById(id);
+  }
+
+  async getNodeByIdAsync(id: string) {
+    return this.lookupNodeById(id);
+  }
+
+  private lookupNodeById(id: string) {
+    const semicolonIndex = id.indexOf(";");
+    if (id.startsWith("I") && semicolonIndex > 1) {
+      const instanceId = id.slice(1, semicolonIndex);
+      const sourceNodeId = id.slice(semicolonIndex + 1);
+      const instance = this.root.findByIdRaw(instanceId);
+      return instance?.findInstanceSublayerBySourceId(sourceNodeId) ?? null;
+    }
+    return this.root.findByIdRaw(id);
   }
 
   notify(text: string, options: unknown) {
@@ -503,6 +633,23 @@ function makeTextBlock(text: string) {
   }];
 }
 
+function makeTextBlockWithHelper(text: string, helper: string) {
+  const block = makeTextBlock(text)[0]!;
+  return [{
+    ...block,
+    lines: [
+      ...block.lines,
+      {
+        text: helper,
+        size: 18,
+        weight: 400,
+        fill: "#111111",
+        lineHeight: 24,
+      },
+    ],
+  }];
+}
+
 function makeLeaf(overrides: Record<string, unknown> = {}) {
   return {
     id: "leaf-1",
@@ -610,7 +757,30 @@ function makeTextNode(name: string, characters: string) {
   return node;
 }
 
-function makeBoxVariant(role: "Child" | "Parent" | "Section", includeSlot: boolean, slotRejectsMutation = false) {
+type BoxRole = "Child" | "Parent" | "Section";
+
+type BoxVariantPropertyOptions = {
+  title?: boolean;
+  helperText?: boolean;
+  helperVisible?: boolean;
+  iconVisible?: boolean;
+};
+
+type BoxComponentSetOptions = {
+  slotRejectsMutation?: boolean;
+  slotLimitViolations?: string[];
+  roleProperties?: Partial<Record<BoxRole, BoxVariantPropertyOptions>>;
+};
+
+function propertyEnabled(options: BoxVariantPropertyOptions | undefined, key: keyof BoxVariantPropertyOptions) {
+  return options?.[key] !== false;
+}
+
+function makeBoxVariant(
+  role: BoxRole,
+  includeSlot: boolean,
+  options: { properties?: BoxVariantPropertyOptions; slotRejectsMutation?: boolean; slotLimitViolations?: string[] } = {},
+) {
   const component = new FakeSceneNode("COMPONENT");
   component.name = `Role=${role}`;
   component.layoutMode = "VERTICAL";
@@ -627,12 +797,30 @@ function makeBoxVariant(role: "Child" | "Parent" | "Section", includeSlot: boole
   const textBlock = new FakeSceneNode("FRAME");
   textBlock.name = "Text block";
   textBlock.layoutMode = "VERTICAL";
-  textBlock.appendChild(makeTextNode("Main text", "Main text"));
-  textBlock.appendChild(makeTextNode("Helper text", "Helper text"));
+  const mainText = makeTextNode("Main text", "Main text");
+  if (propertyEnabled(options.properties, "title")) {
+    mainText.componentPropertyReferences = { characters: "Title#title" };
+  }
+  textBlock.appendChild(mainText);
+  const helperText = makeTextNode("Helper text", "Helper text");
+  const helperReferences: Record<string, string> = {};
+  if (propertyEnabled(options.properties, "helperText")) {
+    helperReferences.characters = "Helper text#helper";
+  }
+  if (propertyEnabled(options.properties, "helperVisible")) {
+    helperReferences.visible = "Show helper#showHelper";
+  }
+  if (Object.keys(helperReferences).length > 0) {
+    helperText.componentPropertyReferences = helperReferences;
+  }
+  textBlock.appendChild(helperText);
   contents.appendChild(textBlock);
 
   const icon = new FakeSceneNode("SLOT");
   icon.name = "Network.svg";
+  if (propertyEnabled(options.properties, "iconVisible")) {
+    icon.componentPropertyReferences = { visible: "Show icon#showIcon" };
+  }
   icon.layoutMode = "NONE";
   icon.resizeWithoutConstraints(48, 48);
   const defaultIcon = new FakeSceneNode("INSTANCE");
@@ -650,19 +838,34 @@ function makeBoxVariant(role: "Child" | "Parent" | "Section", includeSlot: boole
     const placeholder = new FakeSceneNode("FRAME");
     placeholder.name = "placeholder";
     slot.appendChild(placeholder);
-    slot.rejectChildMutation = slotRejectsMutation;
+    slot.rejectChildMutation = Boolean(options.slotRejectsMutation);
+    slot.limitViolations = [...(options.slotLimitViolations ?? [])];
     component.appendChild(slot);
   }
 
   return component;
 }
 
-function installBoxComponentSet(options: { slotRejectsMutation?: boolean } = {}, parent: FakeSceneNode = fakeFigma.currentPage) {
+function installBoxComponentSet(options: BoxComponentSetOptions = {}, parent: FakeSceneNode = fakeFigma.currentPage) {
   const set = new FakeSceneNode("COMPONENT_SET");
   set.name = "box";
-  set.appendChild(makeBoxVariant("Child", false));
-  set.appendChild(makeBoxVariant("Parent", true, Boolean(options.slotRejectsMutation)));
-  set.appendChild(makeBoxVariant("Section", true, Boolean(options.slotRejectsMutation)));
+  set.componentPropertyDefinitions = {
+    "Title#title": { type: "TEXT", defaultValue: "Main text" },
+    "Helper text#helper": { type: "TEXT", defaultValue: "Helper text" },
+    "Show helper#showHelper": { type: "BOOLEAN", defaultValue: true },
+    "Show icon#showIcon": { type: "BOOLEAN", defaultValue: true },
+  };
+  set.appendChild(makeBoxVariant("Child", false, { properties: options.roleProperties?.Child }));
+  set.appendChild(makeBoxVariant("Parent", true, {
+    properties: options.roleProperties?.Parent,
+    slotRejectsMutation: options.slotRejectsMutation,
+    slotLimitViolations: options.slotLimitViolations,
+  }));
+  set.appendChild(makeBoxVariant("Section", true, {
+    properties: options.roleProperties?.Section,
+    slotRejectsMutation: options.slotRejectsMutation,
+    slotLimitViolations: options.slotLimitViolations,
+  }));
   parent.appendChild(set);
   if (parent === fakeFigma.currentPage) {
     fakeFigma.currentPage.selection = [set];
@@ -743,13 +946,21 @@ function resetTestState() {
 }
 
 function countImportedNodesOnPage() {
-  return fakeFigma.currentPage.findAll(
+  return fakeFigma.currentPage.findAllRaw(
     (node) => node.getSharedPluginData("dgp", "importId") !== "",
   ).length;
 }
 
 function findImportedById(root: FakeSceneNode, importId: string) {
-  return root.findAll((node) => node.getSharedPluginData("dgp", "importId") === importId)[0] ?? null;
+  return root.findAllRaw((node) => node.getSharedPluginData("dgp", "importId") === importId)[0] ?? null;
+}
+
+function findNodeByName(root: FakeSceneNode, name: string) {
+  return root.findAllRaw((node) => node.name === name)[0] ?? null;
+}
+
+function componentPropertyValue(node: FakeSceneNode | null | undefined, propertyName: string) {
+  return node?.componentProperties[propertyName]?.value;
 }
 
 function findPayloadNode(node: any, id: string): any | null {
@@ -988,6 +1199,35 @@ test("resolveComponentMapping finds selected box role variants", async () => {
   assert.equal(fakeFigma.loadAllPagesAsyncCount, 1);
 });
 
+test("resolveComponentMapping reads component property definitions from the component set, not variants", async () => {
+  resetTestState();
+  const set = installBoxComponentSet();
+  const parentVariant = set.children[1]!;
+
+  assert.throws(
+    () => parentVariant.componentPropertyDefinitions,
+    /Can only get component property definitions/,
+  );
+  const mapping = await testables.resolveComponentMapping();
+
+  assert.equal(mapping?.roleContracts.get("Parent")?.titleTextProperty, "Title#title");
+  assert.equal(mapping?.roleContracts.get("Parent")?.helperVisibleProperty, "Show helper#showHelper");
+});
+
+test("resolveComponentMapping represents variants that omit component property references", async () => {
+  resetTestState();
+  installBoxComponentSet({
+    roleProperties: {
+      Section: { title: false },
+    },
+  });
+
+  const mapping = await testables.resolveComponentMapping();
+
+  assert.equal(mapping?.roleContracts.get("Child")?.titleTextProperty, "Title#title");
+  assert.equal(mapping?.roleContracts.get("Section")?.titleTextProperty, null);
+});
+
 test("resolveComponentMapping rejects incomplete or ambiguous box mappings", async () => {
   resetTestState();
   installIncompleteBoxComponentSet();
@@ -1015,6 +1255,93 @@ test("resolveComponentMapping ignores box-named instances and stale deleted sele
 
   assert.equal(mapping?.componentSet, componentSet);
   assert.equal(mapping?.roleComponents.get("Child")?.name, "Role=Child");
+});
+
+test("upsertYamlDiagram uses stable text-layer overrides when mapped variants omit text properties", async () => {
+  resetTestState();
+  const componentSet = installBoxComponentSet({
+    roleProperties: {
+      Child: { helperText: false },
+      Section: { title: false },
+    },
+  });
+  fetchState.payload = {
+    slug: "component-contract-preflight",
+    title: "Component contract preflight",
+    source: {
+      kind: "selected-yaml",
+      name: "preflight.yaml",
+    },
+    root: makeRoot([
+      makeContainerNode([
+        makeLeaf({
+          id: "child-1",
+          name: "Child 1",
+          textBlocks: makeTextBlockWithHelper("Child 1", "Child helper"),
+        }),
+      ], {
+        id: "services_layer",
+        name: "Services layer",
+        kind: "section",
+        textBlocks: makeTextBlock("Services layer"),
+      }),
+    ]),
+  };
+
+  const result = await testables.upsertYamlDiagram(
+    "http://localhost:3846",
+    "title: Component contract preflight\nroot:\n  id: page\n",
+    "preflight.yaml",
+  );
+  assert.equal(result.componentMode, "box");
+
+  const sectionInstance = findImportedById(fakeFigma.currentPage, "services_layer")!;
+  const childInstance = findImportedById(fakeFigma.currentPage, "child-1")!;
+  const sectionMaster = componentSet.children[2]!;
+  const childMaster = componentSet.children[0]!;
+  const sectionTitleMaster = sectionMaster.findAllRaw((node) => node.type === "TEXT" && node.name === "Main text")[0]!;
+  const childHelperMaster = childMaster.findAllRaw((node) => node.type === "TEXT" && node.name === "Helper text")[0]!;
+
+  assert.equal(
+    sectionInstance.findInstanceSublayerBySourceId(sectionTitleMaster.id)?.characters,
+    "Services layer",
+  );
+  assert.equal(
+    childInstance.findInstanceSublayerBySourceId(childHelperMaster.id)?.characters,
+    "Child helper",
+  );
+  assert.equal(componentPropertyValue(childInstance, "Show helper#showHelper"), true);
+});
+
+test("upsertYamlDiagram clears the default icon SLOT when a variant has no icon visibility property", async () => {
+  resetTestState();
+  const componentSet = installBoxComponentSet({
+    roleProperties: {
+      Child: { iconVisible: false },
+    },
+  });
+  fetchState.payload = {
+    slug: "component-icon-slot-clear",
+    title: "Component icon slot clear",
+    source: {
+      kind: "selected-yaml",
+      name: "icon-slot-clear.yaml",
+    },
+    root: makeRoot([makeLeaf({ id: "no-icon", name: "No icon", icon: null })]),
+  };
+
+  const result = await testables.upsertYamlDiagram(
+    "http://localhost:3846",
+    "title: Component icon slot clear\nroot:\n  id: page\n",
+    "icon-slot-clear.yaml",
+  );
+  assert.equal(result.componentMode, "box");
+
+  const instance = findImportedById(fakeFigma.currentPage, "no-icon")!;
+  const childMaster = componentSet.children[0]!;
+  const iconSlotMaster = childMaster.findAllRaw((node) => node.type === "SLOT" && node.name === "Network.svg")[0]!;
+  const iconSlot = instance.findInstanceSublayerBySourceId(iconSlotMaster.id)!;
+  assert.equal(iconSlot.children.length, 0);
 });
 
 test("upsertYamlDiagram uses box component variants and instance slots when available", async () => {
@@ -1050,16 +1377,69 @@ test("upsertYamlDiagram uses box component variants and instance slots when avai
   assert.equal(result.instanceSlotCount, 1);
   assert.equal(panel?.type, "INSTANCE");
   assert.equal(panel?.name, "Panel 1");
+  assert.equal(panel?.width, 480);
+  assert.equal(panel?.height, 136);
+  assert.equal(panel?.layoutSizingVertical, "HUG");
   assert.equal(child?.type, "INSTANCE");
   assert.equal(slotBody?.name, "panel-1/body");
+  assert.equal(componentPropertyValue(panel, "Title#title"), "Leaf label");
+  assert.equal(componentPropertyValue(panel, "Show helper#showHelper"), false);
+  assert.equal(componentPropertyValue(panel, "Show icon#showIcon"), false);
+  assert.equal(componentPropertyValue(child, "Title#title"), "Leaf label");
+  assert.equal(componentPropertyValue(child, "Show helper#showHelper"), false);
+  assert.equal(componentPropertyValue(child, "Show icon#showIcon"), false);
 });
 
-test("component validation ignores stale ordinary instance sublayer children", async () => {
+test("upsertYamlDiagram refreshes component imports without duplicate roots or slot bodies", async () => {
   resetTestState();
+  installBoxComponentSet();
+  fetchState.payload = {
+    slug: "component-refresh",
+    title: "Component refresh",
+    source: {
+      kind: "selected-yaml",
+      name: "refresh.yaml",
+    },
+    root: makeRoot([
+      makeContainerNode([
+        makeLeaf({ id: "child-1", name: "Child 1" }),
+      ]),
+    ]),
+  };
+
+  await testables.upsertYamlDiagram(
+    "http://localhost:3846",
+    "title: Component refresh\nroot:\n  id: page\n",
+    "refresh.yaml",
+  );
+  const result = await testables.upsertYamlDiagram(
+    "http://localhost:3846",
+    "title: Component refresh\nroot:\n  id: page\n",
+    "refresh.yaml",
+  );
+
+  const roots = fakeFigma.currentPage.children.filter(
+    (node) => node.getSharedPluginData("dgp", "importKind") === "diagram-root",
+  );
+  const slotBodies = fakeFigma.currentPage.findAllRaw(
+    (node) => node.getSharedPluginData("dgp", "importId") === "panel-1:body",
+  );
+
+  assert.equal(result.refreshed, true);
+  assert.equal(roots.length, 1);
+  assert.equal(slotBodies.length, 1);
+});
+
+test("component validation permits opaque live-slot descendants after insertion checks", async () => {
+  resetTestState();
+  fakeFigma.rekeyLiveSlotContentIds = true;
+  fakeFigma.hideLiveSlotContentFromLookup = true;
   installBoxComponentSet();
   const root = makeRoot([
     makeContainerNode([
-      makeLeaf({ id: "child-1", name: "Child 1" }),
+      makeContainerNode([
+        makeLeaf({ id: "child-1", name: "Child 1" }),
+      ], { id: "nested-panel", name: "Nested panel" }),
     ]),
   ]);
   const context = testables.createImportBuildContext();
@@ -1072,12 +1452,16 @@ test("component validation ignores stale ordinary instance sublayer children", a
     mapping,
   );
   const panel = findImportedById(importedRoot, "panel-1");
-  const contents = panel ? panel.findAll((node) => node.name === "contents")[0] : null;
+  const contents = panel ? findNodeByName(panel, "contents") : null;
   assert.ok(contents);
   contents.throwOnChildrenRead = true;
+  context.createdNodes.clear();
+  for (const node of context.importedNodes.values()) {
+    node.removed = true;
+  }
 
-  assert.doesNotThrow(() => testables.validateImportedDiagramSizing(importedRoot, root));
-  assert.doesNotThrow(() => testables.validateImportedComponentStructure(importedRoot, root));
+  await assert.doesNotReject(testables.validateImportedDiagramSizing(importedRoot, root, context));
+  await assert.doesNotReject(testables.validateImportedComponentStructure(importedRoot, root, context));
 });
 
 test("upsertYamlDiagram finds components and copied icons on non-current pages", async () => {
@@ -1114,7 +1498,7 @@ test("upsertYamlDiagram finds components and copied icons on non-current pages",
   );
   const importedRoot = fakeFigma.currentPage.selection[0]!;
   const child = findImportedById(importedRoot, "icon-child");
-  const iconTarget = child ? child.findAll((node) => node.name === "Gateway.svg")[0] : null;
+  const iconTarget = child ? findNodeByName(child, "Gateway.svg") : null;
 
   assert.equal(fakeFigma.loadAllPagesAsyncCount, 1);
   assert.equal(result.componentMode, "box");
@@ -1170,7 +1554,7 @@ test("upsertYamlDiagram inserts icon component into the icon slot when matching 
   const result = await testables.upsertYamlDiagram("http://localhost:3846", "title: Mapped icons", "icons.yaml");
   const importedRoot = fakeFigma.currentPage.selection[0]!;
   const child = findImportedById(importedRoot, "icon-child");
-  const iconTarget = child ? child.findAll((node) => node.name === "Gateway.svg")[0] : null;
+  const iconTarget = child ? findNodeByName(child, "Gateway.svg") : null;
 
   assert.equal(result.componentMode, "box");
   assert.equal(result.componentVerifiedCount, 1);
@@ -1200,7 +1584,7 @@ test("upsertYamlDiagram discovers copied icon components nested in folders", asy
   const result = await testables.upsertYamlDiagram("http://localhost:3846", "title: Nested icons", "icons.yaml");
   const importedRoot = fakeFigma.currentPage.selection[0]!;
   const child = findImportedById(importedRoot, "icon-child");
-  const iconTarget = child ? child.findAll((node) => node.name === "Firewall.svg")[0] : null;
+  const iconTarget = child ? findNodeByName(child, "Firewall.svg") : null;
 
   assert.equal(result.componentMode, "box");
   assert.equal(result.componentVerifiedCount, 1);
@@ -1230,8 +1614,8 @@ test("upsertYamlDiagram clones copied icon instances named without svg extension
   const result = await testables.upsertYamlDiagram("http://localhost:3846", "title: Instance icons", "icons.yaml");
   const importedRoot = fakeFigma.currentPage.selection[0]!;
   const child = findImportedById(importedRoot, "icon-child");
-  const replacement = child ? child.findAll((node) => node.name === "AI.svg")[0] : null;
-  const iconSlot = child ? child.findAll((node) => node.name === "Network.svg")[0] : null;
+  const replacement = child ? findNodeByName(child, "AI.svg") : null;
+  const iconSlot = child ? findNodeByName(child, "Network.svg") : null;
 
   assert.equal(result.componentMode, "box");
   assert.equal(result.componentVerifiedCount, 1);
@@ -1266,8 +1650,8 @@ test("upsertYamlDiagram inserts copied icon into SLOT without mutating normal in
   const result = await testables.upsertYamlDiagram("http://localhost:3846", "title: Slot icon", "icons.yaml");
   const importedRoot = fakeFigma.currentPage.selection[0]!;
   const child = findImportedById(importedRoot, "icon-child");
-  const replacement = child ? child.findAll((node) => node.name === "AI.svg")[0] : null;
-  const iconSlot = child ? child.findAll((node) => node.name === "Network.svg")[0] : null;
+  const replacement = child ? findNodeByName(child, "AI.svg") : null;
+  const iconSlot = child ? findNodeByName(child, "Network.svg") : null;
 
   assert.equal(result.componentMode, "box");
   assert.equal(result.componentVerifiedCount, 1);
@@ -1302,7 +1686,7 @@ test("upsertYamlDiagram clones copied icon instances with their main component i
   const result = await testables.upsertYamlDiagram("http://localhost:3846", "title: Instance icon swap", "icons.yaml");
   const importedRoot = fakeFigma.currentPage.selection[0]!;
   const child = findImportedById(importedRoot, "icon-child");
-  const iconTarget = child ? child.findAll((node) => node.name === "AI.svg")[0] : null;
+  const iconTarget = child ? findNodeByName(child, "AI.svg") : null;
 
   assert.equal(result.componentMode, "box");
   assert.equal(result.componentVerifiedCount, 1);
@@ -1357,8 +1741,8 @@ test("upsertYamlDiagram inserts copied cloneable svg frame into the icon slot", 
   const result = await testables.upsertYamlDiagram("http://localhost:3846", "title: Cloneable icons", "icons.yaml");
   const importedRoot = fakeFigma.currentPage.selection[0]!;
   const child = findImportedById(importedRoot, "icon-child");
-  const replacement = child ? child.findAll((node) => node.name === "Router.svg")[0] : null;
-  const iconSlot = child ? child.findAll((node) => node.name === "Network.svg")[0] : null;
+  const replacement = child ? findNodeByName(child, "Router.svg") : null;
+  const iconSlot = child ? findNodeByName(child, "Network.svg") : null;
 
   assert.equal(result.componentMode, "box");
   assert.equal(result.componentVerifiedCount, 1);
@@ -1386,6 +1770,25 @@ test("upsertYamlDiagram rejects mapped instance when content SLOT mutation is re
   );
 });
 
+test("upsertYamlDiagram rejects a live content SLOT that reports limit violations", async () => {
+  resetTestState();
+  installBoxComponentSet({ slotLimitViolations: ["MAX_CHILDREN"] });
+  fetchState.payload = {
+    slug: "slot-limit-violation",
+    title: "Slot limit violation",
+    root: makeRoot([
+      makeContainerNode([
+        makeLeaf({ id: "child-1", name: "Child 1" }),
+      ]),
+    ]),
+  };
+
+  await assert.rejects(
+    () => testables.upsertYamlDiagram("http://localhost:3846", "title: Limit violation", "slot-limit.yaml"),
+    /violates content slot SlotNode limits: MAX_CHILDREN/,
+  );
+});
+
 test("validateImportedComponentStructure rejects wrong slot direction", async () => {
   resetTestState();
   installBoxComponentSet();
@@ -1399,13 +1802,19 @@ test("validateImportedComponentStructure rejects wrong slot direction", async ()
     ]),
   };
 
-  await testables.upsertYamlDiagram("http://localhost:3846", "title: Wrong", "wrong.yaml");
-  const importedRoot = fakeFigma.currentPage.selection[0]!;
+  const context = testables.createImportBuildContext();
+  const mapping = await testables.resolveComponentMapping();
+  const importedRoot = await testables.buildContainerNode(
+    fetchState.payload.root,
+    "http://localhost:3846",
+    context,
+    mapping,
+  );
   const slotBody = findImportedById(importedRoot, "panel-1:body")!;
   slotBody.layoutMode = "VERTICAL";
 
-  assert.throws(
-    () => testables.validateImportedComponentStructure(importedRoot, fetchState.payload.root),
+  await assert.rejects(
+    testables.validateImportedComponentStructure(importedRoot, fetchState.payload.root, context),
     /panel-1\/body: expected HORIZONTAL layout, got VERTICAL/,
   );
 });

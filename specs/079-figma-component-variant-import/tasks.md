@@ -5,6 +5,13 @@
 
 ## Phase 0 - Feasibility and Contract
 
+- [ ] T000a Execute the ordered live-Figma procedure in
+  [`terra-live-fix-runbook.md`](terra-live-fix-runbook.md). Capture component
+  property definitions/references, master and instance SlotNode ids, slot
+  settings/`limitViolations`, exact mutation results, and full-fixture rerun
+  evidence. Do not patch literal stale ids or relax the no-detach/no-fallback
+  contract.
+
 - [x] T000 Record the 2026-07-10 Figma inspection attempt and its limitation:
   the connector was attached to an unrelated FigJam canvas, so exact component
   variant and icon library metadata remain unverified.
@@ -16,7 +23,8 @@
   keys remain out of scope for this slice.
 - [ ] T002 Run a live Figma slot probe proving whether the plugin can insert a
   generated auto-layout container into the component slot while preserving
-  instance semantics.
+  instance semantics. Follow runbook section 3 and record all assertions, not
+  only visual output.
 - [x] T003 Document the selected slot strategy: preserve intact instances and
   mutate only real Figma `SLOT` nodes; no detach or wrapper fallback.
 - [ ] T004 Define component mapping ownership rules for importer-owned versus
@@ -71,6 +79,8 @@
   when a mapping exists.
 - [ ] T031 Apply variant/component properties for role, level, title/body/icon
   state, and other mapped semantic values.
+- [x] T031a Hide or clear default helper text through the component contract
+  when the YAML payload does not provide helper/body text for that component.
 - [x] T032 Preserve spec 078 effective Fill/Hug/Fixed sizing when sizing mapped
   instances and generated slot containers.
 - [x] T033 Keep explicit fallback behavior only for roles configured to use a
@@ -84,6 +94,9 @@
   nested Figma icon components, icon-sized copied Figma instances, and
   `.svg`-named cloneable icon nodes, while excluding `box` component internals
   from discovery and inserting resolved icons into the component's icon `SLOT`.
+- [x] T036a Prove imported icons are Figma component/instance sources when
+  matching copied icons exist, and hide/clear the component's default icon slot
+  or visibility control when no icon is resolved under an explicit policy.
 
 ## Phase 4 - Slot-Based Nesting
 
@@ -95,8 +108,20 @@
   order.
 - [x] T043 Apply payload gap, padding, and effective body sizing to slot
   containers.
+- [ ] T043a Re-check live output for hardcoded height regressions: mapped
+  instances, generated slot containers, and slot children must read back the
+  payload's effective Fill/Hug/Fixed sizing unless the payload says `FIXED`.
 - [x] T044 Add readback validation for slot existence, slot direction, child
   count/order, and generated subtree import IDs.
+- [x] T044b Record generated slot-body and mapped-child ids only after live
+  SlotNode reparenting; use global/direct readback when available, treat a
+  Figma-opaque post-insert descendant as mutation-time verified rather than
+  aborting the import, assert empty SlotNode `limitViolations`, and cover this
+  fake-slot behavior.
+- [x] T044a Add readback/idempotence validation that slot population replaces
+  importer-owned generated slot content instead of appending duplicate
+  parent/section instances or repeated `slot -> body -> slot -> body` wrappers
+  on rerun.
 - [x] T045 Add tests that intentionally swap slot direction and prove validation
   fails.
 - [ ] T046 Define and document a wrapper budget for the component path so text
@@ -126,9 +151,17 @@
 - [x] T060 Update `apps/figma-plugin/README.md` with the selected-YAML and
   component-mapping workflow.
 - [ ] T061 Record live Figma validation against the user's component variants.
+- [ ] T061c Record the real `box` component contract used by the successful
+  run: exact component-set property definition keys/types, per-layer property
+  references, content/icon SlotNode ids/settings, and empty post-insert
+  `limitViolations`.
 - [ ] T061a During live validation, explicitly inspect representative nodes for
   both sizing parity and wrapper depth: one leaf, one parent, one section, and
   one text-heavy node.
+- [ ] T061b Record the 2026-07-11 visual regression evidence and verify fixes:
+  no hardcoded heights, no visible default helper text, no visible default
+  placeholder icons, component icons instead of raw SVG recreation where icon
+  sources exist, and no duplicated parent/section slot nesting.
 - [x] T062 Run `npm --prefix apps/figma-plugin test`.
 - [x] T063 Run `npm --prefix apps/figma-plugin run build`.
 - [x] T064 Run `npm --prefix packages/layout-engine test`.
@@ -136,7 +169,7 @@
 - [x] T066 Write an adversarial review prompt focused on component mapping,
   slot feasibility, arbitrary YAML import, refresh ownership, and no silent
   fallback.
-- [ ] T067 Write an adversarial re-review prompt focused specifically on:
+- [x] T067 Write an adversarial re-review prompt focused specifically on:
   missing real-Figma autolayout parity, awkwardly deep nesting, and whether the
   component-instance architecture has fully replaced the fragile generic-frame
   reconstruction path.

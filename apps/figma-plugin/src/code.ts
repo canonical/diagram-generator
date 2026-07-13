@@ -1,4 +1,5 @@
 const DEFAULT_SERVER_URL = "http://localhost:3846";
+const IMPORTER_BUILD_ID = "079-slot-opaque-readback-20260713.4";
 const DEFAULT_DIAGRAM_SLUG = "ai-infra-telecom-services-stack";
 const DEFAULT_FONT = { family: "Ubuntu Sans", style: "Regular" };
 const DEFAULT_BOLD_FONT = { family: "Ubuntu Sans", style: "Bold" };
@@ -118,6 +119,8 @@ interface FrameDiagramPayload {
 
 interface ImportBuildContext {
   createdNodes: Set<any>;
+  importedNodeIds: Map<string, string>;
+  importedNodes: Map<string, any>;
   componentInstanceCount: number;
   componentSetName: string | null;
   instanceSlotCount: number;
@@ -125,11 +128,37 @@ interface ImportBuildContext {
   missingIconReasons: Map<string, Set<string>>;
 }
 
+type BoxRole = "Child" | "Parent" | "Section";
+
 interface ComponentMapping {
   componentSet: any;
-  roleComponents: Map<"Child" | "Parent" | "Section", any>;
+  roleComponents: Map<BoxRole, any>;
+  roleContracts: Map<BoxRole, BoxComponentContract>;
   iconSources: Map<string, IconSource>;
   searchedPageCount: number;
+}
+
+interface BoxComponentContract {
+  role: BoxRole;
+  component: any;
+  contentSlotMasterId: string | null;
+  iconSlotMasterId: string | null;
+  iconSlotHasDefaultContent: boolean;
+  hasHelperTextLayer: boolean;
+  titleTextMasterId: string | null;
+  helperTextMasterId: string | null;
+  titleTextProperty: string | null;
+  helperTextProperty: string | null;
+  helperVisibleProperty: string | null;
+  iconVisibleProperty: string | null;
+}
+
+interface RoleContractUsage {
+  titleNodeIds: string[];
+  helperTextNodeIds: string[];
+  helperDefaultHideNodeIds: string[];
+  iconDefaultHideNodeIds: string[];
+  iconNodeIds: string[];
 }
 
 interface IconSource {
@@ -212,6 +241,8 @@ function clampSize(value: number) {
 function createImportBuildContext(): ImportBuildContext {
   return {
     createdNodes: new Set<any>(),
+    importedNodeIds: new Map<string, string>(),
+    importedNodes: new Map<string, any>(),
     componentInstanceCount: 0,
     componentSetName: null,
     instanceSlotCount: 0,
@@ -223,6 +254,30 @@ function createImportBuildContext(): ImportBuildContext {
 function trackCreatedNode<T>(context: ImportBuildContext | null | undefined, node: T) {
   context?.createdNodes.add(node);
   return node;
+}
+
+function trackImportedNode(
+  context: ImportBuildContext | null | undefined,
+  node: any,
+  importId: string,
+) {
+  context?.importedNodes.set(importId, node);
+  const nodeId = safeGetNodeId(node);
+  if (nodeId) {
+    context?.importedNodeIds.set(importId, nodeId);
+  }
+  return node;
+}
+
+/**
+ * Figma can assign a new id when a generated node is reparented into a live
+ * instance SlotNode. Keep its direct handle for the current import transaction:
+ * slot descendants are not always globally addressable by their returned id.
+ */
+function refreshImportedNodeIds(context: ImportBuildContext) {
+  for (const [importId, node] of context.importedNodes) {
+    trackImportedNode(context, node, importId);
+  }
 }
 
 function setNodeSizing(node: any, horizontal: "FIXED" | "HUG" | "FILL", vertical: "FIXED" | "HUG" | "FILL") {
@@ -313,10 +368,6 @@ function resizeFrameForFixedAxes(
     return;
   }
 
-  if (safeGetChildren(frame).length === 0) {
-    return;
-  }
-
   const nextWidth = horizontal === "FIXED"
     ? clampSize(width)
     : clampSize(frame.width || 1);
@@ -390,10 +441,15 @@ function appendAutoLayoutChild(
   positionType: "AUTO" | "ABSOLUTE" = "AUTO",
   x = 0,
   y = 0,
+  context?: ImportBuildContext,
 ) {
   parent.appendChild(child);
   applyChildLayoutSizing(child, sizingW, sizingH);
   applyChildPositioning(child, positionType, x, y);
+  const importId = getImportData(child, IMPORT_ID_KEY);
+  if (importId) {
+    trackImportedNode(context, child, importId);
+  }
   return child;
 }
 
@@ -820,11 +876,20 @@ function findExistingImportedLeaf(importId: string) {
 }
 
 function findExistingImportedDiagram(importId: string) {
-  return findImportedNode(figma.currentPage, importId, "diagram-root", "FRAME");
+  for (const node of safeGetChildren(figma.currentPage)) {
+    if (
+      getImportData(node, IMPORT_ID_KEY) === importId
+      && getImportData(node, IMPORT_KIND_KEY) === "diagram-root"
+      && safeGetNodeType(node) === "FRAME"
+    ) {
+      return node;
+    }
+  }
+  return null;
 }
 
-function countImportedSubtreeNodes(root: any) {
-  return collectImportedNodes(root).length;
+function countImportedSubtreeNodes(root: any, context?: ImportBuildContext | null) {
+  return collectImportedNodes(root, context).length;
 }
 
 function collectPayloadSizingExpectations(
@@ -856,32 +921,63 @@ function collectPayloadSizingExpectations(
 
 function getImportIndexChildren(node: any) {
   if (safeGetNodeType(node) === "INSTANCE") {
-    return findSlotNodes(node).flatMap((slot) => safeGetChildren(slot));
+    return [];
   }
   return safeGetChildren(node);
 }
 
-function collectImportedNodes(root: any) {
+function collectImportedNodes(root: any, context?: ImportBuildContext | null) {
   const nodes: any[] = [];
-  const visit = (node: any) => {
-    const importId = getImportData(node, IMPORT_ID_KEY);
-    if (importId) {
+  const seen = new Set<any>();
+  const addNode = (node: any) => {
+    if (!isNodeAvailable(node) || seen.has(node)) {
+      return;
+    }
+    seen.add(node);
+    if (getImportData(node, IMPORT_ID_KEY)) {
       nodes.push(node);
     }
+  };
+  const visit = (node: any) => {
+    addNode(node);
     for (const child of getImportIndexChildren(node)) {
       visit(child);
     }
   };
   visit(root);
+  for (const node of context?.createdNodes ?? []) {
+    addNode(node);
+  }
   return nodes;
 }
 
-function collectImportedNodesById(root: any) {
+async function collectImportedNodesById(root: any, context?: ImportBuildContext | null) {
   const nodes = new Map<string, any>();
-  for (const node of collectImportedNodes(root)) {
+  for (const node of collectImportedNodes(root, context)) {
     nodes.set(getImportData(node, IMPORT_ID_KEY), node);
   }
+  for (const [importId, nodeId] of context?.importedNodeIds ?? []) {
+    const freshNode = await getNodeById(nodeId);
+    if (freshNode && getImportData(freshNode, IMPORT_ID_KEY) === importId) {
+      nodes.set(importId, freshNode);
+    }
+  }
+  // A node placed in a live instance SlotNode can remain a valid direct handle
+  // while Figma declines to resolve its document id with getNodeByIdAsync.
+  // This is transaction-scoped readback only, never instance-tree traversal.
+  for (const [importId, node] of context?.importedNodes ?? []) {
+    if (isNodeAvailable(node)) {
+      nodes.set(importId, node);
+    }
+  }
   return nodes;
+}
+
+function isOpaqueLiveSlotImport(context: ImportBuildContext | null | undefined, importId: string) {
+  return Boolean(
+    context?.importedNodes.has(importId)
+    || context?.importedNodeIds.has(importId),
+  );
 }
 
 function findImportedNode(root: any, importId: string, importKind: string, type?: string) {
@@ -897,14 +993,26 @@ function findImportedNode(root: any, importId: string, importKind: string, type?
   return null;
 }
 
-function validateImportedDiagramSizing(rootFrame: any, payloadRoot: DiagramNodePayload) {
-  const nodesById = collectImportedNodesById(rootFrame);
+async function validateImportedDiagramSizing(
+  rootFrame: any,
+  payloadRoot: DiagramNodePayload,
+  context?: ImportBuildContext | null,
+) {
+  const nodesById = await collectImportedNodesById(rootFrame, context);
   const mismatches: string[] = [];
   let checked = 0;
 
   for (const expected of collectPayloadSizingExpectations(payloadRoot)) {
     const node = nodesById.get(expected.importId);
     if (!node) {
+      // Figma may make an already-inserted live-slot descendant opaque to both
+      // global lookup and its pre-insertion handle. Its sizing was applied
+      // before insertion and the enclosing SlotNode was checked for limits, so
+      // do not roll back a valid diagram solely because post-build readback is
+      // unavailable. Unknown nodes still fail the import below.
+      if (isOpaqueLiveSlotImport(context, expected.importId)) {
+        continue;
+      }
       mismatches.push(`${expected.label}: missing imported frame`);
       continue;
     }
@@ -926,8 +1034,12 @@ function validateImportedDiagramSizing(rootFrame: any, payloadRoot: DiagramNodeP
   return checked;
 }
 
-function validateImportedComponentStructure(rootFrame: any, payloadRoot: DiagramNodePayload) {
-  const nodesById = collectImportedNodesById(rootFrame);
+async function validateImportedComponentStructure(
+  rootFrame: any,
+  payloadRoot: DiagramNodePayload,
+  context?: ImportBuildContext | null,
+) {
+  const nodesById = await collectImportedNodesById(rootFrame, context);
   const mismatches: string[] = [];
   let checked = 0;
 
@@ -936,7 +1048,9 @@ function validateImportedComponentStructure(rootFrame: any, payloadRoot: Diagram
       const imported = nodesById.get(node.id);
       const expectedRole = componentRoleForNode(node);
       if (!imported) {
-        mismatches.push(`${node.id}: missing component import`);
+        if (!isOpaqueLiveSlotImport(context, node.id)) {
+          mismatches.push(`${node.id}: missing component import`);
+        }
       } else {
         checked += 1;
         const importKind = getImportData(imported, IMPORT_KIND_KEY);
@@ -960,7 +1074,9 @@ function validateImportedComponentStructure(rootFrame: any, payloadRoot: Diagram
     if (node.kind !== "root" && node.children.length > 0) {
       const body = nodesById.get(`${node.id}:body`);
       if (!body) {
-        mismatches.push(`${node.id}/body: missing component slot body`);
+        if (!isOpaqueLiveSlotImport(context, `${node.id}:body`)) {
+          mismatches.push(`${node.id}/body: missing component slot body`);
+        }
       } else {
         checked += 1;
         const strategy = getImportData(body, SLOT_STRATEGY_KEY);
@@ -1023,6 +1139,14 @@ function safeGetNodeName(node: any) {
   }
 }
 
+function safeGetNodeId(node: any) {
+  try {
+    return String(node?.id || "");
+  } catch (_error) {
+    return "";
+  }
+}
+
 function safeGetChildren(node: any) {
   try {
     if (!isNodeAvailable(node)) {
@@ -1066,11 +1190,27 @@ function hasNodeMethod(node: any, methodName: string) {
   }
 }
 
-function visitSceneTree(root: any, visitor: (node: any) => void) {
+async function getNodeById(id: string) {
+  try {
+    if (typeof figma.getNodeByIdAsync === "function") {
+      return await figma.getNodeByIdAsync(id);
+    }
+    if (typeof figma.getNodeById === "function") {
+      return figma.getNodeById(id);
+    }
+  } catch (_error) {
+    return null;
+  }
+  return null;
+}
+
+function visitSceneTree(root: any, visitor: (node: any) => void | boolean) {
   if (!isNodeAvailable(root)) {
     return;
   }
-  visitor(root);
+  if (visitor(root) === false) {
+    return;
+  }
   for (const child of safeGetChildren(root)) {
     visitSceneTree(child, visitor);
   }
@@ -1148,13 +1288,18 @@ function findBoxComponentSets() {
   const matches = new Set<any>();
   for (const root of collectCandidateRoots()) {
     visitSceneTree(root, (node) => {
+      const nodeType = safeGetNodeType(node);
       if (
-        safeGetNodeType(node) === "COMPONENT_SET"
+        nodeType === "COMPONENT_SET"
         && safeGetNodeName(node).trim() === BOX_COMPONENT_SET_NAME
         && safeGetChildren(node).length > 0
       ) {
         matches.add(node);
       }
+      if (node !== root && nodeType === "INSTANCE") {
+        return false;
+      }
+      return true;
     });
   }
   return [...matches];
@@ -1220,21 +1365,214 @@ function formatIconSourceSummary(mapping: ComponentMapping) {
   return `${sources.length} current-file icon sources discovered; sample: ${sources.slice(0, 16).join(", ")}`;
 }
 
+function normalizeLayerKey(name: string) {
+  return String(name || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, " ");
+}
+
+function isHelperLayerName(name: string) {
+  const normalized = normalizeLayerKey(name);
+  return /\b(helper|support|description|body|subtitle|secondary)\b/.test(normalized);
+}
+
+function isIconLayerName(name: string) {
+  const normalized = normalizeLayerKey(name);
+  return /\b(icon|svg|network)\b/.test(normalized);
+}
+
+function safeGetComponentPropertyDefinitions(node: any) {
+  try {
+    const definitions = node?.componentPropertyDefinitions;
+    return definitions && typeof definitions === "object" ? definitions : {};
+  } catch (_error) {
+    return {};
+  }
+}
+
+function getComponentPropertyDefinitions(componentSet: any) {
+  return safeGetComponentPropertyDefinitions(componentSet);
+}
+
+function getComponentPropertyReferences(node: any) {
+  try {
+    const references = node?.componentPropertyReferences;
+    return references && typeof references === "object" ? references : {};
+  } catch (_error) {
+    return {};
+  }
+}
+
+function getReferencedProperty(
+  node: any,
+  field: "characters" | "visible" | "mainComponent",
+  definitions: Record<string, any>,
+  expectedType: "TEXT" | "BOOLEAN" | "INSTANCE_SWAP",
+) {
+  const references = getComponentPropertyReferences(node);
+  const propertyName = typeof references[field] === "string" ? references[field] : "";
+  if (!propertyName) {
+    return null;
+  }
+  const definitionType = String(definitions[propertyName]?.type || "").toUpperCase();
+  return definitionType === expectedType ? propertyName : null;
+}
+
+function analyzeBoxComponentContract(
+  componentSet: any,
+  role: BoxRole,
+  component: any,
+): BoxComponentContract {
+  const definitions = getComponentPropertyDefinitions(componentSet);
+  const contentSlots: any[] = [];
+  const iconSlots: any[] = [];
+  let titleTextProperty: string | null = null;
+  let helperTextProperty: string | null = null;
+  let titleTextMasterId: string | null = null;
+  let helperTextMasterId: string | null = null;
+  let helperVisibleProperty: string | null = null;
+  let iconVisibleProperty: string | null = null;
+  let hasHelperTextLayer = false;
+
+  visitSceneTree(component, (candidate) => {
+    if (candidate === component) {
+      return true;
+    }
+
+    const candidateName = safeGetNodeName(candidate);
+    const candidateType = safeGetNodeType(candidate);
+    const helperLayer = isHelperLayerName(candidateName);
+    const iconLayer = isIconLayerName(candidateName);
+
+    if (candidateType === "SLOT") {
+      if (candidateName.trim().toLowerCase() === BOX_SLOT_LAYER_NAME) {
+        contentSlots.push(candidate);
+      } else {
+        iconSlots.push(candidate);
+      }
+    }
+
+    if (candidateType === "TEXT") {
+      if (helperLayer) {
+        hasHelperTextLayer = true;
+        helperTextMasterId ||= safeGetNodeId(candidate) || null;
+      } else {
+        titleTextMasterId ||= safeGetNodeId(candidate) || null;
+      }
+    }
+
+    const textProperty = getReferencedProperty(candidate, "characters", definitions, "TEXT");
+    if (textProperty) {
+      if (helperLayer && !helperTextProperty) {
+        helperTextProperty = textProperty;
+      } else if (!helperLayer && !titleTextProperty) {
+        titleTextProperty = textProperty;
+      }
+    }
+
+    const visibleProperty = getReferencedProperty(candidate, "visible", definitions, "BOOLEAN");
+    if (visibleProperty) {
+      if (helperLayer && !helperVisibleProperty) {
+        helperVisibleProperty = visibleProperty;
+      }
+      if (iconLayer && !iconVisibleProperty) {
+        iconVisibleProperty = visibleProperty;
+      }
+    }
+
+    return true;
+  });
+
+  if (contentSlots.length > 1) {
+    throw new Error(`Role=${role} box component has ${contentSlots.length} content SLOT nodes named "${BOX_SLOT_LAYER_NAME}"; expected at most one.`);
+  }
+  if (iconSlots.length > 1) {
+    const names = iconSlots.map((slot) => safeGetNodeName(slot) || "unnamed").sort().join(", ");
+    throw new Error(`Role=${role} box component has ${iconSlots.length} icon SLOT candidates (${names}); expected at most one.`);
+  }
+
+  const iconSlot = iconSlots[0] ?? null;
+  return {
+    role,
+    component,
+    contentSlotMasterId: contentSlots[0] ? safeGetNodeId(contentSlots[0]) : null,
+    iconSlotMasterId: iconSlot ? safeGetNodeId(iconSlot) : null,
+    iconSlotHasDefaultContent: Boolean(iconSlot && safeGetChildren(iconSlot).length > 0),
+    hasHelperTextLayer,
+    titleTextMasterId,
+    helperTextMasterId,
+    titleTextProperty,
+    helperTextProperty,
+    helperVisibleProperty,
+    iconVisibleProperty,
+  };
+}
+
+function getInstanceSublayerId(instance: any, masterNodeId: string) {
+  const instanceId = safeGetNodeId(instance);
+  if (!instanceId || !masterNodeId) {
+    return null;
+  }
+  return `I${instanceId};${masterNodeId}`;
+}
+
+async function getInstanceSlotByMasterId(
+  instance: any,
+  masterSlotId: string | null,
+  label: string,
+  nodeId: string,
+) {
+  if (!masterSlotId) {
+    return null;
+  }
+  const slotId = getInstanceSublayerId(instance, masterSlotId);
+  if (!slotId) {
+    throw new Error(`Mapped component instance for ${nodeId} cannot address its ${label}: missing stable instance/master node ids.`);
+  }
+  const slot = await getNodeById(slotId);
+  if (!slot) {
+    throw new Error(`Mapped component instance for ${nodeId} cannot address its ${label} by stable slot id ${slotId}; refusing to walk live instance sublayers.`);
+  }
+  assertSlotNode(slot, label, nodeId);
+  return slot;
+}
+
+async function getInstanceTextByMasterId(
+  instance: any,
+  masterTextId: string | null,
+  label: string,
+  nodeId: string,
+) {
+  if (!masterTextId) {
+    return null;
+  }
+  const textId = getInstanceSublayerId(instance, masterTextId);
+  if (!textId) {
+    throw new Error(`Mapped component instance for ${nodeId} cannot address its ${label}: missing stable instance/master node ids.`);
+  }
+  const text = await getNodeById(textId);
+  if (!text) {
+    throw new Error(`Mapped component instance for ${nodeId} cannot address its ${label} by stable text id ${textId}; refusing to walk live instance sublayers.`);
+  }
+  if (safeGetNodeType(text) !== "TEXT") {
+    throw new Error(`Mapped component instance for ${nodeId} has a ${label} that is ${safeGetNodeType(text) || "unknown"}, not TEXT.`);
+  }
+  return text;
+}
+
 function collectIconSources(componentSet: any) {
   const icons = new Map<string, IconSource>();
   for (const root of collectCandidateRoots()) {
     visitSceneTree(root, (node) => {
       if (!node || node === componentSet || isDescendantOf(node, componentSet) || hasImportedAncestor(node)) {
-        return;
+        return true;
       }
       const name = safeGetNodeName(node);
       if (parseVariantRole(name)) {
-        return;
+        return true;
       }
 
       const normalized = normalizeIconName(name);
       if (!normalized || icons.has(normalized)) {
-        return;
+        return safeGetNodeType(node) !== "INSTANCE";
       }
 
       if (safeGetNodeType(node) === "COMPONENT" && hasNodeMethod(node, "createInstance")) {
@@ -1243,7 +1581,7 @@ function collectIconSources(componentSet: any) {
           name,
           node,
         });
-        return;
+        return true;
       }
 
       if (isCopiedIconInstanceSource(node)) {
@@ -1252,7 +1590,7 @@ function collectIconSources(componentSet: any) {
           name,
           node,
         });
-        return;
+        return false;
       }
 
       if (/\.svg$/i.test(name) && hasNodeMethod(node, "clone")) {
@@ -1262,6 +1600,7 @@ function collectIconSources(componentSet: any) {
           node,
         });
       }
+      return safeGetNodeType(node) !== "INSTANCE";
     });
   }
   return icons;
@@ -1287,7 +1626,7 @@ async function resolveComponentMapping(): Promise<ComponentMapping | null> {
     return null;
   }
 
-  const roleComponents = new Map<"Child" | "Parent" | "Section", any>();
+  const roleComponents = new Map<BoxRole, any>();
   for (const child of safeGetChildren(componentSet)) {
     const role = parseVariantRole(safeGetNodeName(child));
     if (role && safeGetNodeType(child) === "COMPONENT" && hasNodeMethod(child, "createInstance")) {
@@ -1304,17 +1643,28 @@ async function resolveComponentMapping(): Promise<ComponentMapping | null> {
     }
   }
 
+  const roleContracts = new Map<BoxRole, BoxComponentContract>();
+  for (const role of [BOX_ROLE_VARIANTS.child, BOX_ROLE_VARIANTS.parent, BOX_ROLE_VARIANTS.section] as const) {
+    const component = roleComponents.get(role)!;
+    const contract = analyzeBoxComponentContract(componentSet, role, component);
+    if ((role === BOX_ROLE_VARIANTS.parent || role === BOX_ROLE_VARIANTS.section) && !contract.contentSlotMasterId) {
+      throw new Error(`Role=${role} box component must expose exactly one content SLOT named "${BOX_SLOT_LAYER_NAME}" for nested diagram children.`);
+    }
+    roleContracts.set(role, contract);
+  }
+
   const pageCount = safeGetChildren(figma.root).length || 1;
 
   return {
     componentSet,
     roleComponents,
+    roleContracts,
     iconSources: collectIconSources(componentSet),
     searchedPageCount: pageCount,
   };
 }
 
-function componentRoleForNode(node: DiagramNodePayload): "Child" | "Parent" | "Section" {
+function componentRoleForNode(node: DiagramNodePayload): BoxRole {
   if (node.kind === "section") {
     return BOX_ROLE_VARIANTS.section;
   }
@@ -1324,47 +1674,119 @@ function componentRoleForNode(node: DiagramNodePayload): "Child" | "Parent" | "S
   return BOX_ROLE_VARIANTS.child;
 }
 
-function findDescendants(node: any, predicate: (node: any) => boolean) {
-  const matches: any[] = [];
-  visitSceneTree(node, (candidate) => {
-    if (candidate !== node && predicate(candidate)) {
-      matches.push(candidate);
+function createRoleContractUsage(): RoleContractUsage {
+  return {
+    titleNodeIds: [],
+    helperTextNodeIds: [],
+    helperDefaultHideNodeIds: [],
+    iconDefaultHideNodeIds: [],
+    iconNodeIds: [],
+  };
+}
+
+function getRoleContractUsage(usages: Map<BoxRole, RoleContractUsage>, role: BoxRole) {
+  let usage = usages.get(role);
+  if (!usage) {
+    usage = createRoleContractUsage();
+    usages.set(role, usage);
+  }
+  return usage;
+}
+
+function addUsageNodeId(nodeIds: string[], nodeId: string) {
+  if (!nodeIds.includes(nodeId)) {
+    nodeIds.push(nodeId);
+  }
+}
+
+function visitDiagramPayloadTree(node: DiagramNodePayload, visitor: (node: DiagramNodePayload) => void) {
+  visitor(node);
+  for (const child of node.children ?? []) {
+    visitDiagramPayloadTree(child, visitor);
+  }
+}
+
+function formatPreflightNodeIds(nodeIds: string[]) {
+  const unique = [...new Set(nodeIds.filter(Boolean))].sort((left, right) => left.localeCompare(right));
+  if (unique.length === 0) {
+    return "unknown node";
+  }
+  const sample = unique.slice(0, 5).join(", ");
+  return unique.length > 5 ? `${sample}, +${unique.length - 5} more` : sample;
+}
+
+function addContractIssue(issues: string[], role: BoxRole, description: string, nodeIds: string[]) {
+  if (nodeIds.length > 0) {
+    issues.push(`Role=${role} needs ${description} for ${formatPreflightNodeIds(nodeIds)}`);
+  }
+}
+
+function validateComponentMappingContractForPayload(root: DiagramNodePayload, mapping: ComponentMapping) {
+  const usages = new Map<BoxRole, RoleContractUsage>();
+
+  visitDiagramPayloadTree(root, (node) => {
+    if (node.kind === "root") {
+      return;
+    }
+    const role = componentRoleForNode(node);
+    const usage = getRoleContractUsage(usages, role);
+    const text = getPayloadTextValues(node);
+
+    if (text.hasTitle) {
+      addUsageNodeId(usage.titleNodeIds, node.id);
+    }
+    if (text.hasHelper) {
+      addUsageNodeId(usage.helperTextNodeIds, node.id);
+    } else {
+      addUsageNodeId(usage.helperDefaultHideNodeIds, node.id);
+    }
+    if (node.icon) {
+      addUsageNodeId(usage.iconNodeIds, node.id);
+    } else {
+      addUsageNodeId(usage.iconDefaultHideNodeIds, node.id);
     }
   });
-  return matches;
+
+  const issues: string[] = [];
+  for (const [role, usage] of usages) {
+    const contract = mapping.roleContracts.get(role);
+    if (!contract) {
+      addContractIssue(issues, role, "an analyzed component contract", [
+        ...usage.titleNodeIds,
+        ...usage.helperTextNodeIds,
+        ...usage.helperDefaultHideNodeIds,
+        ...usage.iconDefaultHideNodeIds,
+        ...usage.iconNodeIds,
+      ]);
+      continue;
+    }
+
+    if (!contract.titleTextProperty && !contract.titleTextMasterId) {
+      addContractIssue(issues, role, "title/text override target", usage.titleNodeIds);
+    }
+    if (!contract.helperTextProperty && !contract.helperTextMasterId) {
+      addContractIssue(issues, role, "helper/body text override target", usage.helperTextNodeIds);
+    }
+    if (contract.hasHelperTextLayer && !contract.helperVisibleProperty && !contract.helperTextProperty && !contract.helperTextMasterId) {
+      addContractIssue(issues, role, "helper text override target or helper visibility component property", usage.helperDefaultHideNodeIds);
+    }
+    if (contract.iconSlotHasDefaultContent && !contract.iconVisibleProperty && !contract.iconSlotMasterId) {
+      addContractIssue(issues, role, "icon SLOT to clear the default icon", usage.iconDefaultHideNodeIds);
+    }
+    if (usage.iconNodeIds.length > 0 && !contract.iconSlotMasterId) {
+      addContractIssue(issues, role, "icon SLOT", usage.iconNodeIds);
+    }
+  }
+
+  if (issues.length > 0) {
+    throw new Error(
+      `Mapped box component contract is incomplete for this diagram: ${issues.join("; ")}. Refusing to edit live instance sublayers.`,
+    );
+  }
 }
 
 function isSlotNode(node: any) {
   return safeGetNodeType(node) === "SLOT";
-}
-
-function findSlotNodes(instance: any) {
-  return findDescendants(instance, isSlotNode);
-}
-
-function findContentSlotNode(instance: any, nodeId: string) {
-  const slots = findSlotNodes(instance).filter(
-    (node) => safeGetNodeName(node).trim().toLowerCase() === BOX_SLOT_LAYER_NAME,
-  );
-  if (slots.length > 1) {
-    throw new Error(
-      `Mapped component instance for ${nodeId} contains ${slots.length} content SLOT nodes named "${BOX_SLOT_LAYER_NAME}"; expected exactly one.`,
-    );
-  }
-  return slots[0] ?? null;
-}
-
-function findIconSlotNode(instance: any, nodeId: string) {
-  const slots = findSlotNodes(instance).filter(
-    (node) => safeGetNodeName(node).trim().toLowerCase() !== BOX_SLOT_LAYER_NAME,
-  );
-  if (slots.length > 1) {
-    const names = slots.map((slot) => safeGetNodeName(slot) || "unnamed").sort().join(", ");
-    throw new Error(
-      `Mapped component instance for ${nodeId} contains ${slots.length} icon SLOT candidates (${names}); expected exactly one.`,
-    );
-  }
-  return slots[0] ?? null;
 }
 
 function assertSlotNode(node: any, label: string, nodeId: string) {
@@ -1380,23 +1802,153 @@ function clearSlotChildren(slot: any, label: string, nodeId: string) {
   clearChildren(slot);
 }
 
-async function applyInstanceTextOverrides(instance: any, node: DiagramNodePayload) {
+function assertSlotLimits(slot: any, label: string, nodeId: string) {
+  assertSlotNode(slot, label, nodeId);
+  const violations = Array.isArray(slot.limitViolations) ? slot.limitViolations : [];
+  if (violations.length > 0) {
+    throw new Error(
+      `Mapped component instance for ${nodeId} violates ${label} SlotNode limits: ${violations.join(", ")}.`,
+    );
+  }
+}
+
+function getPayloadTextValues(node: DiagramNodePayload) {
   const lines = node.textBlocks.flatMap((block) => block.lines);
-  if (lines.length === 0) {
+  return {
+    title: lines[0]?.text ?? "",
+    helper: lines.slice(1).map((line) => line.text).filter(Boolean).join("\n"),
+    hasTitle: lines.length > 0,
+    hasHelper: lines.length > 1 && lines.slice(1).some((line) => String(line.text || "").trim() !== ""),
+  };
+}
+
+function setInstanceProperties(instance: any, properties: Record<string, string | boolean>, nodeId: string) {
+  const entries = Object.entries(properties);
+  if (entries.length === 0) {
     return;
   }
+  if (typeof instance.setProperties !== "function") {
+    throw new Error(`Mapped component instance for ${nodeId} does not support setProperties(); refusing to edit live instance sublayers.`);
+  }
+  instance.setProperties(properties);
+}
 
-  const textNodes = findDescendants(instance, (candidate) => candidate.type === "TEXT");
-  for (let index = 0; index < textNodes.length && index < lines.length; index += 1) {
-    const textNode = textNodes[index]!;
-    const line = lines[index]!;
-    try {
-      const font = await loadPreferredFont(line.weight);
-      textNode.fontName = font;
-      textNode.characters = line.text || " ";
-    } catch (error) {
-      logImportFallback(`Component text override failed for ${node.id}`, error);
+async function loadTextNodeFont(textNode: any) {
+  const font = textNode?.fontName;
+  if (
+    font
+    && typeof font === "object"
+    && typeof font.family === "string"
+    && typeof font.style === "string"
+  ) {
+    await loadFontCandidate(font);
+  }
+}
+
+async function setInstanceTextOverride(
+  instance: any,
+  masterTextId: string | null,
+  label: string,
+  value: string,
+  nodeId: string,
+) {
+  // Targeted, non-structural instance override: resolve from the master id,
+  // never by walking live instance children.
+  const textNode = await getInstanceTextByMasterId(instance, masterTextId, label, nodeId);
+  if (!textNode) {
+    throw new Error(
+      `Mapped component Role text fallback for ${nodeId} has no stable ${label} target; refusing to walk live instance sublayers.`,
+    );
+  }
+  try {
+    await loadTextNodeFont(textNode);
+    textNode.characters = value;
+  } catch (error) {
+    throw new Error(
+      `Mapped component instance for ${nodeId} could not override its ${label} by stable text id. `
+      + `Expose that text as a component property if this instance sublayer is not overrideable: ${formatErrorMessage(error)}`,
+    );
+  }
+}
+
+async function applyInstanceComponentProperties(
+  instance: any,
+  node: DiagramNodePayload,
+  contract: BoxComponentContract,
+) {
+  const text = getPayloadTextValues(node);
+  const properties: Record<string, string | boolean> = {};
+  const textOverrides: Array<{ masterTextId: string | null; label: string; value: string }> = [];
+
+  if (text.hasTitle) {
+    if (contract.titleTextProperty) {
+      properties[contract.titleTextProperty] = text.title || " ";
+    } else {
+      textOverrides.push({
+        masterTextId: contract.titleTextMasterId,
+        label: "title text",
+        value: text.title || " ",
+      });
     }
+  }
+
+  if (text.hasHelper) {
+    if (contract.helperTextProperty) {
+      properties[contract.helperTextProperty] = text.helper || " ";
+    } else {
+      textOverrides.push({
+        masterTextId: contract.helperTextMasterId,
+        label: "helper text",
+        value: text.helper || " ",
+      });
+    }
+    if (contract.helperVisibleProperty) {
+      properties[contract.helperVisibleProperty] = true;
+    }
+  } else if (contract.hasHelperTextLayer) {
+    if (contract.helperVisibleProperty) {
+      properties[contract.helperVisibleProperty] = false;
+    } else if (contract.helperTextProperty) {
+      properties[contract.helperTextProperty] = "";
+    } else if (contract.helperTextMasterId) {
+      textOverrides.push({
+        masterTextId: contract.helperTextMasterId,
+        label: "helper text",
+        value: "",
+      });
+    } else {
+      throw new Error(
+        `Mapped component Role=${contract.role} for ${node.id} has a default helper text layer but exposes no helper text or helper visibility component property.`,
+      );
+    }
+  }
+
+  if (node.icon) {
+    if (contract.iconVisibleProperty) {
+      properties[contract.iconVisibleProperty] = true;
+    }
+  } else if (contract.iconSlotHasDefaultContent) {
+    if (contract.iconVisibleProperty) {
+      properties[contract.iconVisibleProperty] = false;
+    } else if (contract.iconSlotMasterId) {
+      // applyInstanceIconOverride clears the real SlotNode after properties are
+      // applied, so no visibility property is needed for this case.
+    } else {
+      throw new Error(
+        `Mapped component Role=${contract.role} for ${node.id} has a default icon slot but exposes no icon visibility component property or icon SLOT.`,
+      );
+    }
+  }
+
+  setInstanceProperties(instance, properties, node.id);
+  for (const override of textOverrides) {
+    await setInstanceTextOverride(
+      instance,
+      override.masterTextId,
+      override.label,
+      override.value,
+      node.id,
+    );
   }
 }
 
@@ -1414,10 +1966,26 @@ async function applyInstanceIconOverride(
   instance: any,
   node: DiagramNodePayload,
   mapping: ComponentMapping,
+  contract: BoxComponentContract,
   context: ImportBuildContext,
   recordMissing = true,
 ) {
   if (!node.icon) {
+    if (!contract.iconSlotHasDefaultContent || contract.iconVisibleProperty) {
+      return iconOverrideOk();
+    }
+    const slot = await getInstanceSlotByMasterId(instance, contract.iconSlotMasterId, "icon slot", node.id);
+    if (!slot) {
+      throw new Error(`Mapped component instance for ${node.id} has a default icon but no icon SLOT to clear.`);
+    }
+    try {
+      clearSlotChildren(slot, "icon slot", node.id);
+      assertSlotLimits(slot, "icon slot", node.id);
+    } catch (error) {
+      throw new Error(
+        `Mapped component instance for ${node.id} could not clear its default icon SLOT: ${formatErrorMessage(error)}`,
+      );
+    }
     return iconOverrideOk();
   }
 
@@ -1434,7 +2002,7 @@ async function applyInstanceIconOverride(
     return fail(`no source matched key "${key}"`);
   }
 
-  const slot = findIconSlotNode(instance, node.id);
+  const slot = await getInstanceSlotByMasterId(instance, contract.iconSlotMasterId, "icon slot", node.id);
   if (!slot) {
     return fail(`no icon SLOT found in ${safeGetNodeName(instance) || node.id}`);
   }
@@ -1458,6 +2026,7 @@ async function applyInstanceIconOverride(
     replacement.x = 0;
     replacement.y = 0;
     setImportData(replacement, `${node.id}:icon`, "component-icon");
+    assertSlotLimits(slot, "icon slot", node.id);
     return iconOverrideOk();
   } catch (error) {
     safeRemoveNode(replacement);
@@ -1753,12 +2322,14 @@ async function populateComponentSlot(
   componentMapping: ComponentMapping,
 ) {
   clearSlotChildren(slot, "content slot", node.id);
-  if (slot.layoutMode !== "HORIZONTAL" && slot.layoutMode !== "VERTICAL") {
-    configureAutoLayoutFrame(slot, "VERTICAL", 0);
-  }
 
   const bodyWidth = Math.max(1, node.bodyWidth ?? node.width);
-  const bodyHeight = Math.max(1, node.bodyHeight ?? node.height);
+  const bodyHeight = Math.max(
+    1,
+    normalizeSizing(node.bodySizingH) === "FIXED"
+      ? (node.bodyHeight ?? node.height)
+      : (node.bodyHeight ?? 1),
+  );
   const body = createAutoLayoutFrame(
     `${node.id}/body`,
     node.direction,
@@ -1780,12 +2351,18 @@ async function populateComponentSlot(
       normalizePositionType(child.positionType),
       child.x,
       child.y,
+      context,
     );
   }
 
   setImportData(body, `${node.id}:body`, "component-slot-body");
   finalizeFrameOwnSizing(body, bodyWidth, bodyHeight, node.bodySizingW, node.bodySizingH);
-  appendAutoLayoutChild(slot, body, node.bodySizingW, node.bodySizingH);
+  appendAutoLayoutChild(slot, body, node.bodySizingW, node.bodySizingH, "AUTO", 0, 0, context);
+  // Figma can re-key nodes when this body becomes content of a live instance
+  // slot. Refresh only after the final structural insertion, then validate via
+  // getNodeByIdAsync rather than walking instance sublayers.
+  refreshImportedNodeIds(context);
+  assertSlotLimits(slot, "content slot", node.id);
   return body;
 }
 
@@ -1795,8 +2372,9 @@ async function populateSlotWithRuntimeStrategy(
   serverUrl: string,
   context: ImportBuildContext,
   componentMapping: ComponentMapping,
+  contract: BoxComponentContract,
 ) {
-  const slot = findContentSlotNode(instance, node.id);
+  const slot = await getInstanceSlotByMasterId(instance, contract.contentSlotMasterId, "content slot", node.id);
   if (!slot) {
     throw new Error(`Mapped component instance for ${node.id} does not contain a content SLOT named "${BOX_SLOT_LAYER_NAME}".`);
   }
@@ -1810,7 +2388,7 @@ async function populateSlotWithRuntimeStrategy(
 function markMappedComponentNode(
   target: any,
   node: DiagramNodePayload,
-  role: "Child" | "Parent" | "Section",
+  role: BoxRole,
   variantName: string,
   importKind: string,
 ) {
@@ -1830,6 +2408,10 @@ async function buildComponentMappedNode(
   if (!component) {
     throw new Error(`No box component variant mapped for Role=${role}.`);
   }
+  const contract = componentMapping.roleContracts.get(role);
+  if (!contract) {
+    throw new Error(`No box component contract mapped for Role=${role}.`);
+  }
 
   const variantName = component.name || `Role=${role}`;
   const instance = trackCreatedNode(context, component.createInstance());
@@ -1838,14 +2420,11 @@ async function buildComponentMappedNode(
   instance.name = node.name || node.id;
   markMappedComponentNode(instance, node, role, variantName, `component:${node.kind}`);
 
-  if (typeof instance.resizeWithoutConstraints === "function") {
-    instance.resizeWithoutConstraints(clampSize(node.width), clampSize(node.height));
-  }
-  await applyInstanceTextOverrides(instance, node);
-  await applyInstanceIconOverride(instance, node, componentMapping, context, true);
+  await applyInstanceComponentProperties(instance, node, contract);
+  await applyInstanceIconOverride(instance, node, componentMapping, contract, context, true);
 
   const populated = node.children.length > 0
-    ? await populateSlotWithRuntimeStrategy(instance, node, serverUrl, context, componentMapping)
+    ? await populateSlotWithRuntimeStrategy(instance, node, serverUrl, context, componentMapping, contract)
     : instance;
   setPluginData(populated, COMPONENT_ROLE_KEY, role);
   setPluginData(populated, COMPONENT_VARIANT_KEY, variantName);
@@ -1936,6 +2515,9 @@ async function upsertFrameDiagramPayload(
   const priorY = existing ? safeReadNumber(existing, "y") : null;
   const buildContext = createImportBuildContext();
   const componentMapping = await resolveComponentMapping();
+  if (componentMapping) {
+    validateComponentMappingContractForPayload(payload.root, componentMapping);
+  }
 
   try {
     const frame = await buildContainerNode(payload.root, serverUrl, buildContext, componentMapping);
@@ -1949,9 +2531,9 @@ async function upsertFrameDiagramPayload(
         + " Copy matching icon components, icon-sized instances, or .svg-named cloneable icon nodes into this file, or configure icon component keys before component-mode import.",
       );
     }
-    const sizingVerifiedCount = validateImportedDiagramSizing(frame, payload.root);
+    const sizingVerifiedCount = await validateImportedDiagramSizing(frame, payload.root, buildContext);
     const componentVerifiedCount = componentMapping
-      ? validateImportedComponentStructure(frame, payload.root)
+      ? await validateImportedComponentStructure(frame, payload.root, buildContext)
       : 0;
     frame.name = payload.title || payload.slug;
     setImportData(frame, importId, "diagram-root");
@@ -1978,7 +2560,7 @@ async function upsertFrameDiagramPayload(
       width: frame.width,
       height: frame.height,
       childCount: safeGetChildren(frame).length,
-      descendantCount: countImportedSubtreeNodes(frame),
+      descendantCount: countImportedSubtreeNodes(frame, buildContext),
       sizingVerifiedCount,
       componentVerifiedCount,
       componentMode: componentMapping ? BOX_COMPONENT_SET_NAME : "generic-frame",
@@ -2023,7 +2605,7 @@ async function upsertYamlDiagram(serverUrl: string, yamlText: string, sourceName
 }
 
 function reportError(error: unknown) {
-  const text = formatErrorMessage(error);
+  const text = `[${IMPORTER_BUILD_ID}] ${formatErrorMessage(error)}`;
   console.error(error);
   try {
     figma.notify(text, { timeout: 6000 });
@@ -2065,7 +2647,7 @@ async function runDiagramImport(serverUrl: string, slug: string) {
   const result = await upsertFrameDiagram(serverUrl, slug);
   figma.ui.postMessage({
     type: "done",
-    text: `${result.refreshed ? "Refreshed" : "Inserted"} ${result.title} (${Math.round(result.width)}x${Math.round(result.height)}), root children: ${result.childCount}, imported nodes: ${result.descendantCount}, sizing verified: ${result.sizingVerifiedCount}, component verified: ${result.componentVerifiedCount}, mode: ${result.componentMode}, components: ${result.componentInstanceCount}, instance slots: ${result.instanceSlotCount}, searched pages: ${result.componentSearchPageCount}, icon sources: ${result.iconSourceCount}`,
+    text: `[${IMPORTER_BUILD_ID}] ${result.refreshed ? "Refreshed" : "Inserted"} ${result.title} (${Math.round(result.width)}x${Math.round(result.height)}), root children: ${result.childCount}, imported nodes: ${result.descendantCount}, sizing verified: ${result.sizingVerifiedCount}, component verified: ${result.componentVerifiedCount}, mode: ${result.componentMode}, components: ${result.componentInstanceCount}, instance slots: ${result.instanceSlotCount}, searched pages: ${result.componentSearchPageCount}, icon sources: ${result.iconSourceCount}`,
   });
 }
 
@@ -2074,7 +2656,7 @@ async function runYamlImport(serverUrl: string, yamlText: string, sourceName: st
   const result = await upsertYamlDiagram(serverUrl, yamlText, sourceName);
   figma.ui.postMessage({
     type: "done",
-    text: `${result.refreshed ? "Refreshed" : "Inserted"} ${result.title} (${Math.round(result.width)}x${Math.round(result.height)}), root children: ${result.childCount}, imported nodes: ${result.descendantCount}, sizing verified: ${result.sizingVerifiedCount}, component verified: ${result.componentVerifiedCount}, mode: ${result.componentMode}, components: ${result.componentInstanceCount}, instance slots: ${result.instanceSlotCount}, searched pages: ${result.componentSearchPageCount}, icon sources: ${result.iconSourceCount}`,
+    text: `[${IMPORTER_BUILD_ID}] ${result.refreshed ? "Refreshed" : "Inserted"} ${result.title} (${Math.round(result.width)}x${Math.round(result.height)}), root children: ${result.childCount}, imported nodes: ${result.descendantCount}, sizing verified: ${result.sizingVerifiedCount}, component verified: ${result.componentVerifiedCount}, mode: ${result.componentMode}, components: ${result.componentInstanceCount}, instance slots: ${result.instanceSlotCount}, searched pages: ${result.componentSearchPageCount}, icon sources: ${result.iconSourceCount}`,
   });
 }
 

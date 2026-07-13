@@ -75,6 +75,30 @@ Outcome recorded in
   each box variant, and the importer fails rather than detaching if a required
   slot is absent or rejects mutation.
 
+## 2026-07-12 Architectural Debugging Decision
+
+The moving `get_children`/`get_parent` errors were one architectural failure,
+not independent bad node ids: earlier code mixed live-instance sublayer
+mutation with mid-build detach, invalidating handles that later steps still
+used. The current implementation has removed that hybrid. It now uses a strict
+live-component contract: master-tree discovery, direct instance SlotNode
+addressing, component properties for visibility and preferred text overrides,
+stable targeted text-node overrides when a text property is absent, no detach,
+and no ordinary instance-sublayer structural mutation or traversal.
+
+Official Figma Plugin API documentation confirms that `SlotNode` is a
+freeform-content container with child APIs, while `InstanceNode.setProperties`
+does not accept `SLOT` properties. Therefore the remaining work is not another
+generic importer rewrite. It is a live proof that the user's converted slots
+are addressable/mutable with valid slot settings, plus completion of the real
+`box` component-property/slot contract.
+
+Terra MUST execute
+[`terra-live-fix-runbook.md`](terra-live-fix-runbook.md) before making another
+code-side fix. Code changes are justified only by a failed assertion in that
+runbook with captured live ids, node types, property definitions/references,
+slot violations, and the exact failing operation.
+
 ## User Scenarios & Testing
 
 ### User Story 1 - Import any selected YAML file (Priority: P1)
@@ -243,8 +267,21 @@ content updates while the allowed Figma override remains.
   cloneable icon nodes. The importer MUST insert the resolved icon node into a
   real icon `SLOT` on the live component instance. It MUST NOT replace ordinary
   instance sublayers, detach the box, or silently fall back to raw SVG drawing.
-  It MUST fail import rather than silently ignore an icon that cannot be
-  resolved or inserted.
+  In component mode, successful icon output SHOULD be a Figma component/instance
+  source rather than a raw imported SVG recreation. If a semantic node has no
+  icon or a requested icon cannot be resolved under an explicit continue-on-
+  missing policy, the importer MUST hide/clear the icon slot or icon visibility
+  control; it MUST NOT leave the component's default placeholder icon visible.
+- **FR-013b**: In component mode, helper visibility MUST be driven through a
+  Figma component property discovered from the master component's
+  `componentPropertyDefinitions` and sublayer `componentPropertyReferences`.
+  Icon visibility SHOULD use such a Boolean property; when it is absent, the
+  importer MUST clear the one real icon `SLOT` for an icon-less node. Title/
+  helper text SHOULD use component properties when available. When a text
+  property is absent, the importer MAY set `characters` on one explicitly
+  selected `TEXT` sublayer addressed from its master-node id; it MUST NOT
+  discover that target by walking a live instance or perform structural
+  instance-sublayer mutation.
 - **FR-014**: Refresh MUST continue to use stable import IDs and MUST define
   importer-owned versus user-owned component properties before overwriting an
   existing instance.
@@ -254,6 +291,27 @@ content updates while the allowed Figma override remains.
 - **FR-016**: The in-repo tests MUST cover arbitrary YAML payload creation,
   component-mapping resolution, slot-container direction selection, and negative
   failures for missing/ambiguous mappings.
+- **FR-017**: Component-mode import MUST NOT introduce hardcoded fixed heights
+  that contradict the layout-engine payload. Mapped instances, generated slot
+  containers, and slot children MUST preserve effective Fill/Hug/Fixed behavior
+  unless the payload explicitly requests `FIXED` on that axis.
+- **FR-018**: Component helper text MUST be controlled from the payload. Default
+  helper text in the authored component MUST be hidden or cleared when the YAML
+  node does not provide helper/body text for that component property.
+- **FR-019**: Slot population MUST replace importer-owned generated slot
+  content, not append duplicate parent/section instances on rerun. A parent or
+  section content slot MUST contain one generated body/container for that
+  semantic node; deeper nesting is allowed only when it corresponds to real YAML
+  hierarchy, not repeated import wrappers.
+- **FR-020**: After any generated body or mapped child is reparented into a
+  live `SLOT`, the importer MUST record its transaction-scoped import identity
+  and post-reparent node id. Validators MAY use a globally resolved node or a
+  valid direct handle, but MUST NOT traverse an instance. If Figma makes an
+  already-inserted live-slot descendant opaque to both readback mechanisms,
+  validation MUST retain the mutation-time sizing and successful empty
+  `limitViolations` assertion rather than roll back the diagram solely for a
+  missing post-build node. After content or icon mutation, the importer MUST
+  fail if that real `SlotNode` reports any `limitViolations`.
 
 ### Non-Goals
 
@@ -302,12 +360,20 @@ content updates while the allowed Figma override remains.
 - **SC-007**: Live Figma verification records whether strict `SlotNode`
   insertion preserves component-instance semantics, with no ambiguous "looks
   right" closeout and no detach fallback.
+- **SC-008**: Live Figma verification shows no unintended hardcoded heights, no
+  visible default helper text, no visible default placeholder icons, no raw-SVG
+  icon fallback where component icons exist, and no duplicate parent/section
+  instances or repeated generated slot containers after rerun.
 
 ## Edge Cases
 
 - The selected YAML is valid YAML but not a supported frame diagram.
 - The selected YAML references icons that do not have mapped component/icon
   controls.
+- A component's default helper text or default icon remains visible because the
+  importer did not set/hide the corresponding component property or slot.
+- Copied Brand icon sources exist as Figma components/instances, but the import
+  output still contains raw SVG recreation or the component's default icon.
 - The copied icon asset is nested inside a frame/folder rather than placed at
   page root.
 - A `box` component placeholder icon has the same `.svg` naming convention as
@@ -319,6 +385,11 @@ content updates while the allowed Figma override remains.
   variant.
 - Figma rejects mutation of a required content or icon `SLOT` on an intact
   component instance.
+- Reimporting or nesting a parent/section appends another generated body inside
+  an existing generated body, producing repeated `slot -> body -> slot -> body`
+  wrappers that do not correspond to YAML hierarchy.
+- Component variants have authored default dimensions that conflict with the
+  layout-engine effective sizing, causing hardcoded heights in imported output.
 - A role maps to a variant property name that has a generated `#...` suffix.
 - The user refreshes a diagram after manually deleting or modifying part of the
   imported instance tree.
