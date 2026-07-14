@@ -31,6 +31,7 @@ import {
 } from "./document-apis.js";
 import {
   frameDiagramExists,
+  importInterchangeForSlug,
   resolveFramePreviewViewerContext,
 } from "./frame-documents.js";
 import { AUTOLAYOUT_HOST_LANE } from "./lanes.js";
@@ -94,6 +95,48 @@ function resolveInterchangeExportSlug(
 ): string | null {
   const rawSlug = new URL(context.req.url ?? "", "http://127.0.0.1").searchParams.get("slug") ?? "";
   return /^[A-Za-z0-9._:-]+$/.test(rawSlug) ? rawSlug : null;
+}
+
+function readInterchangeImportSource(payload: unknown): string {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new Error("Import payload must be an object");
+  }
+  const source = (payload as Record<string, unknown>).source;
+  if (typeof source !== "string" || source.trim().length === 0) {
+    throw new Error("Import source is required");
+  }
+  return source;
+}
+
+function createPreviewInterchangeImportHostApiRoute(
+  format: "mermaid" | "d2",
+  deps: BuiltinAutolayoutPreviewHostModuleDeps,
+): PreviewHostApiRouteDescriptor {
+  return {
+    key: `${format}-import`,
+    method: "POST",
+    routePrefixes: [`/api/import/${format}`],
+    matchMode: "exact",
+    async handle(_match, context) {
+      const rawSlug = new URL(context.req.url ?? "", "http://127.0.0.1").searchParams.get("slug") ?? "";
+      if (!/^[A-Za-z0-9._:-]+$/.test(rawSlug)) {
+        context.sendText(400, "Invalid import slug");
+        return;
+      }
+      try {
+        const payload = await context.readJsonBody(context.req);
+        const result = importInterchangeForSlug(
+          rawSlug,
+          format,
+          readInterchangeImportSource(payload),
+          deps.framePreviewDocumentDeps,
+        );
+        context.sendJson(201, result);
+      } catch (error) {
+        context.sendText(400, error instanceof Error ? error.message : String(error));
+      }
+    },
+  };
 }
 
 function collectWorkspaceEngineScripts(
@@ -247,8 +290,17 @@ export const AUTOLAYOUT_PREVIEW_HOST_API_ROUTES = [
   createPreviewD2HostApiRoute(),
 ] as const;
 
-export function installBuiltinAutolayoutPreviewHostApiRoutes(): () => void {
-  return installPreviewHostApiRoutes(AUTOLAYOUT_PREVIEW_HOST_API_ROUTES);
+export function installBuiltinAutolayoutPreviewHostApiRoutes(
+  deps?: BuiltinAutolayoutPreviewHostModuleDeps,
+): () => void {
+  const routes = deps
+    ? [
+        ...AUTOLAYOUT_PREVIEW_HOST_API_ROUTES,
+        createPreviewInterchangeImportHostApiRoute("mermaid", deps),
+        createPreviewInterchangeImportHostApiRoute("d2", deps),
+      ]
+    : AUTOLAYOUT_PREVIEW_HOST_API_ROUTES;
+  return installPreviewHostApiRoutes(routes);
 }
 
 export function createAutolayoutPreviewHostViewerRoute(
@@ -367,7 +419,7 @@ export function installBuiltinAutolayoutPreviewHostModule(
     BUILTIN_AUTOLAYOUT_PREVIEW_HOST_MODULE_KEY,
   );
   const unregisterViewerRoute = installBuiltinAutolayoutPreviewHostViewerRoutes(moduleDeps);
-  const unregisterApiRoutes = installBuiltinAutolayoutPreviewHostApiRoutes();
+  const unregisterApiRoutes = installBuiltinAutolayoutPreviewHostApiRoutes(moduleDeps);
   return () => {
     unregisterApiRoutes();
     unregisterViewerRoute();

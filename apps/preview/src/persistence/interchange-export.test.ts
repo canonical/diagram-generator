@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
@@ -13,6 +13,7 @@ import {
 } from "../preview-host/document-apis.js";
 import {
   renderD2ForSlug,
+  importInterchangeForSlug,
   renderMermaidForSlug,
   type FramePreviewDocumentDeps,
   type FramePreviewRenderDeps,
@@ -103,4 +104,28 @@ test("preview interchange endpoints expose exact Mermaid and D2 export routes", 
   });
   assert.ok(endpoints.some((endpoint) => endpoint.kind === FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS.mermaidExport));
   assert.ok(endpoints.some((endpoint) => endpoint.kind === FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS.d2Export));
+});
+
+test("preview import writes a new canonical YAML diagram and refuses overwrite", () => {
+  const framesDir = makeTempFramesDir();
+  try {
+    const deps: FramePreviewDocumentDeps = { framesDir };
+    const result = importInterchangeForSlug(
+      "imported-sample",
+      "mermaid",
+      `flowchart TB\n  source["Source"]\n  target["Target"]\n  source --> target`,
+      deps,
+    );
+    assert.equal(result.ok, true);
+    assert.equal(result.slug, "imported-sample");
+    const yaml = readFileSync(path.join(framesDir, "imported-sample.yaml"), "utf8");
+    assert.match(yaml, /engine: v3/);
+    assert.match(yaml, /id: source/);
+    assert.throws(
+      () => importInterchangeForSlug("imported-sample", "d2", "source: Source", deps),
+      /already exists/,
+    );
+  } finally {
+    rmSync(framesDir, { recursive: true, force: true });
+  }
 });

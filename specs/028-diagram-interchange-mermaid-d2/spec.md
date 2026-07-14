@@ -179,6 +179,11 @@ All CLIs support `--strict`, `--out`, and stderr diagnostics consistent with com
   persisting overrides.
 - Mermaid and D2 downloads MUST use the preview HTTP export routes and preserve
   the authored-slug filename (`.mmd` / `.d2`).
+- The Document section MUST provide a collapsed Import diagram disclosure with
+  Mermaid/D2 format selection, source-file selection, and a safe new-diagram
+  name field.
+- Import MUST create a new YAML diagram and navigate to it; it MUST refuse to
+  overwrite an existing slug.
 
 ## Non-Functional Requirements
 

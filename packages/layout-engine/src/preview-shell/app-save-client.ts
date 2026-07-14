@@ -6,6 +6,12 @@ import { createPreviewOverridePayload } from './preview-override-model.js';
 
 export interface PreviewSaveClientRuntimeWindow {
   addEventListener?: (type: string, listener: (event: unknown) => unknown) => void;
+  location?: { assign?: (url: string) => void };
+}
+
+export interface PreviewImportFileLike {
+  name: string;
+  text: () => Promise<string>;
 }
 
 export interface PreviewSaveClientRuntimeDocument {
@@ -20,6 +26,8 @@ export interface PreviewSaveClientRuntimeDocument {
   getElementById: (id: string) => {
     disabled?: boolean;
     value?: string;
+    accept?: string;
+    files?: { length: number; [index: number]: PreviewImportFileLike | undefined } | null;
     classList?: { add: (name: string) => void; remove: (name: string) => void };
     addEventListener?: (type: string, listener: () => void) => void;
   } | null;
@@ -91,6 +99,7 @@ export interface PreviewSaveClientRuntime {
   saveCurrentSvg: () => void;
   saveCurrentDrawio: () => Promise<void>;
   exportCurrentFormat: () => Promise<void>;
+  importCurrentFile: () => Promise<void>;
   trySaveIfDirty: () => void;
 }
 
@@ -142,6 +151,14 @@ function currentDocumentSlug(slug: string): string {
 
 function currentInterchangeFilename(slug: string, format: 'mermaid' | 'd2'): string {
   return `${currentDocumentSlug(slug)}.${format === 'mermaid' ? 'mmd' : 'd2'}`;
+}
+
+function importSlugFromFilename(filename: string): string {
+  const withoutExtension = filename.replace(/\.(?:mmd|mermaid|d2)$/i, '');
+  return withoutExtension
+    .replace(/[^A-Za-z0-9._:-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    || 'imported-diagram';
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -416,6 +433,66 @@ export function createPreviewSaveClientRuntime(
     return value === 'drawio' || value === 'mermaid' || value === 'd2' ? value : 'svg';
   }
 
+  function readImportFormat(): 'mermaid' | 'd2' {
+    return options.document.getElementById('interchange-import-format')?.value === 'd2'
+      ? 'd2'
+      : 'mermaid';
+  }
+
+  function syncImportFileAccept(): void {
+    const fileInput = options.document.getElementById('interchange-import-file');
+    if (fileInput) {
+      fileInput.accept = readImportFormat() === 'd2' ? '.d2' : '.mmd,.mermaid';
+    }
+  }
+
+  async function importCurrentFile(): Promise<void> {
+    const runtimeDeps = requireDeps();
+    const fileInput = options.document.getElementById('interchange-import-file');
+    const slugInput = options.document.getElementById('interchange-import-slug');
+    const file = fileInput?.files?.[0];
+    if (!file) {
+      alertFn('Choose a Mermaid or D2 file to import.');
+      return;
+    }
+    const slug = String(slugInput?.value || importSlugFromFilename(file.name)).trim();
+    if (!/^[A-Za-z0-9._:-]+$/.test(slug)) {
+      alertFn('Import name may contain only letters, numbers, dot, underscore, colon, and hyphen.');
+      return;
+    }
+    if (slugInput && !slugInput.value) {
+      slugInput.value = slug;
+    }
+    const format = readImportFormat();
+    try {
+      const response = await options.fetchFn?.(`/api/import/${format}?slug=${encodeURIComponent(slug)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source: await file.text() }),
+      });
+      if (!response) {
+        throw new Error('Preview save client requires fetch() support for import');
+      }
+      if (!response.ok) {
+        throw new Error(await response.text() || response.statusText || 'Unknown import error');
+      }
+      const result = await response.json() as { slug?: string; warnings?: Array<{ message?: string }> };
+      const importedSlug = typeof result.slug === 'string' && result.slug.length > 0 ? result.slug : slug;
+      const warnings = Array.isArray(result.warnings) ? result.warnings : [];
+      if (warnings.length > 0) {
+        const messages = warnings
+          .map((warning) => warning?.message)
+          .filter((message): message is string => typeof message === 'string' && message.length > 0)
+          .slice(0, 3);
+        alertFn(`Imported with ${warnings.length} warning(s).${messages.length > 0 ? `\n${messages.join('\n')}` : ''}`);
+      }
+      runtimeDeps.setStatus?.('Imported', 'ok');
+      options.previewWindow.location?.assign?.(`/view/v3:${importedSlug}`);
+    } catch (error) {
+      alertFn(`Import failed: ${String(error)}`);
+    }
+  }
+
   function syncExportButton(): void {
     const exportButton = options.document.getElementById('btn-export-format');
     if (!exportButton) {
@@ -588,10 +665,25 @@ export function createPreviewSaveClientRuntime(
     options.document.getElementById('btn-export-format')?.addEventListener?.('click', () => {
       void exportCurrentFormat();
     });
+    options.document.getElementById('interchange-import-format')?.addEventListener?.('change', () => {
+      syncImportFileAccept();
+    });
+    options.document.getElementById('interchange-import-file')?.addEventListener?.('change', () => {
+      const fileInput = options.document.getElementById('interchange-import-file');
+      const slugInput = options.document.getElementById('interchange-import-slug');
+      const file = fileInput?.files?.[0];
+      if (file && slugInput && !slugInput.value) {
+        slugInput.value = importSlugFromFilename(file.name);
+      }
+    });
+    options.document.getElementById('btn-import-interchange')?.addEventListener?.('click', () => {
+      void importCurrentFile();
+    });
     syncSaveButton();
     syncSaveSvgButton();
     syncSaveDrawioButton();
     syncExportButton();
+    syncImportFileAccept();
     if (typeof runtimeDeps.onBeforeUnload === 'function') {
       options.previewWindow.addEventListener?.('beforeunload', runtimeDeps.onBeforeUnload);
     }
@@ -611,6 +703,7 @@ export function createPreviewSaveClientRuntime(
     saveCurrentSvg,
     saveCurrentDrawio,
     exportCurrentFormat,
+    importCurrentFile,
     trySaveIfDirty,
   };
 }

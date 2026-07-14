@@ -195,6 +195,28 @@
             <button class="btn bf-button is-base" id="btn-clear-all">Clear all</button>
             <button class="btn bf-button is-base" id="btn-export">Copy overrides</button>
           </div>
+          <details class="dg-interchange-import">
+            <summary>Import diagram</summary>
+            <div class="dg-interchange-import-body">
+              <p class="bf-form-help">Import a Mermaid or D2 file as a new diagram. The current diagram is never overwritten.</p>
+              <label class="bf-field" for="interchange-import-format">
+                <span class="bf-form-label">Import format</span>
+                <select class="bf-input" id="interchange-import-format">
+                  <option value="mermaid">Mermaid</option>
+                  <option value="d2">D2</option>
+                </select>
+              </label>
+              <label class="bf-field" for="interchange-import-file">
+                <span class="bf-form-label">Source file</span>
+                <input class="bf-input" id="interchange-import-file" type="file" accept=".mmd,.mermaid">
+              </label>
+              <label class="bf-field" for="interchange-import-slug">
+                <span class="bf-form-label">New diagram name</span>
+                <input class="bf-input" id="interchange-import-slug" type="text" placeholder="imported-diagram" pattern="[A-Za-z0-9._:-]+">
+              </label>
+              <button class="btn bf-button is-base" id="btn-import-interchange" type="button">Import as new diagram</button>
+            </div>
+          </details>
         </section>
 
         <!-- ── Grid mode: Constraints ── -->
