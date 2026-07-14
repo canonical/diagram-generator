@@ -621,6 +621,28 @@ body.dg-preview {
        min-width: 132px;
 }
 
+.dg-interchange-import {
+       border-top: 1px solid var(--bf-color-border-default, #555);
+       padding-top: 8px;
+}
+
+.dg-interchange-import summary {
+       color: var(--bf-color-text-muted, #999);
+       cursor: pointer;
+       font-size: 0.9rem;
+       font-weight: 500;
+}
+
+.dg-interchange-import-body {
+       display: grid;
+       gap: 8px;
+       margin-top: 8px;
+}
+
+.dg-interchange-import-body .bf-form-help {
+       margin: 0;
+}
+
 .dg-stage-shell {
        display: flex;
        flex: 1 1 auto;

@@ -947,6 +947,78 @@ describe('preview save client runtime', () => {
     expect(link.click).toHaveBeenCalledTimes(2);
   });
 
+  it('imports a selected source file as a new diagram and navigates to it', async () => {
+    const file = {
+      name: 'customer-flow.mmd',
+      text: vi.fn(async () => 'flowchart TB\n  source[Source]'),
+    };
+    const fileInput = {
+      accept: '',
+      files: { length: 1, 0: file },
+      addEventListener: vi.fn(),
+    };
+    const formatSelect = {
+      value: 'mermaid',
+      addEventListener: vi.fn(),
+    };
+    const slugInput = {
+      value: '',
+    };
+    const importButton = {
+      addEventListener: vi.fn(),
+    };
+    const locationAssign = vi.fn();
+    const fetchFn = vi.fn(async () => ({
+      ok: true,
+      status: 201,
+      statusText: 'Created',
+      text: async () => '',
+      json: async () => ({ ok: true, slug: 'customer-flow', warnings: [] }),
+    }));
+    const runtime = createPreviewSaveClientRuntime({
+      document: {
+        body: { appendChild() {} },
+        activeElement: null,
+        createElement() {
+          return { click() {}, remove() {} };
+        },
+        getElementById(id: string) {
+          if (id === 'interchange-import-file') return fileInput;
+          if (id === 'interchange-import-format') return formatSelect;
+          if (id === 'interchange-import-slug') return slugInput;
+          if (id === 'btn-import-interchange') return importButton;
+          return null;
+        },
+        querySelector() {
+          return null;
+        },
+      },
+      previewWindow: { location: { assign: locationAssign } },
+      fetchFn,
+      alertFn: vi.fn(),
+    });
+
+    runtime.init({
+      slug: 'demo',
+      getModel: () => ({ overrides: {}, gridOverrides: {}, removedIds: new Set<string>() }),
+      getSelectedIds: () => [],
+      restoreSelectionIds: vi.fn(),
+      serializeDirtyState: () => '{}',
+      reloadDiagram: vi.fn(async () => undefined),
+      setStatus: vi.fn(),
+    });
+
+    await runtime.importCurrentFile();
+    expect(fileInput.accept).toBe('.mmd,.mermaid');
+    expect(slugInput.value).toBe('customer-flow');
+    expect(fetchFn).toHaveBeenCalledWith('/api/import/mermaid?slug=customer-flow', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: 'flowchart TB\n  source[Source]' }),
+    });
+    expect(locationAssign).toHaveBeenCalledWith('/view/v3:customer-flow');
+  });
+
   it('keeps removal state and reports reload failures after a successful persist', async () => {
     const alertFn = vi.fn();
     const clearCoercedKeys = vi.fn();

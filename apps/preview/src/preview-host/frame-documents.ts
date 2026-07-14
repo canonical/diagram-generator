@@ -9,6 +9,8 @@ import {
   exportFrameDiagramToDrawio,
   exportD2,
   exportMermaid,
+  importD2,
+  importMermaid,
   FRAME_PREVIEW_SHELL_MODE,
   layoutPreviewFrameDiagramForEngine,
   listCompatiblePreviewEngines,
@@ -17,6 +19,7 @@ import {
   renderFrameDiagramToSvg,
   renderPreviewDocumentToSvg,
   resolvePreviewEngine,
+  serializeDiagramYaml,
   serializeFrameDiagram,
   summarizeFrameDiagramCompatibility,
   type PreviewEngineManifest,
@@ -78,6 +81,7 @@ export interface FramePreviewViewerContext extends FramePreviewEngineResolution 
 }
 
 type InterchangeExportFormat = "d2" | "mermaid";
+type InterchangeImportFormat = "d2" | "mermaid";
 
 interface CachedInterchangeExport {
   readonly mtimeMs: number;
@@ -410,6 +414,34 @@ export function renderMermaidForSlug(slug: string, deps: FramePreviewDocumentDep
 
 export function renderD2ForSlug(slug: string, deps: FramePreviewDocumentDeps): string {
   return renderInterchangeExportForSlug(slug, deps, "d2");
+}
+
+export function importInterchangeForSlug(
+  slug: string,
+  format: InterchangeImportFormat,
+  source: string,
+  deps: FramePreviewDocumentDeps,
+): { ok: true; slug: string; warnings: unknown[] } {
+  const framePath = path.join(deps.framesDir, `${slug}.yaml`);
+  if (existsSync(framePath)) {
+    throw new Error(`A diagram named '${slug}' already exists`);
+  }
+  const imported = format === "mermaid"
+    ? importMermaid(source)
+    : importD2(source);
+  if (imported.errors.length > 0) {
+    throw new Error(imported.errors.map((diagnostic) => diagnostic.message).join("\n"));
+  }
+  if (!imported.ast.root || imported.ast.root.children.length === 0) {
+    throw new Error(`No diagram nodes could be imported from ${format}`);
+  }
+  const yaml = serializeDiagramYaml(imported.ast);
+  const compiled = compileDiagramYaml(yaml, { sourcePath: framePath });
+  if (compiled.errors.length > 0) {
+    throw new Error(compiled.errors.map((diagnostic) => diagnostic.message).join("\n"));
+  }
+  writeFileSync(framePath, yaml, "utf8");
+  return { ok: true, slug, warnings: imported.warnings };
 }
 
 function resolveFramePreviewEngineResolutionForDocument(
