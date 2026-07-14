@@ -606,6 +606,21 @@ body.dg-preview {
        gap: 8px;
 }
 
+.dg-export-control {
+       align-items: end;
+       display: inline-flex;
+       gap: 8px;
+}
+
+.dg-export-control .bf-field {
+       gap: 4px;
+       min-width: 132px;
+}
+
+.dg-export-format {
+       min-width: 132px;
+}
+
 .dg-stage-shell {
        display: flex;
        flex: 1 1 auto;

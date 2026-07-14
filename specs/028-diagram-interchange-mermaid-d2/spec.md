@@ -169,6 +169,17 @@ Out of scope for v1: classDefs, style links, click callbacks, other diagram type
 
 All CLIs support `--strict`, `--out`, and stderr diagnostics consistent with compile CLIs.
 
+### FR-007 — Preview export UI
+
+- The preview Document section MUST keep Save as the primary persistence action
+  and provide one separate Export action for generated artifacts.
+- The Export control MUST offer SVG, draw.io, Mermaid, and D2 formats from one
+  format selector rather than adding one button per format.
+- Export MUST download the selected format without changing dirty state or
+  persisting overrides.
+- Mermaid and D2 downloads MUST use the preview HTTP export routes and preserve
+  the authored-slug filename (`.mmd` / `.d2`).
+
 ## Non-Functional Requirements
 
 - **NFR-001**: Import parsers live under `packages/layout-engine/src/diagram-author/import-*` mirroring export module layout.
