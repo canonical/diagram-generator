@@ -12,6 +12,9 @@ spec catalog/status → [`docs/specs.md`](docs/specs.md) · human notes →
 [`INBOX.md`](INBOX.md) · durable per-spec detail → `specs/<id>-<slug>/` ·
 adversarial reviews → `docs/spec-reviews/`.
 
-**No active handoff.** Spec 077 Mermaid ELK cluster lowering completed on
-2026-07-13; its durable record is archived under
-`docs/spec-archive/077-mermaid-elk-cluster-lowering-port/`.
+**Active handoff:** Spec 061 preview grid regression is implemented on
+`feat/061-preview-grid-regression`. The typed capability gate, findings, and
+tests are complete. Layout-engine validation is green (1,025 tests); preview
+validation is 167/168 because the existing
+`editor-live-repaint-regression.test.ts` has an unrelated ELK option-default
+mismatch. Branch review/merge remains the next action.

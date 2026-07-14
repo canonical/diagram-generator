@@ -181,6 +181,18 @@ function hasCapability<K extends keyof PreviewEngineCapabilities>(
   return Boolean(capabilities(context)[key]);
 }
 
+/**
+ * Returns whether the active preview state owns the native frame grid model.
+ *
+ * Grid affordances (including the inspector's 9-dot alignment widget) must
+ * share this gate so non-grid engines cannot enter the native relayout path.
+ */
+export function previewContextSupportsGridEditing(context: PreviewUiContext): boolean {
+  return matchesPreviewShellMode(context, 'frame')
+    && isFrameDiagram(context)
+    && hasCapability(context, 'gridEditing');
+}
+
 export function previewEngineSupportsSidebarSection(
   context: PreviewUiContext,
   section: string,
@@ -247,9 +259,7 @@ function layoutParamsVisible(context: PreviewUiContext): boolean {
 }
 
 function gridControlsVisible(context: PreviewUiContext): boolean {
-  return matchesPreviewShellMode(context, 'frame')
-    && isFrameDiagram(context)
-    && hasCapability(context, 'gridEditing')
+  return previewContextSupportsGridEditing(context)
     && rootSelectionVisible(context);
 }
 
