@@ -606,19 +606,31 @@ body.dg-preview {
        gap: 8px;
 }
 
-.dg-export-control {
-       align-items: end;
-       display: inline-flex;
-       gap: 8px;
+.dg-document-action-groups {
+       display: grid;
+       gap: 12px;
 }
 
-.dg-export-control .bf-field {
-       gap: 4px;
-       min-width: 132px;
+.dg-document-action-group {
+       display: grid;
+       gap: 6px;
+}
+
+.dg-document-action-group .dg-section-subheading {
+       margin: 0;
+}
+
+.dg-export-control {
+       align-items: center;
+       border-top: 1px solid var(--bf-color-border-default, #555);
+       display: flex;
+       gap: 8px;
+       padding-top: 8px;
 }
 
 .dg-export-format {
-       min-width: 132px;
+       flex: 1 1 auto;
+       min-width: 0;
 }
 
 .dg-interchange-import {
