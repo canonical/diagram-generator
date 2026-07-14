@@ -1894,22 +1894,36 @@ function assertSlotLimits(slot: any, label: string, nodeId: string) {
   }
 }
 
-function getPayloadTextValues(node: DiagramNodePayload) {
-  const lines = node.textBlocks.flatMap((block) => block.lines);
+function getPayloadTextGroups(node: DiagramNodePayload) {
+  const hasHeadingBlock = node.textBlocks.some((block) => block.role === "heading");
+  const titleBlocks = hasHeadingBlock
+    ? node.textBlocks.filter((block) => block.role === "heading")
+    : node.textBlocks.filter((block) => block.role === "label");
+  const helperBlocks = hasHeadingBlock
+    ? node.textBlocks.filter((block) => block.role !== "heading")
+    : node.textBlocks.filter((block) => block.role === "helper");
+
   return {
-    title: lines[0]?.text ?? "",
-    helper: lines.slice(1).map((line) => line.text).filter(Boolean).join("\n"),
-    hasTitle: lines.length > 0,
-    hasHelper: lines.length > 1 && lines.slice(1).some((line) => String(line.text || "").trim() !== ""),
+    titleLines: titleBlocks.flatMap((block) => block.lines),
+    helperLines: helperBlocks.flatMap((block) => block.lines),
+  };
+}
+
+function getPayloadTextValues(node: DiagramNodePayload) {
+  const { titleLines, helperLines } = getPayloadTextGroups(node);
+  return {
+    // Lines in one title block are one Figma text property with authored line
+    // breaks. Only a separate helper block belongs in the helper property.
+    title: titleLines.map((line) => line.text).join("\n"),
+    helper: helperLines.map((line) => line.text).filter(Boolean).join("\n"),
+    hasTitle: titleLines.some((line) => String(line.text || "").trim() !== ""),
+    hasHelper: helperLines.some((line) => String(line.text || "").trim() !== ""),
   };
 }
 
 function getPayloadHelperStyle(node: DiagramNodePayload) {
-  const helperLine = node.textBlocks
-    .flatMap((block) => block.lines)
-    .slice(1)
-    .find((line) => String(line.text || "").trim() !== "");
-  return helperLine ?? null;
+  const { helperLines } = getPayloadTextGroups(node);
+  return helperLines.find((line) => String(line.text || "").trim() !== "") ?? null;
 }
 
 function setInstanceProperties(instance: any, properties: Record<string, string | boolean>, nodeId: string) {

@@ -642,20 +642,21 @@ function makeTextBlock(text: string) {
 }
 
 function makeTextBlockWithHelper(text: string, helper: string, helperFill = "#111111") {
-  const block = makeTextBlock(text)[0]!;
-  return [{
-    ...block,
-    lines: [
-      ...block.lines,
-      {
+  const titleBlock = makeTextBlock(text)[0]!;
+  return [
+    titleBlock,
+    {
+      role: "helper",
+      gapAfter: 0,
+      lines: [{
         text: helper,
         size: 18,
         weight: 400,
         fill: helperFill,
         lineHeight: 24,
-      },
-    ],
-  }];
+      }],
+    },
+  ];
 }
 
 function makeLeaf(overrides: Record<string, unknown> = {}) {
@@ -1531,6 +1532,44 @@ test("upsertYamlDiagram uses box component variants and instance slots when avai
   assert.equal(componentPropertyValue(child, "Title#title"), "Leaf label");
   assert.equal(componentPropertyValue(child, "Show helper#showHelper"), false);
   assert.equal(componentPropertyValue(child, "Show icon#showIcon"), false);
+});
+
+test("upsertYamlDiagram keeps multi-line leaf labels in the title property", async () => {
+  resetTestState();
+  installBoxComponentSet();
+  fetchState.payload = {
+    slug: "multiline-label",
+    title: "Multi-line label",
+    source: {
+      kind: "selected-yaml",
+      name: "multiline-label.yaml",
+    },
+    root: makeRoot([
+      makeLeaf({
+        id: "hybrid-placement",
+        name: "Hybrid placement",
+        textBlocks: [{
+          role: "label",
+          gapAfter: 0,
+          lines: [
+            { text: "Hybrid", size: 18, weight: 700, fill: "#111111", lineHeight: 24 },
+            { text: "placement", size: 18, weight: 700, fill: "#111111", lineHeight: 24 },
+          ],
+        }],
+      }),
+    ]),
+  };
+
+  const result = await testables.upsertYamlDiagram(
+    "http://localhost:3846",
+    "title: Multi-line label\nroot:\n  id: page\n",
+    "multiline-label.yaml",
+  );
+  assert.equal(result.componentMode, "box");
+
+  const instance = findImportedById(fakeFigma.currentPage, "hybrid-placement")!;
+  assert.equal(componentPropertyValue(instance, "Title#title"), "Hybrid\nplacement");
+  assert.equal(componentPropertyValue(instance, "Show helper#showHelper"), false);
 });
 
 test("upsertYamlDiagram keeps V3 structural containers as raw auto-layout frames", async () => {
