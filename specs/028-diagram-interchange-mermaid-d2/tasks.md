@@ -43,6 +43,7 @@
 
 - [x] T060 Preview routes `GET /api/export/mermaid` and `/api/export/d2`
 - [x] T061 Cache by slug + YAML mtime (mirror SVG pool spirit)
+- [x] T062 Preview Document section export control with SVG, draw.io, Mermaid, and D2 format choices
 
 ## Traceability
 

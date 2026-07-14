@@ -19,6 +19,7 @@ export interface PreviewSaveClientRuntimeDocument {
   };
   getElementById: (id: string) => {
     disabled?: boolean;
+    value?: string;
     classList?: { add: (name: string) => void; remove: (name: string) => void };
     addEventListener?: (type: string, listener: () => void) => void;
   } | null;
@@ -89,8 +90,11 @@ export interface PreviewSaveClientRuntime {
   saveOverrides: () => Promise<void>;
   saveCurrentSvg: () => void;
   saveCurrentDrawio: () => Promise<void>;
+  exportCurrentFormat: () => Promise<void>;
   trySaveIfDirty: () => void;
 }
+
+export type PreviewDocumentExportFormat = 'svg' | 'drawio' | 'mermaid' | 'd2';
 
 export interface PreviewSaveButtonStateOptions {
   dirty: boolean;
@@ -130,6 +134,14 @@ function currentSvgFilename(slug: string): string {
 function currentDrawioFilename(slug: string): string {
   const baseSlug = String(slug || '').replace(/^v3:/, '');
   return `${baseSlug}.drawio`;
+}
+
+function currentDocumentSlug(slug: string): string {
+  return String(slug || '').replace(/^v3:/, '');
+}
+
+function currentInterchangeFilename(slug: string, format: 'mermaid' | 'd2'): string {
+  return `${currentDocumentSlug(slug)}.${format === 'mermaid' ? 'mmd' : 'd2'}`;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -177,6 +189,7 @@ export function createPreviewSaveClientRuntime(
   let saving = false;
   let svgExporting = false;
   let drawioExporting = false;
+  let interchangeExporting = false;
   let lastSavedState: string | null = null;
   let initialized = false;
 
@@ -261,6 +274,7 @@ export function createPreviewSaveClientRuntime(
     setDirty(false);
     syncSaveSvgButton();
     syncSaveDrawioButton();
+    syncExportButton();
   }
 
   function syncDirtyFromSerialized(serializedState: string): void {
@@ -284,7 +298,7 @@ export function createPreviewSaveClientRuntime(
 
   async function downloadRouteFile(routePath: string, filename: string, mimeType: string): Promise<void> {
     if (typeof options.fetchFn !== 'function') {
-      throw new Error('Preview save client requires fetch() support for draw.io export');
+      throw new Error('Preview save client requires fetch() support for route export');
     }
     const response = await options.fetchFn(routePath, {
       method: 'GET',
@@ -310,6 +324,7 @@ export function createPreviewSaveClientRuntime(
     }
     svgExporting = true;
     syncSaveSvgButton();
+    syncExportButton();
     try {
       const svg = options.document.querySelector('#stage svg');
       if (!svg) {
@@ -342,6 +357,7 @@ export function createPreviewSaveClientRuntime(
     } finally {
       svgExporting = false;
       syncSaveSvgButton();
+      syncExportButton();
     }
   }
 
@@ -352,6 +368,7 @@ export function createPreviewSaveClientRuntime(
     }
     drawioExporting = true;
     syncSaveDrawioButton();
+    syncExportButton();
     try {
       const svg = options.document.querySelector('#stage svg');
       if (!svg) {
@@ -359,7 +376,7 @@ export function createPreviewSaveClientRuntime(
         return;
       }
       await downloadRouteFile(
-        `/drawio/${encodeURIComponent(String(runtimeDeps.slug || '').replace(/^v3:/, ''))}.drawio`,
+        `/drawio/${encodeURIComponent(currentDocumentSlug(runtimeDeps.slug))}.drawio`,
         currentDrawioFilename(runtimeDeps.slug),
         'application/xml;charset=utf-8',
       );
@@ -368,6 +385,64 @@ export function createPreviewSaveClientRuntime(
     } finally {
       drawioExporting = false;
       syncSaveDrawioButton();
+      syncExportButton();
+    }
+  }
+
+  async function saveCurrentInterchange(format: 'mermaid' | 'd2'): Promise<void> {
+    const runtimeDeps = requireDeps();
+    const routeFormat = format === 'mermaid' ? 'mermaid' : 'd2';
+    if (interchangeExporting) {
+      return;
+    }
+    interchangeExporting = true;
+    syncExportButton();
+    try {
+      await downloadRouteFile(
+        `/api/export/${routeFormat}?slug=${encodeURIComponent(currentDocumentSlug(runtimeDeps.slug))}`,
+        currentInterchangeFilename(runtimeDeps.slug, format),
+        'text/plain;charset=utf-8',
+      );
+    } catch (error) {
+      alertFn(`${format === 'mermaid' ? 'Mermaid' : 'D2'} export failed: ${String(error)}`);
+    } finally {
+      interchangeExporting = false;
+      syncExportButton();
+    }
+  }
+
+  function readExportFormat(): PreviewDocumentExportFormat {
+    const value = options.document.getElementById('export-format')?.value;
+    return value === 'drawio' || value === 'mermaid' || value === 'd2' ? value : 'svg';
+  }
+
+  function syncExportButton(): void {
+    const exportButton = options.document.getElementById('btn-export-format');
+    if (!exportButton) {
+      return;
+    }
+    const format = readExportFormat();
+    const svg = options.document.querySelector('#stage svg');
+    exportButton.disabled = svgExporting || drawioExporting || interchangeExporting || (format === 'svg'
+      ? resolvePreviewSaveSvgButtonState({ hasRenderedSvg: Boolean(svg) }).disabled
+      : false);
+  }
+
+  async function exportCurrentFormat(): Promise<void> {
+    const format = readExportFormat();
+    try {
+      if (format === 'svg') {
+        saveCurrentSvg();
+        return;
+      }
+      if (format === 'drawio') {
+        await saveCurrentDrawio();
+        return;
+      }
+      await saveCurrentInterchange(format);
+    } catch (error) {
+      const label = format === 'drawio' ? 'draw.io' : format.toUpperCase();
+      alertFn(`${label} export failed: ${String(error)}`);
     }
   }
 
@@ -507,9 +582,16 @@ export function createPreviewSaveClientRuntime(
     options.document.getElementById('btn-save-drawio')?.addEventListener?.('click', () => {
       void saveCurrentDrawio();
     });
+    options.document.getElementById('export-format')?.addEventListener?.('change', () => {
+      syncExportButton();
+    });
+    options.document.getElementById('btn-export-format')?.addEventListener?.('click', () => {
+      void exportCurrentFormat();
+    });
     syncSaveButton();
     syncSaveSvgButton();
     syncSaveDrawioButton();
+    syncExportButton();
     if (typeof runtimeDeps.onBeforeUnload === 'function') {
       options.previewWindow.addEventListener?.('beforeunload', runtimeDeps.onBeforeUnload);
     }
@@ -528,6 +610,7 @@ export function createPreviewSaveClientRuntime(
     saveOverrides,
     saveCurrentSvg,
     saveCurrentDrawio,
+    exportCurrentFormat,
     trySaveIfDirty,
   };
 }

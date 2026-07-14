@@ -177,9 +177,19 @@
           <h2 class="dg-section-heading bf-h5">Document</h2>
           <p class="bf-form-help dg-override-summary" id="override-summary">No overrides.</p>
           <div class="bf-cluster dg-button-row">
-            <button class="btn bf-button" id="btn-save" disabled>Save</button>
-            <button class="btn bf-button is-base" id="btn-save-svg">Save SVG</button>
-            <button class="btn bf-button is-base" id="btn-save-drawio">Save drawio</button>
+            <button class="btn bf-button" id="btn-save" type="button" disabled>Save</button>
+            <div class="dg-export-control">
+              <label class="bf-field" for="export-format">
+                <span class="bf-form-label">Export format</span>
+                <select class="bf-input dg-export-format" id="export-format" aria-label="Export format">
+                  <option value="svg">SVG</option>
+                  <option value="drawio">draw.io</option>
+                  <option value="mermaid">Mermaid</option>
+                  <option value="d2">D2</option>
+                </select>
+              </label>
+              <button class="btn bf-button is-base" id="btn-export-format" type="button">Export</button>
+            </div>
             <button class="btn bf-button is-base" id="btn-undo" disabled>Undo</button>
             <button class="btn bf-button is-base" id="btn-redo" disabled>Redo</button>
             <button class="btn bf-button is-base" id="btn-clear-all">Clear all</button>

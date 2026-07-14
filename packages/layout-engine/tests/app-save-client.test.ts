@@ -879,6 +879,74 @@ describe('preview save client runtime', () => {
     expect(link.click).toHaveBeenCalledTimes(1);
   });
 
+  it('downloads the selected Mermaid or D2 format through the interchange route', async () => {
+    const link = {
+      href: '',
+      download: '',
+      click: vi.fn(),
+      remove: vi.fn(),
+    };
+    const formatSelect = {
+      value: 'mermaid',
+      addEventListener: vi.fn(),
+    };
+    const exportButton = {
+      disabled: false,
+      addEventListener: vi.fn(),
+    };
+    const fetchFn = vi.fn(async (input: string) => ({
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      text: async () => input.includes('/d2?') ? 'value: {}' : 'flowchart TB',
+      json: async () => ({}),
+    }));
+    const runtime = createPreviewSaveClientRuntime({
+      document: {
+        body: { appendChild: vi.fn() },
+        activeElement: null,
+        createElement() {
+          return link;
+        },
+        getElementById(id: string) {
+          if (id === 'export-format') return formatSelect;
+          if (id === 'btn-export-format') return exportButton;
+          return null;
+        },
+        querySelector() {
+          return null;
+        },
+      },
+      previewWindow: {},
+      fetchFn,
+      alertFn: vi.fn(),
+      blobCtor: class FakeBlob {},
+      urlApi: {
+        createObjectURL: () => 'blob:interchange',
+        revokeObjectURL: vi.fn(),
+      },
+    });
+
+    runtime.init({
+      slug: 'v3:demo',
+      getModel: () => ({ overrides: {}, gridOverrides: {}, removedIds: new Set<string>() }),
+      getSelectedIds: () => [],
+      restoreSelectionIds: vi.fn(),
+      serializeDirtyState: () => '{}',
+      reloadDiagram: vi.fn(async () => undefined),
+    });
+
+    await runtime.exportCurrentFormat();
+    expect(fetchFn).toHaveBeenCalledWith('/api/export/mermaid?slug=demo', { method: 'GET' });
+    expect(link.download).toBe('demo.mmd');
+
+    formatSelect.value = 'd2';
+    await runtime.exportCurrentFormat();
+    expect(fetchFn).toHaveBeenCalledWith('/api/export/d2?slug=demo', { method: 'GET' });
+    expect(link.download).toBe('demo.d2');
+    expect(link.click).toHaveBeenCalledTimes(2);
+  });
+
   it('keeps removal state and reports reload failures after a successful persist', async () => {
     const alertFn = vi.fn();
     const clearCoercedKeys = vi.fn();
