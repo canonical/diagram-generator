@@ -41,6 +41,7 @@ import {
 } from "./registry.js";
 import type {
   PreviewHostApiRouteDescriptor,
+  PreviewHostApiRouteHandlerContext,
   PreviewHostViewerPageDefinition,
   PreviewHostViewerRouteDescriptor,
 } from "./types.js";
@@ -85,6 +86,14 @@ function resolveDrawioExportSlug(pathname: string): string | null {
     : pathname.slice("/v3/drawio/".length);
   const safeName = path.posix.basename(rawName);
   return safeName.replace(/\.drawio$/i, "");
+}
+
+function resolveInterchangeExportSlug(
+  _match: unknown,
+  context: PreviewHostApiRouteHandlerContext,
+): string | null {
+  const rawSlug = new URL(context.req.url ?? "", "http://127.0.0.1").searchParams.get("slug") ?? "";
+  return /^[A-Za-z0-9._:-]+$/.test(rawSlug) ? rawSlug : null;
 }
 
 function collectWorkspaceEngineScripts(
@@ -198,6 +207,34 @@ export function createPreviewDrawioHostApiRoute(): PreviewHostApiRouteDescriptor
   });
 }
 
+export function createPreviewMermaidHostApiRoute(): PreviewHostApiRouteDescriptor {
+  return createPreviewHostDocumentGetBytesRoute({
+    key: "mermaid-export",
+    routePrefixes: ["/api/export/mermaid"],
+    matchMode: "exact",
+    documentEndpointKind: FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS.mermaidExport,
+    routeKey: "autolayout",
+    missingMessage: missingAutolayoutDiagramMessage,
+    resolveSlug: resolveInterchangeExportSlug,
+    contentType: "text/plain; charset=utf-8",
+    transformResult: (value) => Buffer.from(String(value), "utf8"),
+  });
+}
+
+export function createPreviewD2HostApiRoute(): PreviewHostApiRouteDescriptor {
+  return createPreviewHostDocumentGetBytesRoute({
+    key: "d2-export",
+    routePrefixes: ["/api/export/d2"],
+    matchMode: "exact",
+    documentEndpointKind: FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS.d2Export,
+    routeKey: "autolayout",
+    missingMessage: missingAutolayoutDiagramMessage,
+    resolveSlug: resolveInterchangeExportSlug,
+    contentType: "text/plain; charset=utf-8",
+    transformResult: (value) => Buffer.from(String(value), "utf8"),
+  });
+}
+
 export const AUTOLAYOUT_PREVIEW_HOST_API_ROUTES = [
   createFrameOverridesPreviewHostApiRoute(),
   createPreviewDocumentPreviewHostApiRoute(),
@@ -206,6 +243,8 @@ export const AUTOLAYOUT_PREVIEW_HOST_API_ROUTES = [
   createGridInfoPreviewHostApiRoute(),
   createPreviewSvgHostApiRoute(),
   createPreviewDrawioHostApiRoute(),
+  createPreviewMermaidHostApiRoute(),
+  createPreviewD2HostApiRoute(),
 ] as const;
 
 export function installBuiltinAutolayoutPreviewHostApiRoutes(): () => void {

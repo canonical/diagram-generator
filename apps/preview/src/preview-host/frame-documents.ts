@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import {
@@ -7,6 +7,8 @@ import {
   collectIconNames,
   compileDiagramYaml,
   exportFrameDiagramToDrawio,
+  exportD2,
+  exportMermaid,
   FRAME_PREVIEW_SHELL_MODE,
   layoutPreviewFrameDiagramForEngine,
   listCompatiblePreviewEngines,
@@ -74,6 +76,15 @@ export interface FramePreviewViewerContext extends FramePreviewEngineResolution 
   compatibleEngines: string[];
   hasReference: boolean;
 }
+
+type InterchangeExportFormat = "d2" | "mermaid";
+
+interface CachedInterchangeExport {
+  readonly mtimeMs: number;
+  readonly content: string;
+}
+
+const interchangeExportCache = new Map<string, CachedInterchangeExport>();
 
 export function loadFrameDiagram(slug: string, deps: FramePreviewDocumentDeps) {
   return loadFrameYaml(path.join(deps.framesDir, `${slug}.yaml`));
@@ -366,6 +377,39 @@ export async function renderDrawioForSlug(slug: string, deps: FramePreviewRender
     diagramId: slug,
     diagramName: diagram.title,
   }).xml;
+}
+
+function renderInterchangeExportForSlug(
+  slug: string,
+  deps: FramePreviewDocumentDeps,
+  format: InterchangeExportFormat,
+): string {
+  const framePath = path.join(deps.framesDir, `${slug}.yaml`);
+  const mtimeMs = statSync(framePath).mtimeMs;
+  const cacheKey = `${format}:${framePath}`;
+  const cached = interchangeExportCache.get(cacheKey);
+  if (cached?.mtimeMs === mtimeMs) {
+    return cached.content;
+  }
+
+  const compiled = compileDiagramYaml(readFileSync(framePath, "utf8"), { sourcePath: framePath });
+  if (compiled.errors.length > 0) {
+    throw new Error(compiled.errors.map((diagnostic) => diagnostic.message).join("\n"));
+  }
+
+  const content = format === "mermaid"
+    ? exportMermaid(compiled.ast).mermaid
+    : exportD2(compiled.ast).d2;
+  interchangeExportCache.set(cacheKey, { mtimeMs, content });
+  return content;
+}
+
+export function renderMermaidForSlug(slug: string, deps: FramePreviewDocumentDeps): string {
+  return renderInterchangeExportForSlug(slug, deps, "mermaid");
+}
+
+export function renderD2ForSlug(slug: string, deps: FramePreviewDocumentDeps): string {
+  return renderInterchangeExportForSlug(slug, deps, "d2");
 }
 
 function resolveFramePreviewEngineResolutionForDocument(

@@ -41,8 +41,8 @@
 
 ## Phase 5: Preview HTTP export (P3)
 
-- [ ] T060 Preview routes `GET /api/export/mermaid` and `/api/export/d2`
-- [ ] T061 Cache by slug + YAML mtime (mirror SVG pool spirit)
+- [x] T060 Preview routes `GET /api/export/mermaid` and `/api/export/d2`
+- [x] T061 Cache by slug + YAML mtime (mirror SVG pool spirit)
 
 ## Traceability
 
