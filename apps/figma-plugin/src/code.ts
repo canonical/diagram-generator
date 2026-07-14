@@ -1904,6 +1904,14 @@ function getPayloadTextValues(node: DiagramNodePayload) {
   };
 }
 
+function getPayloadHelperStyle(node: DiagramNodePayload) {
+  const helperLine = node.textBlocks
+    .flatMap((block) => block.lines)
+    .slice(1)
+    .find((line) => String(line.text || "").trim() !== "");
+  return helperLine ?? null;
+}
+
 function setInstanceProperties(instance: any, properties: Record<string, string | boolean>, nodeId: string) {
   const entries = Object.entries(properties);
   if (entries.length === 0) {
@@ -1951,6 +1959,32 @@ async function setInstanceTextOverride(
       + `Expose that text as a component property if this instance sublayer is not overrideable: ${formatErrorMessage(error)}`,
     );
   }
+}
+
+async function applyInstanceHelperTextStyle(
+  instance: any,
+  node: DiagramNodePayload,
+  contract: BoxComponentContract,
+) {
+  const helperStyle = getPayloadHelperStyle(node);
+  if (!helperStyle || !contract.helperTextMasterId) {
+    return;
+  }
+
+  const textNode = await getInstanceTextByMasterId(
+    instance,
+    contract.helperTextMasterId,
+    "helper text",
+    node.id,
+  );
+  if (!textNode) {
+    return;
+  }
+
+  textNode.fontName = await loadPreferredFont(helperStyle.weight);
+  textNode.fontSize = helperStyle.size;
+  textNode.lineHeight = { unit: "PIXELS", value: helperStyle.lineHeight };
+  textNode.fills = [{ type: "SOLID", color: rgba(helperStyle.fill) }];
 }
 
 async function applyInstanceComponentProperties(
@@ -2028,6 +2062,7 @@ async function applyInstanceComponentProperties(
       node.id,
     );
   }
+  await applyInstanceHelperTextStyle(instance, node, contract);
 }
 
 function instantiateIconSource(source: IconSource, context: ImportBuildContext) {

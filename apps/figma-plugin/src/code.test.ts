@@ -641,7 +641,7 @@ function makeTextBlock(text: string) {
   }];
 }
 
-function makeTextBlockWithHelper(text: string, helper: string) {
+function makeTextBlockWithHelper(text: string, helper: string, helperFill = "#111111") {
   const block = makeTextBlock(text)[0]!;
   return [{
     ...block,
@@ -651,7 +651,7 @@ function makeTextBlockWithHelper(text: string, helper: string) {
         text: helper,
         size: 18,
         weight: 400,
-        fill: "#111111",
+        fill: helperFill,
         lineHeight: 24,
       },
     ],
@@ -1192,21 +1192,21 @@ test("upsertFrameDiagram applies the real telecom effective payload sizing", asy
   }
 });
 
-test("upsertFrameDiagram maps headed value-map quadrants to live Parent instances without mapping structural wrappers", async () => {
+test("upsertFrameDiagram maps value-map sections and resolves named icon components", async () => {
   resetTestState();
   installBoxComponentSet();
   for (const name of [
     "Operations.svg",
-    "AI.svg",
-    "Network.svg",
-    "Cloud with chip.svg",
-    "Cloud with telco.svg",
+    "Customer support.svg",
+    "WWAN.svg",
+    "Bar chart with check.svg",
+    "Security.svg",
+    "Cloud.svg",
     "Circle backup boot paths.svg",
     "Laptop with code.svg",
-    "Certified hardware.svg",
+    "Server.svg",
     "Bar chart with cost.svg",
-    "Customer support.svg",
-    "Bar chart with check.svg",
+    "Gauge.svg",
   ]) {
     installIconComponent(name);
   }
@@ -1216,14 +1216,15 @@ test("upsertFrameDiagram maps headed value-map quadrants to live Parent instance
   const importedRoot = fakeFigma.currentPage.selection[0]!;
 
   assert.equal(result.componentMode, "box");
-  for (const id of ["operational_ai", "customer_ai", "network_ai", "ai_services_revenue"]) {
+  assert.equal(result.iconSourceCount, 11);
+  for (const id of ["operational_ai", "customer_ai", "network_ai", "ai_services_revenue", "production_foundation", "business_outcomes"]) {
     const imported = findImportedById(importedRoot, id);
     assert.equal(imported?.type, "INSTANCE", `${id} must remain a live component instance`);
-    assert.equal(imported?.mainComponent?.name, "Role=Parent", `${id} must use the Parent variant`);
-    assert.equal(imported?.getSharedPluginData("dgp", "componentRole"), "Parent", `${id} component role`);
+    assert.equal(imported?.mainComponent?.name, "Role=Section", `${id} must use the Section variant`);
+    assert.equal(imported?.getSharedPluginData("dgp", "componentRole"), "Section", `${id} component role`);
   }
 
-  for (const id of ["value_quadrants", "value_top_row", "value_bottom_row"]) {
+  for (const id of ["value_top_row"]) {
     const imported = findImportedById(importedRoot, id);
     assert.equal(imported?.type, "FRAME", `${id} must remain a raw auto-layout wrapper`);
     assert.equal(imported?.getSharedPluginData("dgp", "componentRole"), "", `${id} must not map to a component`);
@@ -1381,6 +1382,47 @@ test("upsertYamlDiagram uses stable text-layer overrides when mapped variants om
     "Child helper",
   );
   assert.equal(componentPropertyValue(childInstance, "Show helper#showHelper"), true);
+});
+
+test("upsertYamlDiagram restores helper styling when a Parent variant is bold", async () => {
+  resetTestState();
+  const componentSet = installBoxComponentSet();
+  const parentMaster = componentSet.children[1]!;
+  const parentHelperMaster = parentMaster.findAllRaw(
+    (node) => node.type === "TEXT" && node.name === "Helper text",
+  )[0]!;
+  parentHelperMaster.fontName = { family: "Ubuntu Sans", style: "Bold" };
+  parentHelperMaster.fills = [{ type: "SOLID", color: { r: 0, g: 0, b: 0 } }];
+
+  fetchState.payload = {
+    slug: "parent-helper-style",
+    title: "Parent helper style",
+    source: {
+      kind: "selected-yaml",
+      name: "parent-helper-style.yaml",
+    },
+    root: makeRoot([
+      makeContainerNode([], {
+        id: "parent-panel",
+        name: "Parent panel",
+        textBlocks: makeTextBlockWithHelper("Panel title", "Panel helper", "#666666"),
+      }),
+    ]),
+  };
+
+  const result = await testables.upsertYamlDiagram(
+    "http://localhost:3846",
+    "title: Parent helper style\nroot:\n  id: page\n",
+    "parent-helper-style.yaml",
+  );
+  assert.equal(result.componentMode, "box");
+
+  const instance = findImportedById(fakeFigma.currentPage, "parent-panel")!;
+  const helper = instance.findInstanceSublayerBySourceId(parentHelperMaster.id)!;
+  assert.deepEqual(helper.fontName, { family: "Ubuntu Sans", style: "Regular" });
+  assert.deepEqual(helper.fills, [{ type: "SOLID", color: { r: 0.4, g: 0.4, b: 0.4, a: 1 } }]);
+  assert.equal(helper.fontSize, 18);
+  assert.deepEqual(helper.lineHeight, { unit: "PIXELS", value: 24 });
 });
 
 test("upsertYamlDiagram clears the default icon SLOT when a variant has no icon visibility property", async () => {

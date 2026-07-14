@@ -16,110 +16,95 @@ root:
   gap: 32
   padding: 24
   children:
-  - id: value_quadrants
+  - id: value_top_row
     direction: horizontal
     align: top-center
     gap: 24
+    sizing_w: fill
     children:
-    - id: value_top_row
+    - id: value_top_group_12
       direction: horizontal
-      align: top-center
       gap: 24
+      sizing_w: fill
       children:
       - id: operational_ai
-        level: 1
+        level: 3
         heading: 1. Operational AI
+        helper:
+        - Run the business with less friction
+        - ''
+        - • Fault triage
+        - • Incident correlation
+        - • Predictive maintenance
+        - • Field operations support
+        - • Workflow automation
         icon: Operations.svg
-        width: 360
+        width: 320
         sizing_w: fill
         direction: vertical
         align: top-left
-        children:
-        - id: operational_content
-          variant: annotation
-          label:
-          - Run the business with less friction
-          - ''
-          - • Fault triage
-          - • Incident correlation
-          - • Predictive maintenance
-          - • Field operations support
-          - • Workflow automation
-        fill: grey
-        border: solid
+        sizing_h: fill
       - id: customer_ai
-        level: 1
+        level: 3
         heading: 2. Customer AI
-        icon: AI.svg
-        width: 360
+        helper:
+        - Improve service, care, and retention
+        - ''
+        - • Customer care assistants
+        - • Call summarization
+        - • Personalization
+        - • Churn reduction
+        - • Fraud detection
+        icon: Customer support.svg
+        width: 320
         sizing_w: fill
         direction: vertical
         align: top-left
-        children:
-        - id: customer_content
-          variant: annotation
-          label:
-          - Improve service, care, and retention
-          - ''
-          - • Customer care assistants
-          - • Call summarization
-          - • Personalization
-          - • Churn reduction
-          - • Fraud detection
-        fill: grey
-        border: solid
-      wrap: false
-    - id: value_bottom_row
+        sizing_h: fill
+      sizing_h: fill
+    - id: value_top_group_34
       direction: horizontal
-      align: top-center
       gap: 24
+      sizing_w: fill
       children:
       - id: network_ai
-        level: 1
+        level: 3
         heading: 3. Network AI
-        icon: Network.svg
-        width: 360
+        helper:
+        - Make infrastructure more adaptive
+        - ''
+        - • Traffic forecasting
+        - • Anomaly detection
+        - • RAN optimization
+        - • Capacity planning
+        - • Closed-loop assurance
+        icon: WWAN.svg
+        width: 320
         sizing_w: fill
         direction: vertical
         align: top-left
-        children:
-        - id: network_content
-          variant: annotation
-          label:
-          - Make infrastructure more adaptive
-          - ''
-          - • Traffic forecasting
-          - • Anomaly detection
-          - • RAN optimization
-          - • Capacity planning
-          - • Closed-loop assurance
-        fill: grey
-        border: solid
+        sizing_h: fill
       - id: ai_services_revenue
-        level: 1
+        level: 3
         heading: 4. AI services and new revenue
-        icon: Cloud with chip.svg
-        width: 360
+        helper:
+        - Turn trusted infrastructure into offers
+        - ''
+        - • Sovereign AI hosting
+        - • Edge inference
+        - • Private AI platforms
+        - • Enterprise AI services
+        - • Industry-specific AI offers
+        icon: Bar chart with check.svg
+        width: 320
         sizing_w: fill
         direction: vertical
         align: top-left
-        children:
-        - id: revenue_content
-          variant: annotation
-          label:
-          - Turn trusted infrastructure into offers
-          - ''
-          - • Sovereign AI hosting
-          - • Edge inference
-          - • Private AI platforms
-          - • Enterprise AI services
-          - • Industry-specific AI offers
-        fill: grey
-        border: solid
-      wrap: false
+    wrap: false
   - id: production_foundation
-    level: 2
+    level: 3
     heading: Production foundation
+    icon: Security.svg
     direction: horizontal
     align: top-center
     gap: 24
@@ -128,7 +113,7 @@ root:
       label:
       - Hybrid
       - placement
-      icon: Cloud with telco.svg
+      icon: Cloud.svg
     - id: automation
       label:
       - Automation
@@ -147,12 +132,12 @@ root:
       label:
       - Supported
       - platforms
-      icon: Certified hardware.svg
+      icon: Server.svg
+      width: 404
+      sizing_w: fill
     sizing_w: fill
-    fill: grey
-    border: solid
   - id: business_outcomes
-    level: 2
+    level: 3
     heading: Business outcomes
     direction: horizontal
     align: top-center
@@ -167,7 +152,7 @@ root:
       label:
       - Faster incident
       - response
-      icon: Operations.svg
+      icon: Gauge.svg
     - id: better_customer_experience
       label:
       - Better customer
@@ -177,12 +162,12 @@ root:
       label:
       - Efficient network
       - capacity
-      icon: Network.svg
+      icon: WWAN.svg
     - id: new_service_revenue
       label:
       - New service
       - revenue
       icon: Bar chart with check.svg
     sizing_w: fill
-    fill: grey
-    border: solid
+  width: 1184
+  sizing_w: fixed

@@ -92,5 +92,9 @@
 
 - Cross-parent reparenting.
 - Multi-selection group reorder when selected siblings share a parent.
+- Multi-selection inspector fields: retain a field when every selected node
+  supports it, show the shared value or `mixed`, and hide it only when the
+  selection has no supported target. This includes applying a common Parent
+  role to selected boxes.
 - Force node palette reorder or grouping.
 - Layer search/filter and collapse/expand state.

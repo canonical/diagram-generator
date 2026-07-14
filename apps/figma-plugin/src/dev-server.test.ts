@@ -355,20 +355,36 @@ test("telecom payload keeps headingless groups structural and panel heights cont
   }
 });
 
-test("value-map payload maps headed level-one containers as panels and keeps transparent wrappers hugging", async () => {
+test("value-map payload maps sections and preserves named heading icons", async () => {
   const payload = await createFrameDiagramPayload("ai-infra-telco-value-map");
 
-  for (const id of ["operational_ai", "customer_ai", "network_ai", "ai_services_revenue"]) {
+  const expectedInlineIcons = {
+    operational_ai: "Operations.svg",
+    customer_ai: "Customer support.svg",
+    network_ai: "WWAN.svg",
+    ai_services_revenue: "Bar chart with check.svg",
+  };
+  for (const [id, iconName] of Object.entries(expectedInlineIcons)) {
     const node = findPayloadNode(payload.root, id);
     assert.ok(node, `missing ${id}`);
-    assert.equal(node.kind, "panel", `${id} must retain semantic Parent component chrome`);
-    assert.equal(node.fill, "#F3F3F3", `${id} must retain its authored grey fill`);
-    assert.equal(node.stroke, "#F3F3F3", `${id} must retain its authored solid border`);
-    assert.equal(node.headerMinHeight, 48, `${id} must preserve its synthesized heading`);
-    assert.ok(node.headerIcon, `${id} must preserve its heading icon`);
+    assert.equal(node.kind, "section", `${id} must retain semantic Section component chrome`);
+    assert.equal(node.fill, "transparent", `${id} must retain transparent section fill`);
+    assert.equal(node.stroke, "#000000", `${id} must retain section border`);
+    assert.equal(node.icon?.name, iconName, `${id} must preserve its named section icon`);
   }
 
-  for (const id of ["value_quadrants", "value_top_row", "value_bottom_row"]) {
+  const foundation = findPayloadNode(payload.root, "production_foundation");
+  assert.ok(foundation, "missing production_foundation");
+  assert.equal(foundation.kind, "section");
+  assert.equal(foundation.headerMinHeight, 48, "production_foundation heading height");
+  assert.equal(foundation.headerIcon?.name, "Security.svg", "production_foundation heading icon");
+
+  const outcomes = findPayloadNode(payload.root, "business_outcomes");
+  assert.ok(outcomes, "missing business_outcomes");
+  assert.equal(outcomes.kind, "section");
+  assert.equal(outcomes.headerIcon, null, "business_outcomes has no authored heading icon");
+
+  for (const id of ["value_top_row"]) {
     const node = findPayloadNode(payload.root, id);
     assert.ok(node, `missing ${id}`);
     assert.equal(node.kind, "container", `${id} must remain a raw structural wrapper`);
