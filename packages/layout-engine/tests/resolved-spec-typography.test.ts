@@ -88,6 +88,22 @@ describe('resolvedSpecTypography', () => {
     expect(frameOwnedTextBlockRole(leaf, 1)).toBe('label');
   });
 
+  it('keeps every line in a leaf label block on the label typography', () => {
+    const leaf = new Frame({
+      id: 'leaf',
+      resolvedLeafLeadWeight: '700',
+      resolvedLeafLeadLetterSpacing: '0.2px',
+      resolvedTextFill: '#666666',
+      label: [createLine('OVN-based'), createLine('networking')],
+    });
+
+    const block = frameOwnedTextBlocks(leaf)[0]!;
+    expect(block).toHaveLength(2);
+    expect(block.map(line => line.weight)).toEqual(['700', '700']);
+    expect(block.map(line => line.letterSpacing)).toEqual(['0.2px', '0.2px']);
+    expect(block.map(line => line.fill)).toEqual(['#666666', '#666666']);
+  });
+
   it('treats synthetic heading-role frames as heading blocks', () => {
     const heading = new Frame({
       id: '__heading',

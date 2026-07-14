@@ -56,9 +56,13 @@ export function resolvedSpecTypography(
 function resolvedFrameOwnedTypography(
   frame: Frame,
   source: 'heading' | 'label',
-  labelIndex = 0,
+  _labelIndex = 0,
 ): ResolvedFrameOwnedTypography {
-  const isHeading = source === 'heading' || (source === 'label' && frame.role === 'heading' && labelIndex === 0);
+  // A frame-owned text block can contain multiple authored lines. The line
+  // index is not a block boundary: wrapped/continued lines must retain the
+  // typography of the block they belong to. Helper text is represented by a
+  // separate frame.helper block and is styled separately below.
+  const isHeading = source === 'heading' || (source === 'label' && frame.role === 'heading');
   if (isHeading) {
     return {
       weight: frame.resolvedHeadingWeight ?? DEFAULT_WEIGHT,
@@ -68,7 +72,7 @@ function resolvedFrameOwnedTypography(
       fontFamily: null,
     };
   }
-  if (frame.isLeaf && frame.heading == null && labelIndex === 0) {
+  if (frame.isLeaf && frame.heading == null) {
     return {
       weight: frame.resolvedLeafLeadWeight ?? DEFAULT_WEIGHT,
       smallCaps: false,
