@@ -124,12 +124,18 @@ ${baselineStylesHtml}
     <div class="bf-panel-header">
       <h1 class="bf-h4">Preview index</h1>
       <p class="bf-form-help">Node preview app on port ${port}. Spec home: ${htmlEscape(specHome)}</p>
+      <div class="dg-workspace-open-row">
+        <button class="bf-button is-base" id="dg-open-folder" type="button">Open folder…</button>
+        <span class="bf-form-help" id="dg-workspace-status" role="status" aria-live="polite"></span>
+      </div>
     </div>
     <div class="bf-panel-content">
       ${browseSections.map((section) => buildIndexSection(section)).join("")}
     </div>
   </section>
 </main>
+<script src="/preview/layout-engine.js"></script>
+<script>window.LayoutEngine?.previewShell?.workspace?.initPreviewLocalFolderWorkspace?.();</script>
 </body>
 </html>`;
 }

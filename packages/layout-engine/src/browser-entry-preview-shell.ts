@@ -6,6 +6,9 @@ import * as previewShellRuntime from './preview-shell/index.js';
  * `browser-entry.ts` should expose these groups, not hand-assemble them inline.
  */
 export const previewShell = Object.freeze({
+  workspace: Object.freeze({
+    initPreviewLocalFolderWorkspace: previewShellRuntime.initPreviewLocalFolderWorkspace,
+  }),
   bootstrap: Object.freeze({
     attemptPreviewDiagramNavigation: previewShellRuntime.attemptPreviewDiagramNavigation,
     createPreviewEditorBootstrapFacadeFromEditorHost:

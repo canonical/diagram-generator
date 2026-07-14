@@ -35,7 +35,10 @@ import {
   type BuiltinPreviewHostServerRouteDeps,
 } from "../preview-host/builtin-host-deps.js";
 import { createBuiltinPreviewHostInstallDeps } from "../preview-host/builtin-host-runtime.js";
-import { createBuiltinPreviewHostServerRoutes } from "../preview-host/builtin-server-routes.js";
+import {
+  createBuiltinPreviewHostServerRoutes,
+  createPreviewHostWorkspaceRoutes,
+} from "../preview-host/builtin-server-routes.js";
 import { createServerRootSource } from "../preview-host/workspace/server-root-source.js";
 import { createPreviewHostDocumentGetJsonRoute } from "../preview-host/document-api-routes.js";
 import { routeRegisteredPreviewHostRequest } from "../preview-host/request-router.js";
@@ -1911,6 +1914,51 @@ test("builtin preview host server routes install through typed descriptors", asy
   }
 });
 
+test("workspace folder route adds YAML diagrams without removing the Force lane", async () => {
+  let registeredSource: ReturnType<typeof createServerRootSource> | null = null;
+  const routes = createPreviewHostWorkspaceRoutes({
+    registerWorkspaceSource: (source) => {
+      registeredSource = source as ReturnType<typeof createServerRootSource>;
+    },
+  } as never);
+  const responses: unknown[] = [];
+  await routes[0]!.handle({} as never, {
+    req: {} as never,
+    res: {} as never,
+    pathname: "/api/workspaces/open",
+    sendJson: (_statusCode, payload) => responses.push(payload),
+    sendText: (_statusCode, text) => responses.push(text),
+    sendBytes: () => {},
+    readJsonBody: async () => ({
+      label: "My folder",
+      files: [{ name: "alpha.yaml", content: "engine: v3\nroot:\n  id: page\n  children: []\n" }],
+    }),
+  });
+
+  try {
+    assert.ok(registeredSource);
+    assert.deepEqual(registeredSource!.list().map((entry) => entry.slug), ["alpha"]);
+    assert.deepEqual(responses, [{ ok: true, sourceId: "My-folder", label: "My folder", slugs: ["alpha"] }]);
+
+    let yaml = "";
+    await routes[1]!.handle({ slug: "My-folder:alpha" } as never, {
+      req: {} as never,
+      res: {} as never,
+      pathname: "/api/workspaces/yaml/My-folder%3Aalpha",
+      sendJson: () => {},
+      sendText: (_statusCode, text) => {
+        yaml = text;
+      },
+      sendBytes: () => {},
+      readJsonBody: async () => ({}),
+    });
+    assert.match(yaml, /engine: v3/);
+  } finally {
+    const directory = registeredSource?.directory;
+    if (directory) rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test("builtin preview host install preserves frame-yaml document ownership across preview and save routes", async () => {
   const tempDir = mkdtempSync(path.join(os.tmpdir(), "dg-preview-host-api-"));
   const forceDefinitionsDir = path.join(tempDir, "force");
@@ -1993,6 +2041,9 @@ test("builtin preview host install preserves frame-yaml document ownership acros
   }));
 
   try {
+    const browseKeys = buildRegisteredPreviewBrowseSections().map((section) => section.key);
+    assert.ok(browseKeys.includes("autolayout"));
+    assert.ok(browseKeys.includes("force"));
     for (const key of [
       "component-tree",
       "force-save",
@@ -2549,6 +2600,7 @@ test("preview index page HTML renders browse sections without server-local strin
   assert.match(html, /docs\/spec-archive\/045-preview-host-engine-modularity\//);
   assert.match(html, /href="\/view\/v3:alpha"/);
   assert.match(html, /href="\/force\/view\/beta"/);
+  assert.match(html, /id="dg-open-folder"/);
 });
 
 function normalizePreviewSlug(value: string): string | null {

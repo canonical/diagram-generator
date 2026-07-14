@@ -194,6 +194,10 @@ export function createBuiltinPreviewHostInstallDeps(
     return resolved ? { framesDir: resolved.framesDir, slug: resolved.slug } : null;
   };
 
+  const registerWorkspaceSource = (source: DiagramWorkspaceSource): void => {
+    workspaceRegistry.register(source);
+  };
+
   const moduleContexts = new Map<string, unknown>([
     [
       AUTOLAYOUT_MODULE_KEY,
@@ -238,6 +242,7 @@ export function createBuiltinPreviewHostInstallDeps(
         readReloadState: options.readReloadState,
         addSseClient: options.addSseClient,
         removeSseClient: options.removeSseClient,
+        registerWorkspaceSource,
       } satisfies BuiltinPreviewHostServerRouteDeps,
     ],
   ]);

@@ -3,6 +3,7 @@ import type { ServerResponse } from "node:http";
 import type { FramePreviewDocumentDeps, FramePreviewRenderDeps } from "./frame-documents.js";
 import type { ForcePreviewDocumentDeps } from "./force-documents.js";
 import type { PreviewHostViewerScriptResolver } from "./types.js";
+import type { DiagramWorkspaceSource } from "./workspace/diagram-workspace-source.js";
 
 export const BUILTIN_PREVIEW_HOST_SERVER_MODULE_KEY = "builtin-server-routes";
 export const BUILTIN_FORCE_PREVIEW_HOST_MODULE_KEY = "builtin-force";
@@ -49,6 +50,7 @@ export interface BuiltinPreviewHostServerRouteDeps
   extends PreviewHostSharedServerDeps {
   readonly framesDir: string;
   readonly findReferenceImage: (slug: string) => string | null;
+  readonly registerWorkspaceSource?: (source: DiagramWorkspaceSource) => void;
 }
 
 export interface BuiltinAutolayoutPreviewHostModuleDeps

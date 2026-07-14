@@ -15,7 +15,7 @@
   window.PreviewSaveClient = createRuntime({
     document,
     previewWindow: window,
-    fetchFn: (input, init) => fetch(input, init),
+    fetchFn: (input, init) => window.__DG_workspaceFetch?.(input, init) || fetch(input, init),
     alertFn: (message) => alert(message),
     blobCtor: Blob,
     urlApi: URL,

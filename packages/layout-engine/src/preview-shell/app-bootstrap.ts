@@ -822,6 +822,10 @@ function isHtmlSelectElement(
 export function initPreviewShellCoordinator(
   options: PreviewShellCoordinatorInitOptions,
 ): void {
+  const workspace = (options.window as Window & {
+    LayoutEngine?: { previewShell?: { workspace?: { initPreviewLocalFolderWorkspace?: () => unknown } } };
+  }).LayoutEngine?.previewShell?.workspace;
+  workspace?.initPreviewLocalFolderWorkspace?.();
   const navigation = options.document.getElementById('dg-component-navigation');
   const aside = options.document.getElementById('dg-preview-aside');
 
