@@ -84,6 +84,9 @@ export type PreviewHostDocumentEndpointKind =
   | "component-tree"
   | "grid-info"
   | "svg-export"
+  | "drawio-export"
+  | "mermaid-export"
+  | "d2-export"
   | "save-document"
   | "document-spec"
   | (string & {});

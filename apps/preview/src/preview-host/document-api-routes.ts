@@ -1,6 +1,8 @@
 import type {
   PreviewHostApiRouteDescriptor,
+  PreviewHostApiRouteHandlerContext,
   PreviewHostApiRouteMatch,
+  PreviewHostApiRouteMatchMode,
   PreviewHostDocumentActionHandler,
   PreviewHostDocumentEndpointKind,
 } from "./types.js";
@@ -24,7 +26,10 @@ interface ResolvePreviewHostDocumentRouteOptions<
   readonly documentEndpointKind: PreviewHostDocumentEndpointKind;
   readonly routeKey?: string;
   readonly missingMessage: (slug: string) => string;
-  readonly resolveSlug?: (match: PreviewHostApiRouteMatch) => string | null;
+  readonly resolveSlug?: (
+    match: PreviewHostApiRouteMatch,
+    context: PreviewHostApiRouteHandlerContext,
+  ) => string | null;
 }
 
 function resolvePreviewHostDocumentRoute<
@@ -32,6 +37,7 @@ function resolvePreviewHostDocumentRoute<
 >(
   match: PreviewHostApiRouteMatch,
   sendText: (statusCode: number, text: string) => void,
+  context: PreviewHostApiRouteHandlerContext,
   options: ResolvePreviewHostDocumentRouteOptions<THandler>,
 ): {
   slug: string;
@@ -39,7 +45,7 @@ function resolvePreviewHostDocumentRoute<
 } | null {
   const slug = options.resolveSlug
     ? requirePreviewHostRouteSlug(
-      { slug: options.resolveSlug(match) },
+      { slug: options.resolveSlug(match, context) },
       sendText,
     )
     : requirePreviewHostRouteSlug(match, sendText);
@@ -76,7 +82,7 @@ export function createPreviewHostDocumentGetJsonRoute<
     method: "GET",
     routePrefixes: options.routePrefixes,
     async handle(match, context) {
-      const resolved = resolvePreviewHostDocumentRoute(match, context.sendText, options);
+      const resolved = resolvePreviewHostDocumentRoute(match, context.sendText, context, options);
       if (!resolved) {
         return;
       }
@@ -106,7 +112,7 @@ export function createPreviewHostDocumentPostJsonRoute<
     method: "POST",
     routePrefixes: options.routePrefixes,
     async handle(match, context) {
-      const resolved = resolvePreviewHostDocumentRoute(match, context.sendText, options);
+      const resolved = resolvePreviewHostDocumentRoute(match, context.sendText, context, options);
       if (!resolved) {
         return;
       }
@@ -131,6 +137,7 @@ export interface CreatePreviewHostDocumentGetBytesRouteOptions<
 > extends ResolvePreviewHostDocumentRouteOptions<(slug: string) => TResult | Promise<TResult>> {
   readonly key: string;
   readonly routePrefixes: readonly string[];
+  readonly matchMode?: PreviewHostApiRouteMatchMode;
   readonly contentType: string;
   readonly transformResult: (value: Awaited<TResult>) => Buffer;
 }
@@ -144,8 +151,9 @@ export function createPreviewHostDocumentGetBytesRoute<
     key: options.key,
     method: "GET",
     routePrefixes: options.routePrefixes,
+    matchMode: options.matchMode,
     async handle(match, context) {
-      const resolved = resolvePreviewHostDocumentRoute(match, context.sendText, options);
+      const resolved = resolvePreviewHostDocumentRoute(match, context.sendText, context, options);
       if (!resolved) {
         return;
       }

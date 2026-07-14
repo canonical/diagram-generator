@@ -4,7 +4,9 @@ import {
   frameTreeForSlug,
   gridInfoForSlug,
   previewDocumentForSlug,
+  renderD2ForSlug,
   renderDrawioForSlug,
+  renderMermaidForSlug,
   renderSvgForSlug,
   type FramePreviewDocumentDeps,
   type FramePreviewRenderDeps,
@@ -32,6 +34,8 @@ export const FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS = {
   gridInfo: "grid-info",
   svgExport: "svg-export",
   drawioExport: "drawio-export",
+  mermaidExport: "mermaid-export",
+  d2Export: "d2-export",
   saveDocument: "save-document",
 } as const;
 
@@ -67,6 +71,14 @@ export function createFramePreviewHostDocumentEndpoints(
     {
       kind: FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS.drawioExport,
       handler: (slug: string) => renderDrawioForSlug(slug, options.framePreviewRenderDeps),
+    },
+    {
+      kind: FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS.mermaidExport,
+      handler: (slug: string) => renderMermaidForSlug(slug, options.framePreviewDocumentDeps),
+    },
+    {
+      kind: FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS.d2Export,
+      handler: (slug: string) => renderD2ForSlug(slug, options.framePreviewDocumentDeps),
     },
     {
       kind: FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS.saveDocument,
