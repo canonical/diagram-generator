@@ -13,6 +13,7 @@ import {
   resolvePreviewPanelVisibility,
   resolvePreviewTemplateSectionVisibilityPlaceholders,
   resolvePreviewVisibleTemplateSections,
+  previewContextSupportsGridEditing,
   shouldShowPreviewEngineSwitcher,
   type PreviewUiContext,
 } from '../src/preview-shell/preview-ui-context.js';
@@ -23,6 +24,30 @@ function visibleSections(context: PreviewUiContext): Set<string> {
 }
 
 describe('preview UI context registry', () => {
+  it('uses the active engine/document capability as the single grid gate', () => {
+    expect(previewContextSupportsGridEditing({
+      shellMode: 'grid',
+      documentKind: 'frame-diagram',
+      activeEngine: V3_PREVIEW_ENGINE,
+    })).toBe(true);
+
+    expect(previewContextSupportsGridEditing({
+      shellMode: 'grid',
+      documentKind: 'frame-diagram',
+      activeEngine: ELK_LAYERED_PREVIEW_ENGINE,
+    })).toBe(false);
+    expect(previewContextSupportsGridEditing({
+      shellMode: 'grid',
+      documentKind: 'sequence',
+      activeEngine: SEQUENCE_PREVIEW_ENGINE,
+    })).toBe(false);
+    expect(previewContextSupportsGridEditing({
+      shellMode: 'force',
+      documentKind: 'frame-diagram',
+      activeEngine: V3_PREVIEW_ENGINE,
+    })).toBe(false);
+  });
+
   it('covers every static template section with a typed owner', () => {
     expect(PREVIEW_PANEL_REGISTRY.map((entry) => entry.id).sort()).toEqual([
       'force-guidance',

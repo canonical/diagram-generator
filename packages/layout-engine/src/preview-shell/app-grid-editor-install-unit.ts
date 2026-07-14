@@ -40,6 +40,9 @@ import type {
   PreviewUiSelectionContext,
 } from './preview-ui-context.js';
 import {
+  previewContextSupportsGridEditing,
+} from './preview-ui-context.js';
+import {
   getPreviewEngineByLayoutKey,
   resolvePreviewEngine,
 } from '../preview-engine/registry.js';
@@ -750,9 +753,11 @@ export function createPreviewGridEditorInstallOptionsFromLegacyEditorHost(
     shellMode: resolveCurrentShellMode(),
     previewDocumentKind: resolveCurrentDocumentKind(),
   }) ?? null;
-  const shouldShowAutolayoutInspector = () => Boolean(
-    resolveCurrentActiveEngine()?.capabilities?.gridEditing,
-  );
+  const shouldShowAutolayoutInspector = () => previewContextSupportsGridEditing({
+    shellMode: resolveCurrentShellMode(),
+    documentKind: resolveCurrentDocumentKind(),
+    activeEngine: resolveCurrentActiveEngine(),
+  });
   const syncPanelVisibility = (selection: PreviewUiSelectionContext) => {
     lastSelectionContext = selection;
     const shellMode = resolveCurrentShellMode();

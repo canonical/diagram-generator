@@ -6,46 +6,46 @@
 
 ## Phase 1: Locate the grid owners and the capability source
 
-- [ ] T001 Read the grid math and overlay owners:
+- [x] T001 Read the grid math and overlay owners:
       `packages/layout-engine/src/preview-shell/grid-resolution.ts`,
       `grid-overlay-scene.ts`, `grid-controls.ts`.
-- [ ] T002 Read the grid DOM/state bridge and control enumeration in
+- [x] T002 Read the grid DOM/state bridge and control enumeration in
       `packages/layout-engine/src/preview-shell/app-grid-host.ts` and the
       install/runtime wiring (`app-grid-editor-install-unit.ts`,
       `app-grid-editor-runtime.ts`, `app-grid-editor-browser-state.ts`,
       `app-grid-runtime.ts`).
-- [ ] T003 Identify the engine/document capability descriptor the preview-shell
+- [x] T003 Identify the engine/document capability descriptor the preview-shell
       already uses to decide compatible chrome (used by specs 051/055), so the
       grid gate reuses it rather than inventing a parallel one. Record the exact
       owner in `findings.md`.
 
 ## Phase 2: Containment — hide grid affordances on non-grid engines
 
-- [ ] T010 Add one typed predicate (name TBD, e.g. `documentSupportsLayoutGrid`)
+- [x] T010 Add one typed predicate (`previewContextSupportsGridEditing`)
       that answers whether the active document/engine has a grid model. Place it
       in a typed preview-shell owner, not in `editor.js` or `layout-bridge.js`.
-- [ ] T011 Route grid-control and 9-dot alignment-control visibility through the
+- [x] T011 Route grid-control and 9-dot alignment-control visibility through the
       predicate so non-grid engines **hide** the affordances (removed from
       DOM/tab order), not merely disable them.
-- [ ] T012 Ensure the grid interaction/relayout path cannot be entered for a
+- [x] T012 Ensure the grid interaction/relayout path cannot be entered for a
       non-grid engine once affordances are hidden, so the "Local relayout
       failed ... 9 dot alignment grid" ELK error is unreachable.
-- [ ] T013 Confirm grid-capable engines keep visible, working grid controls. If
+- [x] T013 Confirm grid-capable engines keep visible, working grid controls. If
       no engine currently renders a correct overlay, do not fake it — record it
       for the finding.
 
 ## Phase 3: Investigation — root cause and decision
 
-- [ ] T020 Trace the overlay mount path: find the render owner that draws the
+- [x] T020 Trace the overlay mount path: find the render owner that draws the
       `PreviewGridOverlayScene` into the stage SVG and confirm whether it still
       runs for a grid-capable document.
-- [ ] T021 Confirm whether `resolvePreviewGridInfo` receives correct canvas
+- [x] T021 Confirm whether `resolvePreviewGridInfo` receives correct canvas
       dimensions and returns a non-empty scene for a grid-capable document.
-- [ ] T022 Confirm whether grid control runtime updates reach a relayout the
+- [x] T022 Confirm whether grid control runtime updates reach a relayout the
       render path honours, or whether the wiring is severed.
-- [ ] T023 Reproduce the ELK grid error and capture the exact control id and
+- [x] T023 Reproduce the ELK grid error and capture the exact control id and
       relayout call that throws.
-- [ ] T024 Write `specs/061-preview-grid-regression/findings.md`: classify the
+- [x] T024 Write `specs/061-preview-grid-regression/findings.md`: classify the
       regression per FR-006 (not mounted / wrong geometry / controls dead /
       dropped) with file+symbol references, and record the restore-or-retire
       decision per FR-007 including the named follow-up owner/contract if
@@ -53,18 +53,20 @@
 
 ## Phase 4: Tests and verification
 
-- [ ] T030 Add a layout-engine unit test for the capability predicate:
+- [x] T030 Add a layout-engine unit test for the capability predicate:
       grid-capable → shown, non-grid → hidden.
-- [ ] T031 Add an apps/preview contract/DOM test proving grid affordances are
+- [x] T031 Add an apps/preview contract/DOM test proving grid affordances are
       absent on a non-grid engine (DOM + tab order) and present on a grid-capable
       one, and that no grid relayout is dispatched for the non-grid case.
-- [ ] T032 If (and only if) the finding chooses an in-scope restore, add a
+- [x] T032 If (and only if) the finding chooses an in-scope restore, add a
       focused overlay-mount test proving the grid overlay renders for a
       grid-capable document.
-- [ ] T033 Run `npm --prefix packages/layout-engine test`.
-- [ ] T034 Run `npm --prefix apps/preview test`.
-- [ ] T035 Run `node scripts/check_no_new_python.mjs`.
-- [ ] T036 Use no-screenshot browser DOM probes only if unit/contract tests miss
+- [x] T033 Run `npm --prefix packages/layout-engine test`.
+- [x] T034 Run `npm --prefix apps/preview test` (167/168 passed; the existing
+      `editor-live-repaint-regression.test.ts` ELK option-default mismatch is
+      unrelated to Spec 061).
+- [x] T035 Run `node scripts/check_no_new_python.mjs`.
+- [x] T036 Use no-screenshot browser DOM probes only if unit/contract tests miss
       an integration behavior; do not capture screenshots unless asked.
 
 ## Closeout gate
