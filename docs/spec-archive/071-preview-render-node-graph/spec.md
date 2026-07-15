@@ -3,7 +3,7 @@
 **Feature Branch**: `feat/071-preview-render-node-graph`
 **Status**: Closeout Ready
 **Created**: 2026-07-01
-**Owner Map**: [`render-node-graph-flow.md`](./render-node-graph-flow.md)
+**Owner Map**: The original owner-map file was not retained when this completed package was archived.
 **Depends on / subsumes**: spec 060 follow-up (visual no-op tab switches),
 `docs/spec-reviews/README.md` (engine-identity source-of-truth review), and the
 2026-07-01 render-path fragmentation review in `AGENT-INBOX.md`.

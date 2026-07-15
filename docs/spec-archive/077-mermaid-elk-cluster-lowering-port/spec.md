@@ -6,7 +6,7 @@ broader closeout still needs SC-002 and SC-005
 **Created**: 2026-07-08
 **Supersedes direction of**: spec 076 (`specs/076-tls-mermaid-cold-start-fit/`),
 which is retired as a failed approach. See
-[`docs/spec-reviews/076-tls-mermaid-cold-start-fit.md`](../../docs/spec-reviews/076-tls-mermaid-cold-start-fit.md)
+[`docs/spec-reviews/076-tls-mermaid-cold-start-fit.md`](../../spec-reviews/076-tls-mermaid-cold-start-fit.md)
 and the 076 post-mortem summarized in the Problem section below.
 **Proving fixture**: `scripts/diagrams/frames/tls-certificate-provider-topology.yaml`
 **Reference (visual truth)**:

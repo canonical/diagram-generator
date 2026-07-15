@@ -26,4 +26,5 @@ preview.log
 # Scratch screenshots at repo root (not deliverables)
 /image.png
 /image-*.png
+/image copy*.png
 

@@ -8,9 +8,9 @@ single-selection autolayout inspector is gated by active-engine grid-editing
 capability, ELK algorithm controls are active-manifest contextual, raw view is
 ELK-only, and the debug overlay / compatibility help text are absent. Closing
 gate:
-[`specs/065-interactive-relayout-contract/verification-protocol.md`](../065-interactive-relayout-contract/verification-protocol.md)
+[`specs/065-interactive-relayout-contract/verification-protocol.md`](../../../specs/065-interactive-relayout-contract/verification-protocol.md)
 (§2 "Inspector / ELK option contextual surfacing").
-See [`docs/spec-reviews/CLINE-VERDICT-2026-06-28.md`](../../docs/spec-reviews/CLINE-VERDICT-2026-06-28.md).
+See [`docs/spec-reviews/CLINE-VERDICT-2026-06-28.md`](../../spec-reviews/CLINE-VERDICT-2026-06-28.md).
 (was: Draft)
 **Created**: 2026-06-25
 

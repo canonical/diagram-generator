@@ -115,7 +115,7 @@ resolves the first-pass P1. `npm --prefix apps/figma-plugin test` → **46/46 pa
 **What the fix does — verified correct:**
 
 - **Classifier is now level-independent for headed containers.**
-  [apps/figma-plugin/src/dev-server.ts](apps/figma-plugin/src/dev-server.ts#L324)
+  [apps/figma-plugin/src/dev-server.ts](../../apps/figma-plugin/src/dev-server.ts#L324)
   replaces the `level >= 2` panel gate with
   `else if (!frame.isLeaf && hasSemanticContainerText(frame)) { kind = "panel"; }`.
   This is a *general* rule (keyed on frame-owned heading text, not a numeric
@@ -125,25 +125,25 @@ resolves the first-pass P1. `npm --prefix apps/figma-plugin test` → **46/46 pa
   `value_bottom_row` stay raw `container` frames. Component-preservation for
   arbitrary headed YAML — the prompt's core requirement — is genuinely met.
 - **Regressions added and meaningful.**
-  [apps/figma-plugin/src/code.test.ts](apps/figma-plugin/src/code.test.ts#L1195)
+  [apps/figma-plugin/src/code.test.ts](../../apps/figma-plugin/src/code.test.ts#L1195)
   asserts the four quadrants import as `INSTANCE` with `mainComponent = Role=Parent`
   and `componentRole = Parent` (no detach), and that the three wrappers remain
   raw `FRAME` with no component role — the required component-mode identity
   regression.
-  [apps/figma-plugin/src/dev-server.test.ts](apps/figma-plugin/src/dev-server.test.ts#L331)
+  [apps/figma-plugin/src/dev-server.test.ts](../../apps/figma-plugin/src/dev-server.test.ts#L331)
   asserts panel `kind`/fill/stroke/heading and that the wrappers stay `HUG`, plus
   `collectFillUnderHugViolations(...) === []` — a real tree-wide no-overflow/Hug
-  guard ([apps/figma-plugin/src/dev-server.test.ts](apps/figma-plugin/src/dev-server.test.ts#L29)).
+  guard ([apps/figma-plugin/src/dev-server.test.ts](../../apps/figma-plugin/src/dev-server.test.ts#L29)).
   Both are the second-fixture regressions the prompt required.
 - **Fixture hygiene fixed.** The redundant no-op `label: Clean network fabric` on
   `regional_edge` was removed
-  ([diagrams/1.input/ai-infra-telecom-services-stack.yaml](diagrams/1.input/ai-infra-telecom-services-stack.yaml)).
+  ([diagrams/1.input/ai-infra-telecom-services-stack.yaml](../../diagrams/1.input/ai-infra-telecom-services-stack.yaml)).
 
 **Residual follow-ups (non-blocking, but should be tracked):**
 
 1. **F1 — chrome restoration is palette-coupled to grey (root cause is upstream).**
    The chrome fix
-   [apps/figma-plugin/src/dev-server.ts](apps/figma-plugin/src/dev-server.ts#L348)
+   [apps/figma-plugin/src/dev-server.ts](../../apps/figma-plugin/src/dev-server.ts#L348)
    only recovers box styling when `frame.fill === Fill.GREY && frame.border === Border.SOLID`.
    The reason it is needed at all: the layout engine's `resolveStyles` resolves a
    headed *level-1* container as leaf chrome. Verified raw values for
@@ -160,7 +160,7 @@ resolves the first-pass P1. `npm --prefix apps/figma-plugin test` → **46/46 pa
    deleted rather than extended per color.
 
 2. **F2 — the `parentIsPanel` demotion is now dead for headed containers.**
-   [apps/figma-plugin/src/dev-server.ts](apps/figma-plugin/src/dev-server.ts#L312)
+   [apps/figma-plugin/src/dev-server.ts](../../apps/figma-plugin/src/dev-server.ts#L312)
    still lowers `level` to 1 when a `level >= 2` node sits directly inside a
    panel, but the new headed-container branch is evaluated on
    `hasSemanticContainerText` *before* `level` is consulted, so that demotion no
@@ -189,8 +189,8 @@ real-Figma visual gate was not exercised and is not claimed as passed.
 
 ## P1 — Headed level-1 containers demote to raw frames and lose fill/border (RESOLVED in re-review)
 
-**Where:** [apps/figma-plugin/src/dev-server.ts](apps/figma-plugin/src/dev-server.ts#L308)
-(`resolveFrameSemanticState`) and [apps/figma-plugin/src/dev-server.ts](apps/figma-plugin/src/dev-server.ts#L422)
+**Where:** [apps/figma-plugin/src/dev-server.ts](../../apps/figma-plugin/src/dev-server.ts#L308)
+(`resolveFrameSemanticState`) and [apps/figma-plugin/src/dev-server.ts](../../apps/figma-plugin/src/dev-server.ts#L422)
 (fill/stroke/padding strip for `structuralContainer`).
 
 **The gate.** Panel classification is fenced behind a `level >= 2` floor:
@@ -212,7 +212,7 @@ reaches it and falls through to the default `kind = "container"`, i.e. a raw,
 transparent, chrome-less auto-layout frame.
 
 **Reproduction (in-repo, no live Figma needed).** Payload generated from
-[diagrams/1.input/ai-infra-telco-value-map.yaml](diagrams/1.input/ai-infra-telco-value-map.yaml):
+[diagrams/1.input/ai-infra-telco-value-map.yaml](../../diagrams/1.input/ai-infra-telco-value-map.yaml):
 
 | node | authored | payload `kind` | `headerMinH` | header icon | payload `fill` / `stroke` |
 |------|----------|----------------|--------------|-------------|---------------------------|
@@ -232,16 +232,16 @@ to confirm.
 **Two coupled user-visible effects:**
 
 1. *Lost component identity.* Because `isMappedComponentNode` returns `false`
-   for `kind === "container"` ([apps/figma-plugin/src/code.ts](apps/figma-plugin/src/code.ts#L1746)),
+   for `kind === "container"` ([apps/figma-plugin/src/code.ts](../../apps/figma-plugin/src/code.ts#L1746)),
    these nodes never route through `buildComponentMappedNode`. They import as raw
    auto-layout frames via `buildContainerNode`
-   ([apps/figma-plugin/src/code.ts](apps/figma-plugin/src/code.ts#L2174)) — no
+   ([apps/figma-plugin/src/code.ts](../../apps/figma-plugin/src/code.ts#L2174)) — no
    `Role=Parent` instance, no live `SLOT`, no user-authored box chrome. This is
    the prompt's "imported as raw frames rather than live components," confirmed.
 
 2. *Lost fill and border.* The serializer forces `fill: "transparent"`,
    `stroke: "none"`, `strokeWidth: 0`, and zero padding whenever
-   `structuralContainer` is true ([apps/figma-plugin/src/dev-server.ts](apps/figma-plugin/src/dev-server.ts#L422)).
+   `structuralContainer` is true ([apps/figma-plugin/src/dev-server.ts](../../apps/figma-plugin/src/dev-server.ts#L422)).
    `operational_ai` et al. author `fill: grey` / `border: solid`, so the
    misclassification also discards their visible fill and border. The heading
    text and icon still render (via `buildContainerNode`), but on a transparent,
@@ -250,8 +250,8 @@ to confirm.
 **Why this is merge-blocking, not cosmetic.** `FR-002` requires the workflow to
 support arbitrary frame YAML, and the checklist marks "Arbitrary YAML import is
 specified as the primary workflow" as done
-([specs/079-figma-component-variant-import/spec.md](specs/079-figma-component-variant-import/spec.md#L226),
-[specs/079-figma-component-variant-import/checklists/requirements.md](specs/079-figma-component-variant-import/checklists/requirements.md#L12)).
+([specs/079-figma-component-variant-import/spec.md](../../specs/079-figma-component-variant-import/spec.md#L226),
+[specs/079-figma-component-variant-import/checklists/requirements.md](../../specs/079-figma-component-variant-import/checklists/requirements.md#L12)).
 The component-preservation promise silently fails for a legitimate authoring
 pattern (headed container at `level: 1`) that appears in a committed fixture on
 this very branch. The telecom fixture happens to author every headed container
@@ -274,7 +274,7 @@ prompt explicitly requires arbitrary-YAML correctness.
 
 ## P1 — Required value-map regressions are missing (RESOLVED in re-review)
 
-**Where:** [apps/figma-plugin/src/code.test.ts](apps/figma-plugin/src/code.test.ts)
+**Where:** [apps/figma-plugin/src/code.test.ts](../../apps/figma-plugin/src/code.test.ts)
 (no reference to `value-map`, `value_quadrants`, `operational_ai`, or
 `ai-infra-telco-value-map` anywhere in the suite).
 
@@ -283,7 +283,7 @@ component-mode identity regression (headed container stays a live mapped box
 instance; textless row/stack stays raw, without detaching) and a
 no-overflow/Hug regression for the transparent wrappers. Neither exists. The
 only sizing regression on the branch is the telecom `regional_edge` test
-([apps/figma-plugin/src/code.test.ts](apps/figma-plugin/src/code.test.ts#L1158)).
+([apps/figma-plugin/src/code.test.ts](../../apps/figma-plugin/src/code.test.ts#L1158)).
 Because the classifier defect above is unguarded, the suite passes while
 shipping the regression. Add both regressions with the fix; they must fail
 against the current classifier and pass after it.
@@ -297,10 +297,10 @@ against the current classifier and pass after it.
   `bodySizingH=HUG` (≈216); `regional_row1` = container, `sizingH=HUG` (≈216).
   The full chain hugs, so no fixed-height ancestor constrains the directed row —
   the desired Hug/Fill propagation, not a masking workaround. This is asserted by
-  [apps/figma-plugin/src/code.test.ts](apps/figma-plugin/src/code.test.ts#L1158),
+  [apps/figma-plugin/src/code.test.ts](../../apps/figma-plugin/src/code.test.ts#L1158),
   which checks panel/body/row `HUG` and equal heights. The fixture edits that
   removed explicit `sizing_h: fill` overrides
-  ([diagrams/1.input/ai-infra-telecom-services-stack.yaml](diagrams/1.input/ai-infra-telecom-services-stack.yaml))
+  ([diagrams/1.input/ai-infra-telecom-services-stack.yaml](../../diagrams/1.input/ai-infra-telecom-services-stack.yaml))
   are intentional V3 authoring (content-driven HUG), not geometry workarounds.
 
 - **Transparent wrapper Hug (prompt area 3, value-map) — not reproduced at the
@@ -315,29 +315,29 @@ against the current classifier and pass after it.
 - **Mutation boundaries (prompt area 1) — sound mechanism.** The instance path
   strictly addresses live `SLOT` nodes by stable master id, `assertSlotNode`
   rejects non-slot targets, and the code explicitly refuses to walk live
-  instance sublayers ([apps/figma-plugin/src/code.ts](apps/figma-plugin/src/code.ts#L1601))
+  instance sublayers ([apps/figma-plugin/src/code.ts](../../apps/figma-plugin/src/code.ts#L1601))
   and refuses to edit instances lacking `setProperties`
-  ([apps/figma-plugin/src/code.ts](apps/figma-plugin/src/code.ts#L1912)). No
+  ([apps/figma-plugin/src/code.ts](../../apps/figma-plugin/src/code.ts#L1912)). No
   detach fallback exists. The only boundary defect is *which* nodes are treated
   as components (P1), not *how* component mutation is performed.
 
 - **Icon ownership (prompt area 4) — sound.** Icon sources are copied local
   components/instances or explicitly cloneable local SVG-named assets
-  ([apps/figma-plugin/src/code.ts](apps/figma-plugin/src/code.ts#L1630)); there
+  ([apps/figma-plugin/src/code.ts](../../apps/figma-plugin/src/code.ts#L1630)); there
   is no silent raw-SVG fallback in component mode. Default-icon clearing goes
   through the real icon `SLOT` with limit checks
-  ([apps/figma-plugin/src/code.ts](apps/figma-plugin/src/code.ts#L2055)).
+  ([apps/figma-plugin/src/code.ts](../../apps/figma-plugin/src/code.ts#L2055)).
 
 - **Fixed-axis restoration (prompt area 3) — correct.** `appendAutoLayoutChild`
   restores only effective `FIXED` axes after reparenting
-  ([apps/figma-plugin/src/code.ts](apps/figma-plugin/src/code.ts#L480)); HUG/FILL
+  ([apps/figma-plugin/src/code.ts](../../apps/figma-plugin/src/code.ts#L480)); HUG/FILL
   remain auto-layout behaviors.
 
 ---
 
 ## Minor (non-blocking) — fixture hygiene
 
-- **Redundant `label` on `regional_edge`.** [diagrams/1.input/ai-infra-telecom-services-stack.yaml](diagrams/1.input/ai-infra-telecom-services-stack.yaml)
+- **Redundant `label` on `regional_edge`.** [diagrams/1.input/ai-infra-telecom-services-stack.yaml](../../diagrams/1.input/ai-infra-telecom-services-stack.yaml)
   adds `label: Clean network fabric` to `regional_edge`, which already has
   `heading: Regional edge` and `helper: Clean network / fabric`. The payload's
   `textBlocks` for that node are the heading + helper only; the extra `label`

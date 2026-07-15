@@ -2,7 +2,7 @@
 
 **Spec**: [specs/010-diagram-token-audit/spec.md](spec.md)
 **Branch**: `feat/010-diagram-token-audit`
-**Constitution**: [.specify/memory/constitution.md](../../.specify/memory/constitution.md)
+**Constitution**: Historical spec-kit template; the original `.specify` constitution is not retained in this repository.
 
 ---
 

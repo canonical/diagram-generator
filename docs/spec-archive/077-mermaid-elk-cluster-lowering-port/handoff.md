@@ -10,7 +10,7 @@ work is in [`tasks.md`](./tasks.md); the rationale is in [`spec.md`](./spec.md).
   [`plan.md`](./plan.md) (owner boundaries + a line-referenced map from Mermaid
   source into this repo), then this file, then start Phase 0 in `tasks.md`.
 - Why 076 failed (do not repeat): post-mortem in
-  [`../../docs/spec-reviews/076-tls-mermaid-cold-start-fit.md`](../../docs/spec-reviews/076-tls-mermaid-cold-start-fit.md).
+  [`../../spec-reviews/076-tls-mermaid-cold-start-fit.md`](../../spec-reviews/076-tls-mermaid-cold-start-fit.md).
   Short version: it never used Mermaid's algorithm, lowered cross-cluster edges
   flat, then **owned geometry after ELK** (box-moving + local arrow rerouting) and
   closed on non-rendering snippet asserts. The raw-ELK view is structurally wrong,

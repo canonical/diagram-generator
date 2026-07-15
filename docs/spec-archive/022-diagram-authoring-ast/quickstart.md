@@ -1,6 +1,6 @@
 # Quickstart: Authoring YAML (spec 022)
 
-**Status**: Compiler, lowering, validation, and Mermaid export are implemented in `packages/layout-engine/src/diagram-author/`. See [`docs/diagram-authoring.md`](../../docs/diagram-authoring.md).
+**Status**: Compiler, lowering, validation, and Mermaid export are implemented in `packages/layout-engine/src/diagram-author/`. See [`docs/diagram-authoring.md`](../../diagram-authoring.md).
 
 ## Minimal additive-sugar diagram
 
@@ -115,7 +115,7 @@ node packages/layout-engine/scripts/migrate-diagram-yaml.mjs \
   --shorthand-arrows --extract-defaults
 ```
 
-D2 export preserves nested containers and arrow labels; see [`docs/diagram-authoring.md`](../../docs/diagram-authoring.md) for `D2_UNSUPPORTED_*`, `D2_MISSING_FRAME_REF`, and `D2_ROOT_ENDPOINT_UNSUPPORTED` warnings.
+D2 export preserves nested containers and arrow labels; see [`docs/diagram-authoring.md`](../../diagram-authoring.md) for `D2_UNSUPPORTED_*`, `D2_MISSING_FRAME_REF`, and `D2_ROOT_ENDPOINT_UNSUPPORTED` warnings.
 
 ## Current document shape still loads
 

@@ -37,6 +37,8 @@ Completed or retired spec packages live here so `specs/` stays focused on curren
 - `030-sequence-layout`
 - `039-diagram-typography-token-cleanup`
 - `040-agent-token-slimming`
+- `041-text-block-inline-editing`
+- `042-implicit-elk-side-ports`
 - `043-preview-shell-editor-ts-extraction`
 - `044-preview-shell-architecture-followup`
 - `045-preview-host-engine-modularity`
