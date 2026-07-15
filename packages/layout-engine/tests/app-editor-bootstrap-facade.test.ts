@@ -189,10 +189,6 @@ describe('app-editor-bootstrap-facade', () => {
         confirm() {
           return true;
         },
-        setTimeout(callback: () => void) {
-          callback();
-          return 0;
-        },
         dispatchEvent() {
           return true;
         },
@@ -208,7 +204,10 @@ describe('app-editor-bootstrap-facade', () => {
 
     expect(facade.attemptDiagramNavigation('/view/beta', () => {})).toBe(true);
     expect(assignedPath).toBe('/view/beta');
-    expect(allowStates).toEqual([true, false]);
+    // Keep the allowance until the current document unloads. A timeout reset can
+    // run before the navigation's beforeunload handler and block the confirmed
+    // navigation again.
+    expect(allowStates).toEqual([true]);
   });
 
   it('fails fast when bootstrapEditorRuntime is called without runtime bootstrap host options', () => {

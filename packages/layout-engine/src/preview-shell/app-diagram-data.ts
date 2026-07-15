@@ -57,7 +57,6 @@ export interface AttemptPreviewDiagramNavigationOptions {
   syncUi: () => void;
   setAllowInternalDirtyNavigation: (allowed: boolean) => void;
   assignLocation: (nextPath: string) => void;
-  schedulePostNavigationReset: (callback: () => void) => void;
 }
 
 export interface SyncPreviewArrowModelFromFrameTreeOptions {
@@ -139,11 +138,13 @@ export function attemptPreviewDiagramNavigation(
   }
 
   options.setAllowInternalDirtyNavigation(true);
-  options.assignLocation(nextPath);
-  options.schedulePostNavigationReset(() => {
+  try {
+    options.assignLocation(nextPath);
+  } catch (error) {
     options.setAllowInternalDirtyNavigation(false);
     options.syncUi();
-  });
+    throw error;
+  }
   return true;
 }
 

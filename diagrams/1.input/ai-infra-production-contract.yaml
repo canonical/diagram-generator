@@ -133,9 +133,6 @@ root:
     children:
     - id: ai_service
       level: 2
-      min_width: 176
-      max_width: 192
-      min_height: 384
       label:
       - AI service
       - Model + data +
@@ -147,9 +144,6 @@ root:
       direction: vertical
       align: top-center
       gap: 12
-      min_width: 176
-      max_width: 192
-      min_height: 384
       children:
       - id: owners
         label:
@@ -171,9 +165,6 @@ root:
       direction: vertical
       align: top-center
       gap: 12
-      min_width: 176
-      max_width: 192
-      min_height: 384
       children:
       - id: packaging
         label:
@@ -193,9 +184,6 @@ root:
       direction: vertical
       align: top-center
       gap: 12
-      min_width: 176
-      max_width: 192
-      min_height: 384
       children:
       - id: model_behavior
         label:
@@ -218,9 +206,6 @@ root:
       direction: vertical
       align: top-center
       gap: 12
-      min_width: 176
-      max_width: 192
-      min_height: 384
       children:
       - id: version
         label:
@@ -245,9 +230,6 @@ root:
       direction: vertical
       align: top-center
       gap: 12
-      min_width: 176
-      max_width: 192
-      min_height: 384
       children:
       - id: disconnect
         label:
@@ -267,9 +249,6 @@ root:
         icon: Circle backup boot paths.svg
     - id: repeatable_operations
       level: 2
-      min_width: 176
-      max_width: 192
-      min_height: 384
       label:
       - Repeatable
       - AI operations
@@ -293,9 +272,6 @@ root:
       children:
       - id: core_cloud
         level: 1
-        min_width: 200
-        max_width: 224
-        min_height: 320
         label:
         - Core cloud
         - Central control
@@ -303,9 +279,6 @@ root:
         icon: Cloud.svg
       - id: regional_site
         level: 1
-        min_width: 200
-        max_width: 224
-        min_height: 320
         label:
         - Regional site
         - Policy enforcement
@@ -313,9 +286,6 @@ root:
         icon: Server.svg
       - id: edge_site
         level: 1
-        min_width: 200
-        max_width: 224
-        min_height: 320
         label:
         - Edge site
         - Local execution

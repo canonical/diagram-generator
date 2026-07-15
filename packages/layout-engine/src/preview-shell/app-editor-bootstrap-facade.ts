@@ -218,9 +218,6 @@ export function createPreviewEditorBootstrapFacadeFromEditorHost<
         assignLocation: (nextPath) => {
           options.previewWindow.location.assign(nextPath);
         },
-        schedulePostNavigationReset: (callback) => {
-          options.previewWindow.setTimeout(callback, 0);
-        },
       });
     },
     bootstrapEditorRuntime() {
