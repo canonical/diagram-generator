@@ -46,6 +46,13 @@ const IGNORED_GRID_KEYS = new Set(["link_to_root"]);
 const UNSUPPORTED_GRID_KEYS = new Set(["rows", "slack_absorption"]);
 const LOWER_KEYS = new Set<string>(PERSIST_LOWER_FRAME_KEYS);
 const INT_KEYS = new Set<string>(PERSIST_INT_FRAME_KEYS);
+const CLEARABLE_CONSTRAINT_KEYS = new Set([
+  "min_width",
+  "max_width",
+  "max_width_chars",
+  "min_height",
+  "max_height",
+]);
 const SUPPORTED_ARROW_KEYS = new Set<string>(PERSIST_ARROW_KEYS);
 const ARROW_SHORTHAND_PATTERN = /^\s*(.+?)\s*->\s*(.+?)\s*$/;
 
@@ -580,6 +587,10 @@ function applyFrameOverride(frameData: Record<string, unknown>, override: unknow
         "y",
       ].includes(key)
     ) {
+      if (CLEARABLE_CONSTRAINT_KEYS.has(key) && (value == null || value === "")) {
+        delete frameData[key];
+        continue;
+      }
       applyDirectField(frameData, key, value);
     }
   }

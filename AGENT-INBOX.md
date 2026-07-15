@@ -18,8 +18,15 @@ Keep its implementation isolated until it is reviewed, rebased, and merged.
 Spec 061 has a clean closeout commit in its own worktree and needs review/merge;
 do not start a duplicate 061 implementation.
 
-**Open Opus review request.** Review the uncommitted v3 autolayout, parallel-port,
-and save/reload work using
-[`opus-adversarial-review-request-2026-07-15-v3-autolayout-ports-save.md`](docs/spec-reviews/opus-adversarial-review-request-2026-07-15-v3-autolayout-ports-save.md).
-The reviewer must add concise findings to this inbox without replacing the active
-handoff.
+**Opus adversarial review findings (2026-07-15).** Filed at
+[`opus-adversarial-review-findings-2026-07-15-v3-autolayout-ports-save.md`](docs/spec-reviews/opus-adversarial-review-findings-2026-07-15-v3-autolayout-ports-save.md).
+Source-level pass (live save/reload + resize not yet exercised, so not `No
+findings`). Highlights: F1 FILL/HUG parser defaults confirmed correct; F2 min/max
+relayout clear led to the inspector/YAML persist defect: a clear now carries an
+explicit null marker so an authored bound is deleted, while numeric `0` remains a
+real bound; F3 `createScene`
+alias is present in the TS browser entry, so the reload `TypeError` is most likely
+a stale `dist` IIFE — rebuild and retest; F4 confirm parallel arrows are a real
+port model, not an anonymous heuristic, before closeout; F5 add a containment
+regression. See the file for owners, reproductions, and dispositions.
+

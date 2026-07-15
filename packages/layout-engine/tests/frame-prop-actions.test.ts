@@ -188,6 +188,7 @@ describe('preview-shell frame prop actions', () => {
     expect(overrides.frame).toEqual({
       max_width: 140,
       min_height: 80,
+      min_width: null,
     });
     expect(coercedKeys.has('frame:min_width')).toBe(false);
   });
@@ -245,6 +246,13 @@ describe('preview-shell frame prop actions', () => {
     expect(overrides).toEqual({
       a: {
         direction: 'HORIZONTAL',
+        min_width: null,
+      },
+      b: {
+        min_width: 120,
+      },
+      arrow: {
+        min_width: 40,
       },
     });
   });

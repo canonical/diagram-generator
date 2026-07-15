@@ -126,21 +126,26 @@ function applyConstraintBounds(
   prop: string,
   value: number,
 ): void {
-  const maxWidth = Number(entry.max_width);
-  const minWidth = Number(entry.min_width);
-  const maxHeight = Number(entry.max_height);
-  const minHeight = Number(entry.min_height);
+  const constraintNumber = (candidate: unknown): number | null => {
+    if (candidate == null || candidate === '') return null;
+    const numeric = Number(candidate);
+    return Number.isFinite(numeric) ? numeric : null;
+  };
+  const maxWidth = constraintNumber(entry.max_width);
+  const minWidth = constraintNumber(entry.min_width);
+  const maxHeight = constraintNumber(entry.max_height);
+  const minHeight = constraintNumber(entry.min_height);
 
-  if (prop === 'min_width' && Number.isFinite(maxWidth) && value > maxWidth) {
+  if (prop === 'min_width' && maxWidth != null && value > maxWidth) {
     entry.max_width = value;
   }
-  if (prop === 'max_width' && Number.isFinite(minWidth) && value < minWidth) {
+  if (prop === 'max_width' && minWidth != null && value < minWidth) {
     entry.min_width = value;
   }
-  if (prop === 'min_height' && Number.isFinite(maxHeight) && value > maxHeight) {
+  if (prop === 'min_height' && maxHeight != null && value > maxHeight) {
     entry.max_height = value;
   }
-  if (prop === 'max_height' && Number.isFinite(minHeight) && value < minHeight) {
+  if (prop === 'max_height' && minHeight != null && value < minHeight) {
     entry.min_height = value;
   }
 }
@@ -255,7 +260,9 @@ export function applySingleFramePropMutation(options: {
 
   if (isConstraintProp(options.prop)) {
     if (value === '' || value == null) {
-      delete entry[options.prop];
+      // A null entry is an explicit clear instruction. Deleting the override
+      // would merely reveal the authored YAML bound again after Save → reload.
+      entry[options.prop] = null;
       clearCoercionKey(options.coercedKeys, options.cid, options.prop);
       return { kind: 'clear' };
     }
@@ -304,10 +311,11 @@ export function applyMultiFramePropMutation(options: {
   if (isConstraint) {
     if (value === '' || value == null) {
       for (const cid of options.ids) {
-        const entry = options.overrides[cid];
-        if (!entry) continue;
-        delete entry[options.prop];
-        if (Object.keys(entry).length === 0) delete options.overrides[cid];
+        const node = options.getNode(cid);
+        if (!node || node.type === 'arrow') continue;
+        const entry = ensureOverrideEntry(options.overrides, cid);
+        entry[options.prop] = null;
+        clearCoercionKey(options.coercedKeys, cid, options.prop);
       }
       return { kind: 'clear' };
     }

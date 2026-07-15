@@ -85,6 +85,42 @@ test("persist override payload writes canonical yaml fields", () => {
   assert.doesNotMatch(output, /grid_overrides:/);
 });
 
+test("persisting a cleared constraint deletes an authored bound while zero remains a bound", () => {
+  const baselineText = [
+    "engine: v3",
+    "title: Demo",
+    "root:",
+    "  id: page",
+    "  children:",
+    "  - id: leaf_a",
+    "    min_width: 0",
+    "    max_width: 216",
+    "    label: [A]",
+    "",
+  ].join("\n");
+
+  const cleared = persistToYaml("clear-constraint.yaml", baselineText, {
+    overrides: {
+      leaf_a: {
+        min_width: null,
+        max_width: null,
+      },
+    },
+  });
+  assert.doesNotMatch(cleared, /min_width:/);
+  assert.doesNotMatch(cleared, /max_width:/);
+
+  const zeroBound = persistToYaml("zero-constraint.yaml", baselineText, {
+    overrides: {
+      leaf_a: {
+        min_width: 0,
+      },
+    },
+  });
+  assert.match(zeroBound, /min_width: 0/);
+  assert.match(zeroBound, /max_width: 216/);
+});
+
 test("persist elk layout overrides writes meta.elk", () => {
   const baselineText = [
     "engine: v3",
