@@ -752,4 +752,31 @@ describe('arrow rendering parity', () => {
     expect(routed[1]?.points[0]).toEqual([130, 80]);
     expect(routed[1]?.points[routed[1]!.points.length - 1]).toEqual([220, 80]);
   });
+
+  it('spreads bidirectional parallel relationships evenly across matching side ports', () => {
+    const routed = routeArrows(
+      [
+        createArrow('core', 'regional', { id: 'approved-state' }),
+        createArrow('core', 'regional', { id: 'policy' }),
+        createArrow('core', 'regional', { id: 'updates' }),
+        createArrow('regional', 'core', { id: 'logs' }),
+        createArrow('regional', 'core', { id: 'health' }),
+        createArrow('regional', 'core', { id: 'drift' }),
+        createArrow('regional', 'core', { id: 'evidence' }),
+      ],
+      {
+        core: { x: 0, y: 0, w: 200, h: 320 },
+        regional: { x: 400, y: 0, w: 200, h: 320 },
+      },
+    );
+
+    expect(routed).toHaveLength(7);
+    const fractions = routed.map((arrow) => arrow.points[0]![1] / 320);
+    expect(fractions).toEqual([1 / 8, 2 / 8, 3 / 8, 4 / 8, 5 / 8, 6 / 8, 7 / 8]);
+    for (const arrow of routed) {
+      const [start, end] = [arrow.points[0]!, arrow.points[arrow.points.length - 1]!];
+      expect(start[1]).toBe(end[1]);
+      expect(Math.abs(start[0] - end[0])).toBeGreaterThan(0);
+    }
+  });
 });

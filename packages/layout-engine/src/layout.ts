@@ -478,13 +478,18 @@ export function measure(frame: Frame, adapter: TextMeasureAdapter, isRoot = fals
   const { contentBasedW, contentBasedH } = measureContainerFromMeasuredChildren(frame, isRoot);
 
   // Per-axis sizing for containers
-  frame._layout.measuredW = (frame.sizingW === Sizing.FIXED && frame.width != null)
-    ? roundUpToGrid(frame.width)
+  const measuredW = frame.sizingW === Sizing.FIXED && frame.width != null
+    ? frame.width
     : contentBasedW;
-
-  frame._layout.measuredH = (frame.sizingH === Sizing.FIXED && frame.height != null)
-    ? roundUpToGrid(frame.height)
+  const measuredH = frame.sizingH === Sizing.FIXED && frame.height != null
+    ? frame.height
     : contentBasedH;
+  frame._layout.measuredW = roundUpToGrid(
+    clampToConstraints(measuredW, frame.minWidth, frame.maxWidth),
+  );
+  frame._layout.measuredH = roundUpToGrid(
+    clampToConstraints(measuredH, frame.minHeight, frame.maxHeight),
+  );
 }
 
 function measureContainerFromMeasuredChildren(

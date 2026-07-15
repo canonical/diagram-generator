@@ -36,6 +36,12 @@ interface FanPlan {
   branchAxis: number;
 }
 
+interface ParallelPortPlan {
+  sourceSide: Side;
+  targetSide: Side;
+  fraction: number;
+}
+
 function authoredArrowRoutingId(arrow: Arrow): string {
   return arrow.id ?? `${arrow.source}->${arrow.target}`;
 }
@@ -115,16 +121,23 @@ function parseRef(ref: string): EndpointRef {
   return { kind: 'frame', id: ref, side: null };
 }
 
-function edgePoint(x: number, y: number, w: number, h: number, side: Side): [number, number] {
+function edgePoint(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  side: Side,
+  fraction = 0.5,
+): [number, number] {
   switch (side) {
     case 'left':
-      return [x, y + h / 2];
+      return [x, y + h * fraction];
     case 'right':
-      return [x + w, y + h / 2];
+      return [x + w, y + h * fraction];
     case 'top':
-      return [x + w / 2, y];
+      return [x + w * fraction, y];
     case 'bottom':
-      return [x + w / 2, y + h];
+      return [x + w * fraction, y + h];
   }
 }
 
@@ -237,6 +250,78 @@ function fanWaypoints(start: [number, number], end: [number, number], plan: FanP
   return [[plan.branchAxis, start[1]], [plan.branchAxis, end[1]]];
 }
 
+/**
+ * Give every edge between the same two frames its own, symmetric port slot.
+ *
+ * A conventional fan-out shares the source midpoint and then branches. That
+ * is useful for trees, but it makes a bidirectional status bundle unreadable:
+ * all labels and arrows collapse. Parallel relationships instead receive
+ * matching slots from one equal margin to the other on both endpoints.
+ */
+function buildParallelPortPlans(entries: ParsedArrow[]): Map<Arrow, ParallelPortPlan> {
+  const pairs = new Map<string, ParsedArrow[]>();
+
+  for (const entry of entries) {
+    if (entry.sourceRef.kind !== 'frame' || entry.targetRef.kind !== 'frame') continue;
+    if (!entry.sourceBounds || !entry.targetBounds) continue;
+    if (entry.sourceRef.id === entry.targetRef.id) continue;
+    if (entry.arrow.layoutPath?.length || entry.arrow.waypoints?.length) continue;
+    if (entry.sourceRef.side || entry.targetRef.side) continue;
+
+    const key = [entry.sourceRef.id, entry.targetRef.id].sort().join('\u0000');
+    const bucket = pairs.get(key);
+    if (bucket) bucket.push(entry);
+    else pairs.set(key, [entry]);
+  }
+
+  const plans = new Map<Arrow, ParallelPortPlan>();
+  for (const bucket of pairs.values()) {
+    if (bucket.length < 2) continue;
+
+    const first = bucket[0]!;
+    const firstSource = first.sourceBounds!;
+    const firstTarget = first.targetBounds!;
+    const sourceCenterX = firstSource.x + firstSource.w / 2;
+    const sourceCenterY = firstSource.y + firstSource.h / 2;
+    const targetCenterX = firstTarget.x + firstTarget.w / 2;
+    const targetCenterY = firstTarget.y + firstTarget.h / 2;
+    const horizontal = Math.abs(targetCenterX - sourceCenterX) >= Math.abs(targetCenterY - sourceCenterY);
+    const sourceComesFirst = horizontal
+      ? sourceCenterX <= targetCenterX
+      : sourceCenterY <= targetCenterY;
+    const forwardSourceId = sourceComesFirst ? first.sourceRef.id : first.targetRef.id;
+    const forwardTargetId = sourceComesFirst ? first.targetRef.id : first.sourceRef.id;
+
+    const forward = bucket.filter((entry) => (
+      entry.sourceRef.id === forwardSourceId && entry.targetRef.id === forwardTargetId
+    ));
+    const reverse = bucket.filter((entry) => (
+      entry.sourceRef.id === forwardTargetId && entry.targetRef.id === forwardSourceId
+    ));
+    const ordered = [...forward, ...reverse];
+
+    ordered.forEach((entry, index) => {
+      const [sourceSide, targetSide] = inferSides(
+        entry.sourceBounds!.x,
+        entry.sourceBounds!.y,
+        entry.sourceBounds!.w,
+        entry.sourceBounds!.h,
+        entry.targetBounds!.x,
+        entry.targetBounds!.y,
+        entry.targetBounds!.w,
+        entry.targetBounds!.h,
+      );
+      plans.set(entry.arrow, {
+        sourceSide,
+        targetSide,
+        fraction: (index + 1) / (ordered.length + 1),
+      });
+    });
+  }
+
+  return plans;
+}
+
 function centerPoint(bounds: FrameBounds): [number, number] {
   return [bounds.x + bounds.w / 2, bounds.y + bounds.h / 2];
 }
@@ -338,6 +423,7 @@ export function routeArrows(arrows: Arrow[], bounds: Bounds): RoutedArrow[] {
   });
 
   const fanPlans = buildFanPlans(entries);
+  const parallelPortPlans = buildParallelPortPlans(entries);
   const routedById = new Map<string, RoutedArrow>();
   const routed: RoutedArrow[] = [];
 
@@ -384,9 +470,13 @@ export function routeArrows(arrows: Arrow[], bounds: Bounds): RoutedArrow[] {
     }
 
     const fanPlan = fanPlans.get(arrow);
+    const parallelPortPlan = parallelPortPlans.get(arrow);
     let sourceSide: Side | null = entry.sourceRef.kind === 'frame' ? entry.sourceRef.side : null;
     let targetSide: Side | null = entry.targetRef.kind === 'frame' ? entry.targetRef.side : null;
-    if (fanPlan && entry.sourceRef.kind === 'frame' && entry.targetRef.kind === 'frame') {
+    if (parallelPortPlan && entry.sourceRef.kind === 'frame' && entry.targetRef.kind === 'frame') {
+      sourceSide = parallelPortPlan.sourceSide;
+      targetSide = parallelPortPlan.targetSide;
+    } else if (fanPlan && entry.sourceRef.kind === 'frame' && entry.targetRef.kind === 'frame') {
       sourceSide ??= fanPlan.sourceSide;
       targetSide ??= fanPlan.targetSide;
     }
@@ -404,11 +494,25 @@ export function routeArrows(arrows: Arrow[], bounds: Bounds): RoutedArrow[] {
     if (!sourceSide) sourceSide = 'right';
     if (!targetSide) targetSide = 'left';
 
-    const start = sourceAttachment ?? edgePoint(sourceBounds!.x, sourceBounds!.y, sourceBounds!.w, sourceBounds!.h, sourceSide);
-    const end = targetAttachment ?? edgePoint(targetBounds!.x, targetBounds!.y, targetBounds!.w, targetBounds!.h, targetSide);
+    const start = sourceAttachment ?? edgePoint(
+      sourceBounds!.x,
+      sourceBounds!.y,
+      sourceBounds!.w,
+      sourceBounds!.h,
+      sourceSide,
+      parallelPortPlan?.fraction,
+    );
+    const end = targetAttachment ?? edgePoint(
+      targetBounds!.x,
+      targetBounds!.y,
+      targetBounds!.w,
+      targetBounds!.h,
+      targetSide,
+      parallelPortPlan?.fraction,
+    );
     const rawWaypoints = arrow.waypoints && arrow.waypoints.length > 0
       ? arrow.waypoints
-      : fanPlan && !sourceAttachment && !targetAttachment
+      : fanPlan && !parallelPortPlan && !sourceAttachment && !targetAttachment
         ? fanWaypoints(start, end, fanPlan)
         : orthogonalWaypoints(start, end, sourceSide, targetSide);
 

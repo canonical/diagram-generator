@@ -240,6 +240,9 @@ export const previewShell = Object.freeze({
       previewShellRuntime.createPreviewGridRuntimeFromEditorHost,
     createPreviewGridRuntimeHost: previewShellRuntime.createPreviewGridRuntimeHost,
     cyclePreviewGuideModeHost: previewShellRuntime.cyclePreviewGuideModeHost,
+    // Grid runtime consumes this concise contract name. Keep the descriptive
+    // public export as an alias for browser compatibility.
+    createGridOverlayScene: previewShellRuntime.createPreviewGridOverlayScene,
     createPreviewGridOverlayScene: previewShellRuntime.createPreviewGridOverlayScene,
     dispatchPreviewGridControlChangeHost: previewShellRuntime.dispatchPreviewGridControlChangeHost,
     populatePreviewGridControls: previewShellRuntime.populatePreviewGridControls,

@@ -521,6 +521,8 @@ describe('browser entry contract pilot', () => {
       .toBe(createPreviewGridRuntimeFromEditorHost);
     expect(previewShell.scene.createPreviewGridRuntimeHost).toBe(createPreviewGridRuntimeHost);
     expect(previewShell.scene.cyclePreviewGuideModeHost).toBe(cyclePreviewGuideModeHost);
+    expect(previewShell.scene.createGridOverlayScene)
+      .toBe(previewShell.scene.createPreviewGridOverlayScene);
     expect(previewShell.scene.dispatchPreviewGridControlChangeHost).toBe(dispatchPreviewGridControlChangeHost);
     expect(previewShell.scene.populatePreviewGridControls).toBe(populatePreviewGridControls);
     expect(previewShell.scene.populatePreviewGridControlsHost).toBe(populatePreviewGridControlsHost);

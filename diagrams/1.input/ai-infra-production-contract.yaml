@@ -3,7 +3,7 @@ engine: v3
 title: Production contract - deployment pattern
 meta:
   diagram_type: deployment_and_runtime_topology
-  layout_engine: elk-layered
+  layout_engine: v3
   source_image: diagrams/1.input/ai-infra/image copy 2.png
   elk:
     elk.direction: RIGHT
@@ -45,54 +45,9 @@ grid:
   col_gap: 32
   row_gap: 24
 arrows:
-- id: edge_core_to_regional_approved_policy
-  source: core_cloud
-  target: regional_site
-  label: approved state / policy
-- id: edge_core_to_regional_updates
-  source: core_cloud
-  target: regional_site
-  label: updates
-- id: edge_core_to_regional_logs
-  source: core_cloud
-  target: regional_site
-  label: logs
-- id: edge_core_to_regional_health
-  source: core_cloud
-  target: regional_site
-  label: health
-- id: edge_core_to_regional_drift
-  source: core_cloud
-  target: regional_site
-  label: drift
-- id: edge_core_to_regional_evidence
-  source: core_cloud
-  target: regional_site
-  label: evidence
-- id: edge_regional_to_edge_policy
-  source: regional_site
-  target: edge_site
-  label: policy
-- id: edge_regional_to_edge_updates
-  source: regional_site
-  target: edge_site
-  label: updates
-- id: edge_regional_to_edge_logs
-  source: regional_site
-  target: edge_site
-  label: logs
-- id: edge_regional_to_edge_health
-  source: regional_site
-  target: edge_site
-  label: health
-- id: edge_regional_to_edge_drift
-  source: regional_site
-  target: edge_site
-  label: drift
-- id: edge_regional_to_edge_evidence
-  source: regional_site
-  target: edge_site
-  label: evidence
+- id: edge_ai_service_to_contract
+  source: ai_service
+  target: step_production_contract
 - id: edge_step1_to_step2
   source: step_production_contract
   target: step_deployment_pattern
@@ -105,290 +60,264 @@ arrows:
 - id: edge_step4_to_step5
   source: step_evidence_trail
   target: step_failure_rehearsal
+- id: edge_step5_to_repeatable_operations
+  source: step_failure_rehearsal
+  target: repeatable_operations
+- id: edge_core_to_regional_approved_state
+  source: core_cloud
+  target: regional_site
+  label: approved state
+- id: edge_core_to_regional_policy
+  source: core_cloud
+  target: regional_site
+  label: policy
+- id: edge_core_to_regional_updates
+  source: core_cloud
+  target: regional_site
+  label: updates
+- id: edge_regional_to_core_logs
+  source: regional_site
+  target: core_cloud
+  label: logs
+- id: edge_regional_to_core_health
+  source: regional_site
+  target: core_cloud
+  label: health
+- id: edge_regional_to_core_drift
+  source: regional_site
+  target: core_cloud
+  label: drift
+- id: edge_regional_to_core_evidence
+  source: regional_site
+  target: core_cloud
+  label: evidence
+- id: edge_regional_to_edge_approved_state
+  source: regional_site
+  target: edge_site
+  label: approved state
+- id: edge_regional_to_edge_policy
+  source: regional_site
+  target: edge_site
+  label: policy
+- id: edge_regional_to_edge_updates
+  source: regional_site
+  target: edge_site
+  label: updates
+- id: edge_edge_to_regional_logs
+  source: edge_site
+  target: regional_site
+  label: logs
+- id: edge_edge_to_regional_health
+  source: edge_site
+  target: regional_site
+  label: health
+- id: edge_edge_to_regional_drift
+  source: edge_site
+  target: regional_site
+  label: drift
+- id: edge_edge_to_regional_evidence
+  source: edge_site
+  target: regional_site
+  label: evidence
 root:
   id: page
   direction: vertical
   align: top-center
-  gap: 32
+  gap: 48
   padding: 24
   children:
-  - id: contract_header
-    variant: annotation
-    label:
-    - Repeatable AI operations - owned
-    - observable
-    - auditable
-    - recoverable
-  - id: diagram_body
+  - id: pipeline_row
     direction: horizontal
     align: top-center
-    gap: 48
-    sizing_w: fill
+    gap: 24
+    children:
+    - id: ai_service
+      level: 2
+      min_width: 176
+      max_width: 192
+      min_height: 384
+      label:
+      - AI service
+      - Model + data +
+      - runtime + policy
+      icon: AI.svg
+    - id: step_production_contract
+      level: 2
+      heading: 1. Production contract
+      direction: vertical
+      align: top-center
+      gap: 12
+      min_width: 176
+      max_width: 192
+      min_height: 384
+      children:
+      - id: owners
+        label:
+        - Owners
+        icon: 3 users.svg
+      - id: service_levels
+        label:
+        - Service
+        - levels
+        icon: Bar chart with check.svg
+      - id: blast_radius
+        label:
+        - Blast
+        - radius
+        icon: Network.svg
+    - id: step_deployment_pattern
+      level: 2
+      heading: 2. Deployment pattern
+      direction: vertical
+      align: top-center
+      gap: 12
+      min_width: 176
+      max_width: 192
+      min_height: 384
+      children:
+      - id: packaging
+        label:
+        - Packaging
+        icon: Container.svg
+      - id: serving
+        label:
+        - Serving
+        icon: Cloud with container.svg
+      - id: rollback
+        label:
+        - Rollback
+        icon: Circle backup boot paths.svg
+    - id: step_operational_view
+      level: 2
+      heading: 3. Operational view
+      direction: vertical
+      align: top-center
+      gap: 12
+      min_width: 176
+      max_width: 192
+      min_height: 384
+      children:
+      - id: model_behavior
+        label:
+        - Model
+        - behavior
+        icon: AI.svg
+      - id: data_freshness
+        label:
+        - Data
+        - freshness
+        icon: Data.svg
+      - id: infrastructure_health
+        label:
+        - Infrastructure
+        - health
+        icon: Server.svg
+    - id: step_evidence_trail
+      level: 2
+      heading: 4. Evidence trail
+      direction: vertical
+      align: top-center
+      gap: 12
+      min_width: 176
+      max_width: 192
+      min_height: 384
+      children:
+      - id: version
+        label:
+        - Version
+        icon: Circle backup boot paths.svg
+      - id: approval
+        label:
+        - Approval
+        icon: Lock.svg
+      - id: policy
+        label:
+        - Policy
+        icon: Clipboard.svg
+      - id: change_history
+        label:
+        - Change
+        - history
+        icon: Document.svg
+    - id: step_failure_rehearsal
+      level: 2
+      heading: 5. Failure rehearsal
+      direction: vertical
+      align: top-center
+      gap: 12
+      min_width: 176
+      max_width: 192
+      min_height: 384
+      children:
+      - id: disconnect
+        label:
+        - Disconnect
+        icon: Network.svg
+      - id: stale_data
+        label:
+        - Stale data
+        icon: Storage object.svg
+      - id: failed_update
+        label:
+        - Failed update
+        icon: Operations.svg
+      - id: recovery
+        label:
+        - Recovery
+        icon: Circle backup boot paths.svg
+    - id: repeatable_operations
+      level: 2
+      min_width: 176
+      max_width: 192
+      min_height: 384
+      label:
+      - Repeatable
+      - AI operations
+      - Owned,
+      - observable,
+      - auditable,
+      - recoverable.
+      icon: Bar chart with check.svg
+  - id: continuity_band
+    level: 2
+    heading: Central control ↔ local continuity
+    direction: vertical
+    align: top-center
+    gap: 24
     children:
     - id: site_columns
       direction: horizontal
       align: top-center
-      gap: 32
-      sizing_w: fill
+      gap: 96
+      justify: space-between
       children:
       - id: core_cloud
         level: 1
-        heading: Core cloud - central control and governance
-        direction: vertical
-        align: top-center
-        gap: 12
-        width: 200
-        sizing_w: fixed
-        sizing_h: hug
+        min_width: 200
+        max_width: 224
+        min_height: 320
+        label:
+        - Core cloud
+        - Central control
+        - and governance
+        icon: Cloud.svg
       - id: regional_site
         level: 1
-        heading: Regional site - policy enforcement and aggregation
-        direction: vertical
-        align: top-center
-        gap: 12
-        width: 200
-        sizing_w: fixed
-        sizing_h: hug
-        children:
-        - id: local_continuity
-          variant: annotation
-          label:
-          - Local continuity
+        min_width: 200
+        max_width: 224
+        min_height: 320
+        label:
+        - Regional site
+        - Policy enforcement
+        - and aggregation
+        icon: Server.svg
       - id: edge_site
         level: 1
-        heading: Edge site - local execution (degraded mode OK)
-        direction: vertical
-        align: top-center
-        gap: 12
-        width: 200
-        sizing_w: fixed
-        sizing_h: hug
-    - id: pipeline_row
-      direction: horizontal
-      align: top-center
-      gap: 24
-      sizing_w: fill
-      children:
-      - id: step_production_contract
-        level: 2
-        heading: 1. Production contract
-        direction: vertical
-        align: top-center
-        gap: 12
-        width: 168
-        sizing_w: fixed
-        sizing_h: hug
-        children:
-        - id: owners
-          width: 152
-          height: 48
-          sizing_w: fixed
-          sizing_h: fixed
-          label:
-          - Owners
-          icon: 3 users.svg
-        - id: service_levels
-          width: 152
-          height: 48
-          sizing_w: fixed
-          sizing_h: fixed
-          label:
-          - Service
-          - levels
-          icon: Bar chart with check.svg
-        - id: blast_radius
-          width: 152
-          height: 48
-          sizing_w: fixed
-          sizing_h: fixed
-          label:
-          - Blast
-          - radius
-          icon: Network.svg
-      - id: step_deployment_pattern
-        level: 2
-        heading: 2. Deployment pattern
-        direction: vertical
-        align: top-center
-        gap: 12
-        width: 168
-        sizing_w: fixed
-        sizing_h: hug
-        children:
-        - id: ai_service
-          width: 152
-          height: 48
-          sizing_w: fixed
-          sizing_h: fixed
-          label:
-          - AI
-          - service
-          icon: AI.svg
-        - id: model_runtime_policy
-          width: 152
-          height: 48
-          sizing_w: fixed
-          sizing_h: fixed
-          label:
-          - Model data
-          - runtime policy
-          icon: App data.svg
-        - id: data_freshness
-          width: 152
-          height: 48
-          sizing_w: fixed
-          sizing_h: fixed
-          label:
-          - Data
-          - freshness
-          icon: Operations.svg
-        - id: model_behavior
-          width: 152
-          height: 48
-          sizing_w: fixed
-          sizing_h: fixed
-          label:
-          - Model
-          - behavior
-          icon: Chip 1.svg
-        - id: version
-          width: 152
-          height: 48
-          sizing_w: fixed
-          sizing_h: fixed
-          label:
-          - Version
-          icon: Circle backup boot paths.svg
-        - id: packaging
-          width: 152
-          height: 48
-          sizing_w: fixed
-          sizing_h: fixed
-          label:
-          - Packaging
-          icon: Container.svg
-        - id: serving
-          width: 152
-          height: 48
-          sizing_w: fixed
-          sizing_h: fixed
-          label:
-          - Serving
-          icon: Cloud with container.svg
-      - id: step_operational_view
-        level: 2
-        heading: 3. Operational view
-        direction: vertical
-        align: top-center
-        gap: 12
-        width: 168
-        sizing_w: fixed
-        sizing_h: hug
-        children:
-        - id: approval
-          width: 152
-          height: 48
-          sizing_w: fixed
-          sizing_h: fixed
-          label:
-          - Approval
-          icon: Lock.svg
-        - id: infrastructure_health
-          width: 152
-          height: 48
-          sizing_w: fixed
-          sizing_h: fixed
-          label:
-          - Infrastructure
-          - health
-          icon: Server.svg
-        - id: change_history
-          width: 152
-          height: 48
-          sizing_w: fixed
-          sizing_h: fixed
-          label:
-          - Change
-          - history
-          icon: Document.svg
-      - id: step_evidence_trail
-        level: 2
-        heading: 4. Evidence trail
-        direction: vertical
-        align: top-center
-        gap: 12
-        width: 168
-        sizing_w: fixed
-        sizing_h: hug
-        children:
-        - id: audit_logs
-          width: 152
-          height: 48
-          sizing_w: fixed
-          sizing_h: fixed
-          label:
-          - Audit
-          - logs
-          icon: App data.svg
-        - id: config_drift
-          width: 152
-          height: 48
-          sizing_w: fixed
-          sizing_h: fixed
-          label:
-          - Config
-          - drift
-          icon: Network.svg
-        - id: compliance_evidence
-          width: 152
-          height: 48
-          sizing_w: fixed
-          sizing_h: fixed
-          label:
-          - Compliance
-          - evidence
-          icon: Clipboard.svg
-      - id: step_failure_rehearsal
-        level: 2
-        heading: 5. Failure rehearsal
-        direction: vertical
-        align: top-center
-        gap: 12
-        width: 168
-        sizing_w: fixed
-        sizing_h: hug
-        children:
-        - id: stale_data
-          width: 152
-          height: 48
-          sizing_w: fixed
-          sizing_h: fixed
-          label:
-          - Stale
-          - data
-          icon: Storage object.svg
-        - id: failed_update
-          width: 152
-          height: 48
-          sizing_w: fixed
-          sizing_h: fixed
-          label:
-          - Failed
-          - update
-          icon: Operations.svg
-        - id: rollback
-          width: 152
-          height: 48
-          sizing_w: fixed
-          sizing_h: fixed
-          label:
-          - Rollback
-          icon: Circle backup boot paths.svg
-        - id: recovery
-          width: 152
-          height: 48
-          sizing_w: fixed
-          sizing_h: fixed
-          label:
-          - Recovery
-          icon: Circle backup boot paths.svg
+        min_width: 200
+        max_width: 224
+        min_height: 320
+        label:
+        - Edge site
+        - Local execution
+        - (degraded mode OK)
+        icon: Networking.svg

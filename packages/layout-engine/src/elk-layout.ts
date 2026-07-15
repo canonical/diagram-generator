@@ -996,25 +996,26 @@ function ensureExplicitEdgePort(
   slotIndex: number,
   slotCount: number,
 ): string {
-  const spread = 24;
-  const centerOffset = slotIndex - (slotCount - 1) / 2;
+  // Parallel edges need independently routable ports, not several paths
+  // pretending to leave from the same midpoint.  Divide the available side
+  // evenly, leaving one equal margin at either end.  This keeps the two ends
+  // of a parallel bundle symmetric even when a node is resized.
+  const sideFraction = (slotIndex + 1) / (slotCount + 1);
   const portId = `${node.id}__parallel_${edgeId}_${side}`;
   const anchor = (() => {
     switch (side) {
       case 'top':
       case 'bottom': {
-        const centeredX = placement.width / 2 + centerOffset * spread;
         return {
-          x: Math.max(0, Math.min(placement.width, centeredX)),
+          x: placement.width * sideFraction,
           y: side === 'top' ? 0 : placement.height,
         };
       }
       case 'left':
       case 'right': {
-        const centeredY = placement.height / 2 + centerOffset * spread;
         return {
           x: side === 'left' ? 0 : placement.width,
-          y: Math.max(0, Math.min(placement.height, centeredY)),
+          y: placement.height * sideFraction,
         };
       }
     }

@@ -214,6 +214,29 @@ describe('measure', () => {
     expect(parent._layout.measuredH).toBe(136);
   });
 
+  it('applies min/max constraints while measuring a HUG container', () => {
+    const child = new Frame({
+      id: 'wide-child',
+      sizingW: Sizing.FIXED,
+      sizingH: Sizing.FIXED,
+      width: 320,
+      height: 48,
+    });
+    const parent = new Frame({
+      id: 'bounded-parent',
+      direction: Direction.VERTICAL,
+      padding: 0,
+      minHeight: 120,
+      maxWidth: 192,
+      children: [child],
+    });
+
+    measure(parent, adapter);
+
+    expect(parent._layout.measuredW).toBe(192);
+    expect(parent._layout.measuredH).toBe(120);
+  });
+
   it('FIXED leaf uses explicit dimensions', () => {
     const leaf = new Frame({
       id: 'fixed',

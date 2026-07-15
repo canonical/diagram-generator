@@ -17,3 +17,9 @@ adversarial reviews → `docs/spec-reviews/`.
 Keep its implementation isolated until it is reviewed, rebased, and merged.
 Spec 061 has a clean closeout commit in its own worktree and needs review/merge;
 do not start a duplicate 061 implementation.
+
+**Open Opus review request.** Review the uncommitted v3 autolayout, parallel-port,
+and save/reload work using
+[`opus-adversarial-review-request-2026-07-15-v3-autolayout-ports-save.md`](docs/spec-reviews/opus-adversarial-review-request-2026-07-15-v3-autolayout-ports-save.md).
+The reviewer must add concise findings to this inbox without replacing the active
+handoff.
