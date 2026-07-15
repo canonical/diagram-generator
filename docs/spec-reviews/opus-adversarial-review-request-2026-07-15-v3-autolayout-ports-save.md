@@ -2,8 +2,8 @@
 
 Reviewer: Opus
 
-Review the current uncommitted work in `diagram-generator` as a skeptical
-external maintainer. This is an investigation/review request: do not edit
+Review the current v3 work in `diagram-generator` as a skeptical external
+maintainer. This is an investigation/review request: do not edit
 product code, generated bundles, fixtures, or YAML.
 
 ## Review focus
@@ -18,6 +18,12 @@ product code, generated bundles, fixtures, or YAML.
      placement.
    - Reproduce in the live v3 preview, including changing the top-row parent
      from horizontal to vertical and resizing a child below/above its bounds.
+   - Audit the inspector's min/max width and height controls. Reproduce the
+     report that a user cannot remove a min/max value (especially a `0` value):
+     distinguish blank/unset from numeric zero in the UI, overrides, YAML
+     persistence, relayout, undo/redo, and Save → reload. A user must be able
+     to clear a bound back to the inherited/unset state without it becoming a
+     fixed `0` constraint or a non-clearable input.
    - Reject any workaround that reintroduces authored `width`, `height`, or
      `sizing_*: fixed` values merely to hide an engine defect.
 
