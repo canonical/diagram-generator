@@ -1581,6 +1581,12 @@ function familyFromDiagram(diagram: FrameDiagram): LayeredCorpusFamily {
   return 'process_and_workflow';
 }
 
+function isLayeredCorpusFamily(value: unknown): value is LayeredCorpusFamily {
+  return value === 'data_flow_and_integration'
+    || value === 'process_and_workflow'
+    || value === 'deployment_and_runtime_topology';
+}
+
 /** Full absolute canvas path from ELK edge sections (ports + bend points). */
 function elkEdgeToLayoutPath(edge: PlacedEdge, originX: number, originY: number): [number, number][] {
   const points: [number, number][] = [];
@@ -1951,7 +1957,13 @@ export async function layoutGraphFrameDiagram(
     return out;
   })();
 
-  const family = options.diagramType ?? familyFromDiagram(diagram);
+  // Frame YAML may carry an application-level diagram type which is not one of
+  // the three families accepted by the ELK layered adapter. Treat it as an
+  // unknown family and use the documented fallback instead of passing an
+  // unchecked cast into graph-layout-elk and crashing preview load.
+  const family = isLayeredCorpusFamily(options.diagramType)
+    ? options.diagramType
+    : familyFromDiagram(diagram);
   const elkOverrides = {
     ...stripImplementationOwnedElkLayeredOverrides(diagram.elkLayout),
     ...stripImplementationOwnedElkLayeredOverrides(options.elkOptionOverrides),

@@ -139,6 +139,18 @@ function expectChromeRhythm(
 }
 
 describe('layoutElkFrameDiagram', () => {
+  it('falls back safely when YAML uses an application-specific diagram type', async () => {
+    const diagram = loadFrameYaml(join(FRAMES_DIR, 'elk-cluster-portability.yaml'));
+    const adapter = new MockTextAdapter();
+
+    const result = await layoutElkFrameDiagram(diagram, adapter, {
+      diagramType: diagram.diagramType as never,
+    });
+
+    expect(result.elkSnapshot?.nodes.length).toBeGreaterThan(0);
+    expect(diagram.root._layout.placedW).toBeGreaterThan(0);
+  });
+
   it('lays out frame diagrams whose arrows target container panels', async () => {
     const diagram = loadFrameYaml(join(FRAMES_DIR, 'request-to-hardware-stack.yaml'));
     const adapter = new MockTextAdapter();
