@@ -800,31 +800,18 @@ function makeBoxVariant(
 
   const contents = new FakeSceneNode("FRAME");
   contents.name = "contents";
-  contents.layoutMode = "HORIZONTAL";
+  contents.layoutMode = "VERTICAL";
   contents.primaryAxisSizingMode = "FIXED";
   contents.counterAxisSizingMode = "AUTO";
 
-  const textBlock = new FakeSceneNode("FRAME");
-  textBlock.name = "Text block";
-  textBlock.layoutMode = "VERTICAL";
-  const mainText = makeTextNode("Main text", "Main text");
+  const header = new FakeSceneNode("FRAME");
+  header.name = "header";
+  header.layoutMode = "HORIZONTAL";
+  const mainText = makeTextNode("Heading", "Main text");
   if (propertyEnabled(options.properties, "title")) {
     mainText.componentPropertyReferences = { characters: "Title#title" };
   }
-  textBlock.appendChild(mainText);
-  const helperText = makeTextNode("Helper text", "Helper text");
-  const helperReferences: Record<string, string> = {};
-  if (propertyEnabled(options.properties, "helperText")) {
-    helperReferences.characters = "Helper text#helper";
-  }
-  if (propertyEnabled(options.properties, "helperVisible")) {
-    helperReferences.visible = "Show helper#showHelper";
-  }
-  if (Object.keys(helperReferences).length > 0) {
-    helperText.componentPropertyReferences = helperReferences;
-  }
-  textBlock.appendChild(helperText);
-  contents.appendChild(textBlock);
+  header.appendChild(mainText);
 
   const icon = new FakeSceneNode("SLOT");
   icon.name = "Network.svg";
@@ -836,7 +823,21 @@ function makeBoxVariant(
   const defaultIcon = new FakeSceneNode("INSTANCE");
   defaultIcon.name = "Default icon";
   icon.appendChild(defaultIcon);
-  contents.appendChild(icon);
+  header.appendChild(icon);
+  contents.appendChild(header);
+
+  const helperText = makeTextNode("Helper text", "Helper text");
+  const helperReferences: Record<string, string> = {};
+  if (propertyEnabled(options.properties, "helperText")) {
+    helperReferences.characters = "Helper text#helper";
+  }
+  if (propertyEnabled(options.properties, "helperVisible")) {
+    helperReferences.visible = "Show helper#showHelper";
+  }
+  if (Object.keys(helperReferences).length > 0) {
+    helperText.componentPropertyReferences = helperReferences;
+  }
+  contents.appendChild(helperText);
   component.appendChild(contents);
 
   if (includeSlot) {
@@ -1371,7 +1372,7 @@ test("upsertYamlDiagram uses stable text-layer overrides when mapped variants om
   const childInstance = findImportedById(fakeFigma.currentPage, "child-1")!;
   const sectionMaster = componentSet.children[2]!;
   const childMaster = componentSet.children[0]!;
-  const sectionTitleMaster = sectionMaster.findAllRaw((node) => node.type === "TEXT" && node.name === "Main text")[0]!;
+  const sectionTitleMaster = sectionMaster.findAllRaw((node) => node.type === "TEXT" && node.name === "Heading")[0]!;
   const childHelperMaster = childMaster.findAllRaw((node) => node.type === "TEXT" && node.name === "Helper text")[0]!;
 
   assert.equal(
