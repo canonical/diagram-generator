@@ -1,5 +1,7 @@
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
@@ -272,5 +274,40 @@ describe('exportD2', () => {
         path: 'arrows[0]',
       }),
     );
+  });
+
+  it('optionally compiles exported D2 when D2_BIN is configured', () => {
+    const d2Bin = process.env.D2_BIN?.trim();
+    if (!d2Bin) {
+      return;
+    }
+
+    const yamlPath = join(repoRoot, 'diagrams', '1.input', 'tiered-network-architecture.yaml');
+    const compiled = compileDiagramYaml(readFileSync(yamlPath, 'utf-8'), { sourcePath: yamlPath });
+
+    expect(compiled.errors).toEqual([]);
+    const exported = exportD2(compiled.ast);
+    const tempDir = mkdtempSync(join(tmpdir(), 'dg-d2-compile-'));
+    const d2Path = join(tempDir, 'diagram.d2');
+    const svgPath = join(tempDir, 'diagram.svg');
+
+    try {
+      writeFileSync(d2Path, exported.d2, 'utf-8');
+      const compileResult = spawnSync(d2Bin, [d2Path, svgPath], { encoding: 'utf-8' });
+
+      expect(
+        {
+          status: compileResult.status,
+          signal: compileResult.signal,
+          stderr: compileResult.stderr,
+          stdout: compileResult.stdout,
+        },
+      ).toMatchObject({ status: 0, signal: null });
+
+      const rendered = readFileSync(svgPath, 'utf-8');
+      expect(rendered).toContain('<svg');
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 });

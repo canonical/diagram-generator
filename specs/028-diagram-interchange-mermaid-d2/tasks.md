@@ -36,7 +36,7 @@
 ## Phase 4: Integration & optional CI
 
 - [x] T050 `interchange-roundtrip.mjs` diff report (structural vs lossy fields)
-- [ ] T051 Optional vitest gate when `D2_BIN` set (compile exported `.d2`)
+- [x] T051 Optional vitest gate when `D2_BIN` set (compile exported `.d2`)
 - [x] T052 Document `../d2/` workflow in `docs/diagram-authoring.md`
 
 ## Phase 5: Preview HTTP export (P3)
