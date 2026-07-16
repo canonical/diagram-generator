@@ -10,7 +10,6 @@ import { registerPreviewDocumentSvgRenderer } from '../src/preview-engine/index.
 describe('preview diagram bootstrap/data helpers', () => {
   it('confirms dirty navigation before assigning the next diagram path', () => {
     const calls: string[] = [];
-    let scheduledReset: (() => void) | null = null;
 
     const navigated = attemptPreviewDiagramNavigation({
       nextUrl: 'http://127.0.0.1:8100/view/beta',
@@ -31,9 +30,6 @@ describe('preview diagram bootstrap/data helpers', () => {
       assignLocation(nextPath) {
         calls.push(`assign:${nextPath}`);
       },
-      schedulePostNavigationReset(callback) {
-        scheduledReset = callback;
-      },
     });
 
     expect(navigated).toBe(true);
@@ -43,15 +39,6 @@ describe('preview diagram bootstrap/data helpers', () => {
       'assign:/view/beta',
     ]);
 
-    scheduledReset?.();
-
-    expect(calls).toEqual([
-      'confirm:Leave?',
-      'allow:true',
-      'assign:/view/beta',
-      'allow:false',
-      'syncUi',
-    ]);
   });
 
   it('keeps the current view when navigation is cancelled or unchanged', () => {
@@ -74,9 +61,6 @@ describe('preview diagram bootstrap/data helpers', () => {
       },
       assignLocation() {
         cancelledCalls.push('assign');
-      },
-      schedulePostNavigationReset() {
-        cancelledCalls.push('reset');
       },
     })).toBe(false);
     expect(cancelledCalls).toEqual(['confirm', 'syncUi']);

@@ -12,11 +12,9 @@ spec catalog/status → [`docs/specs.md`](docs/specs.md) · human notes →
 [`INBOX.md`](INBOX.md) · durable per-spec detail → `specs/<id>-<slug>/` ·
 adversarial reviews → `docs/spec-reviews/`.
 
-**Active handoff.** Spec 028 diagram interchange is active in the separate
-`diagram-generator-worktrees/028-diagram-interchange-mermaid-d2` worktree.
-Keep its implementation isolated until it is reviewed, rebased, and merged.
-Spec 061 has a clean closeout commit in its own worktree and needs review/merge;
-do not start a duplicate 061 implementation.
+**Active handoff.** Specs 028 diagram interchange and 061 preview-grid
+regression are rebased in their dedicated worktrees and undergoing final
+validation before adversarial review. Do not start duplicate implementations.
 
 **Preview canvas resize (2026-07-16).** Fixed the local v3 relayout order:
 after arrows are rerouted, the stage is fitted again to the new root dimensions.

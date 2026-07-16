@@ -28,7 +28,7 @@ root:
       sizing_w: fill
       children:
       - id: operational_ai
-        level: 3
+        level: 1
         heading: 1. Operational AI
         helper:
         - Run the business with less friction
@@ -45,7 +45,7 @@ root:
         align: top-left
         sizing_h: fill
       - id: customer_ai
-        level: 3
+        level: 1
         heading: 2. Customer AI
         helper:
         - Improve service, care, and retention
@@ -68,7 +68,7 @@ root:
       sizing_w: fill
       children:
       - id: network_ai
-        level: 3
+        level: 1
         heading: 3. Network AI
         helper:
         - Make infrastructure more adaptive
@@ -85,7 +85,7 @@ root:
         align: top-left
         sizing_h: fill
       - id: ai_services_revenue
-        level: 3
+        level: 1
         heading: 4. AI services and new revenue
         helper:
         - Turn trusted infrastructure into offers
@@ -102,7 +102,7 @@ root:
         align: top-left
     wrap: false
   - id: production_foundation
-    level: 3
+    level: 2
     heading: Production foundation
     icon: Security.svg
     direction: horizontal
@@ -137,7 +137,7 @@ root:
       sizing_w: fill
     sizing_w: fill
   - id: business_outcomes
-    level: 3
+    level: 2
     heading: Business outcomes
     direction: horizontal
     align: top-center
