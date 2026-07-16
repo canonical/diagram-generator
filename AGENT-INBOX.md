@@ -18,6 +18,13 @@ Keep its implementation isolated until it is reviewed, rebased, and merged.
 Spec 061 has a clean closeout commit in its own worktree and needs review/merge;
 do not start a duplicate 061 implementation.
 
+**Preview canvas resize (2026-07-16).** Fixed the local v3 relayout order:
+after arrows are rerouted, the stage is fitted again to the new root dimensions.
+Previously, the initial fit included stale arrow paths, so a root direction
+round-trip could retain the old horizontal canvas extent. Targeted runtime tests
+and a live `vertical -> horizontal -> vertical` run now return the canvas to
+`1752x728`.
+
 **Opus adversarial review findings (2026-07-15).** Filed at
 [`opus-adversarial-review-findings-2026-07-15-v3-autolayout-ports-save.md`](docs/spec-reviews/opus-adversarial-review-findings-2026-07-15-v3-autolayout-ports-save.md).
 Source-level pass (live save/reload + resize not yet exercised, so not `No

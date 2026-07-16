@@ -2093,8 +2093,9 @@ export function createPreviewLayoutBridgeRuntime<
         const result = options.layoutLocalDiagram(diagram, options.state.textAdapter);
         const newBounds = options.collectPlacedBounds(diagram.root);
         const framesById = options.collectFramesById(diagram.root);
+        const stageSvg = options.queryStageSvg();
         options.patchSvgFromLayout({
-          svg: options.queryStageSvg(),
+          svg: stageSvg,
           oldBounds,
           newBounds,
           framesById,
@@ -2104,10 +2105,21 @@ export function createPreviewLayoutBridgeRuntime<
         if (diagram.arrows.length > 0) {
           routedArrows = options.routeArrows(diagram.arrows, newBounds);
           options.patchArrowsSvg({
-            svg: options.queryStageSvg(),
+            svg: stageSvg,
             routedArrows,
             boundsMap: newBounds,
           });
+
+          // patchSvgFromLayout performs an initial fit for callers that do not
+          // have routed arrows. A relayout with arrows must fit once more after
+          // their geometry has changed; otherwise a direction change can retain
+          // the old, wider arrow extents in the stage viewBox.
+          if (stageSvg) {
+            options.fitRenderedSvg(stageSvg, {
+              minWidth: result.width,
+              minHeight: result.height,
+            });
+          }
         }
 
         if (!relayoutOptions?.skipModelUpdate) {

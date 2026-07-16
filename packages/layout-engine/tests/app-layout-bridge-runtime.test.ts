@@ -172,7 +172,15 @@ describe('preview layout bridge runtime', () => {
       height: 480,
     });
     expect(replaceChildren).toHaveBeenCalledTimes(1);
-    expect(fitRenderedSvg).toHaveBeenCalledTimes(1);
+    expect(fitRenderedSvg).toHaveBeenCalledTimes(2);
+    expect(fitRenderedSvg).toHaveBeenNthCalledWith(1, expect.anything(), expect.objectContaining({
+      minWidth: 320,
+      minHeight: 180,
+    }));
+    expect(fitRenderedSvg).toHaveBeenNthCalledWith(2, expect.anything(), expect.objectContaining({
+      minWidth: 640,
+      minHeight: 480,
+    }));
     expect(refreshElkViewMode).toHaveBeenCalledTimes(1);
     expect(refreshLayoutControls).toHaveBeenCalledTimes(1);
     expect(runtime.getLastElkSnapshot()).toEqual({ id: 'elk' });
@@ -792,7 +800,18 @@ describe('preview layout bridge runtime', () => {
     expect(patchPreviewSvgFromLayout).toHaveBeenCalledTimes(1);
     expect(patchPreviewArrowSvg).toHaveBeenCalledTimes(1);
     expect(syncPreviewArrowsInModel).toHaveBeenCalledTimes(1);
-    expect(fitPreviewSvgToRenderedContent).toHaveBeenCalledTimes(1);
+    // Local relayout fits again after rerouting arrows, so an old directional
+    // route cannot keep the stage wider or taller than the new layout.
+    // Engine relayout mounts a freshly rendered SVG and performs its own fit.
+    expect(fitPreviewSvgToRenderedContent).toHaveBeenCalledTimes(2);
+    expect(fitPreviewSvgToRenderedContent).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      minWidth: 320,
+      minHeight: 200,
+    }));
+    expect(fitPreviewSvgToRenderedContent).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      minWidth: 640,
+      minHeight: 480,
+    }));
     expect(renderFreshPreviewSvg).toHaveBeenCalledTimes(1);
     expect(previewWindow.__DG_previewRenderIntent).toMatchObject({
       engineId: 'v3',
