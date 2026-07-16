@@ -253,6 +253,17 @@ async function captureLayoutOperatorBrowserState(page: Page): Promise<{
   });
 }
 
+/**
+ * Save omits empty controls unless an empty string is a meaningful enum value.
+ * `elk.direction` is the supported "automatic direction" enum value; the
+ * other empty layered controls are UI defaults, not persisted overrides.
+ */
+function persistedElkLayoutOverrides(overrides: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(overrides).filter(([key, value]) => value !== "" || key === "elk.direction"),
+  );
+}
+
 async function fittedViewBox(page: Page): Promise<string> {
   const viewBox = await page.locator("#stage svg").getAttribute("viewBox");
   assert.ok(viewBox, "expected the rendered stage to expose a fitted viewBox");
@@ -921,6 +932,9 @@ test("engine-specific layout buckets stay isolated across layered, radial, and s
       await mutateLayoutControlAndKeepValue(page, layeredControl.id);
       const layeredState = await captureLayoutOperatorBrowserState(page);
       const layeredViewBox = await fittedViewBox(page);
+      const persistedLayeredOverrides = persistedElkLayoutOverrides(
+        layeredState.byOperator["elk-layered"] ?? {},
+      );
 
       assert.equal(layeredState.activeOperatorKey, "elk-layered");
       assert.equal(layeredState.renderIntentEngineId, "elk-layered");
@@ -931,6 +945,9 @@ test("engine-specific layout buckets stay isolated across layered, radial, and s
       const radialControl = await firstVisibleLayoutControlForPrefix(page, "elk.radial.");
       await mutateLayoutControlAndKeepValue(page, radialControl.id);
       const radialState = await captureLayoutOperatorBrowserState(page);
+      const persistedRadialOverrides = persistedElkLayoutOverrides(
+        radialState.byOperator["elk-radial"] ?? {},
+      );
 
       assert.equal(radialState.activeOperatorKey, "elk-radial");
       assert.equal(radialState.renderIntentEngineId, "elk-radial");
@@ -958,11 +975,11 @@ test("engine-specific layout buckets stay isolated across layered, radial, and s
       assert.equal(reloadedBucketsState.activeOperatorKey, "elk-layered");
       assert.deepEqual(
         reloadedBucketsState.activeLayoutOverrides,
-        layeredState.byOperator["elk-layered"] ?? {},
+        persistedLayeredOverrides,
       );
       assert.deepEqual(
         reloadedBucketsState.byOperator["elk-radial"],
-        radialState.byOperator["elk-radial"],
+        persistedRadialOverrides,
         "save→reload should preserve the non-active radial bucket",
       );
 
@@ -973,7 +990,7 @@ test("engine-specific layout buckets stay isolated across layered, radial, and s
       assert.equal(radialReloadState.activeOperatorKey, "elk-radial");
       assert.deepEqual(
         radialReloadState.activeLayoutOverrides,
-        radialState.byOperator["elk-radial"] ?? {},
+        persistedRadialOverrides,
         "switching back after save→reload should restore the live radial override bucket",
       );
       assert.equal(
@@ -1002,7 +1019,7 @@ test("engine-specific layout buckets stay isolated across layered, radial, and s
       assert.equal(layeredForcedRecookState.activeOperatorKey, "elk-layered");
       assert.deepEqual(
         layeredForcedRecookState.activeLayoutOverrides,
-        layeredState.byOperator["elk-layered"] ?? {},
+        persistedLayeredOverrides,
       );
       assert.equal(
         layeredForcedRecookViewBox,
