@@ -13,8 +13,8 @@ spec catalog/status → [`docs/specs.md`](docs/specs.md) · human notes →
 adversarial reviews → `docs/spec-reviews/`.
 
 **Active handoff.** Specs 028 diagram interchange and 061 preview-grid
-regression are rebased in their dedicated worktrees and undergoing final
-validation before adversarial review. Do not start duplicate implementations.
+regression are rebased in their dedicated worktrees, fully validated, and ready
+for adversarial review. Do not start duplicate implementations.
 
 **Preview canvas resize (2026-07-16).** Fixed the local v3 relayout order:
 after arrows are rerouted, the stage is fitted again to the new root dimensions.
