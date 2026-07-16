@@ -254,13 +254,16 @@ async function captureLayoutOperatorBrowserState(page: Page): Promise<{
 }
 
 /**
- * Save omits empty controls unless an empty string is a meaningful enum value.
- * `elk.direction` is the supported "automatic direction" enum value; the
- * other empty layered controls are UI defaults, not persisted overrides.
+ * Blank numeric controls are UI defaults. They can be present after reload or
+ * omitted after a relayout; blank enum values remain meaningful settings.
  */
-function persistedElkLayoutOverrides(overrides: Record<string, unknown>): Record<string, unknown> {
+function semanticElkLayoutOverrides(overrides: Record<string, unknown>): Record<string, unknown> {
+  const blankNumericDefaultKeys = new Set([
+    "elk.aspectRatio",
+    "elk.layered.spacing.baseValue",
+  ]);
   return Object.fromEntries(
-    Object.entries(overrides).filter(([key, value]) => value !== "" || key === "elk.direction"),
+    Object.entries(overrides).filter(([key, value]) => value !== "" || !blankNumericDefaultKeys.has(key)),
   );
 }
 
@@ -932,9 +935,7 @@ test("engine-specific layout buckets stay isolated across layered, radial, and s
       await mutateLayoutControlAndKeepValue(page, layeredControl.id);
       const layeredState = await captureLayoutOperatorBrowserState(page);
       const layeredViewBox = await fittedViewBox(page);
-      const persistedLayeredOverrides = persistedElkLayoutOverrides(
-        layeredState.byOperator["elk-layered"] ?? {},
-      );
+      const persistedLayeredOverrides = layeredState.byOperator["elk-layered"] ?? {};
 
       assert.equal(layeredState.activeOperatorKey, "elk-layered");
       assert.equal(layeredState.renderIntentEngineId, "elk-layered");
@@ -945,9 +946,7 @@ test("engine-specific layout buckets stay isolated across layered, radial, and s
       const radialControl = await firstVisibleLayoutControlForPrefix(page, "elk.radial.");
       await mutateLayoutControlAndKeepValue(page, radialControl.id);
       const radialState = await captureLayoutOperatorBrowserState(page);
-      const persistedRadialOverrides = persistedElkLayoutOverrides(
-        radialState.byOperator["elk-radial"] ?? {},
-      );
+      const persistedRadialOverrides = radialState.byOperator["elk-radial"] ?? {};
 
       assert.equal(radialState.activeOperatorKey, "elk-radial");
       assert.equal(radialState.renderIntentEngineId, "elk-radial");
@@ -974,12 +973,12 @@ test("engine-specific layout buckets stay isolated across layered, radial, and s
 
       assert.equal(reloadedBucketsState.activeOperatorKey, "elk-layered");
       assert.deepEqual(
-        reloadedBucketsState.activeLayoutOverrides,
-        persistedLayeredOverrides,
+        semanticElkLayoutOverrides(reloadedBucketsState.activeLayoutOverrides),
+        semanticElkLayoutOverrides(persistedLayeredOverrides),
       );
       assert.deepEqual(
-        reloadedBucketsState.byOperator["elk-radial"],
-        persistedRadialOverrides,
+        semanticElkLayoutOverrides(reloadedBucketsState.byOperator["elk-radial"] ?? {}),
+        semanticElkLayoutOverrides(persistedRadialOverrides),
         "save→reload should preserve the non-active radial bucket",
       );
 
@@ -989,8 +988,8 @@ test("engine-specific layout buckets stay isolated across layered, radial, and s
 
       assert.equal(radialReloadState.activeOperatorKey, "elk-radial");
       assert.deepEqual(
-        radialReloadState.activeLayoutOverrides,
-        persistedRadialOverrides,
+        semanticElkLayoutOverrides(radialReloadState.activeLayoutOverrides),
+        semanticElkLayoutOverrides(persistedRadialOverrides),
         "switching back after save→reload should restore the live radial override bucket",
       );
       assert.equal(
@@ -1015,11 +1014,12 @@ test("engine-specific layout buckets stay isolated across layered, radial, and s
       await mutateLayoutControlAndRestoreValue(page, layeredControl.id);
       const layeredForcedRecookState = await captureLayoutOperatorBrowserState(page);
       const layeredForcedRecookViewBox = await fittedViewBox(page);
+      const normalizedLayeredOverrides = semanticElkLayoutOverrides(persistedLayeredOverrides);
 
       assert.equal(layeredForcedRecookState.activeOperatorKey, "elk-layered");
       assert.deepEqual(
-        layeredForcedRecookState.activeLayoutOverrides,
-        persistedLayeredOverrides,
+        semanticElkLayoutOverrides(layeredForcedRecookState.activeLayoutOverrides),
+        normalizedLayeredOverrides,
       );
       assert.equal(
         layeredForcedRecookViewBox,
