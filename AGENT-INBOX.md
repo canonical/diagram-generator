@@ -16,6 +16,11 @@ adversarial reviews → `docs/spec-reviews/`.
 regression are rebased in their dedicated worktrees, fully validated, and ready
 for adversarial review. Do not start duplicate implementations.
 
+**Opus review request (061).** Use
+[`opus-adversarial-review-request-2026-07-17-spec-061.md`](docs/spec-reviews/opus-adversarial-review-request-2026-07-17-spec-061.md).
+Write findings only to
+`docs/spec-reviews/opus-adversarial-review-findings-2026-07-17-spec-061.md`.
+
 **Preview canvas resize (2026-07-16).** Fixed the local v3 relayout order:
 after arrows are rerouted, the stage is fitted again to the new root dimensions.
 Previously, the initial fit included stale arrow paths, so a root direction
