@@ -95,6 +95,7 @@ describe('createPreviewEditorRuntimeSet', () => {
       getViolations: () => [],
       isWidthCoerced: () => false,
       isHeightCoerced: () => false,
+      shouldShowAutolayoutInspector: () => true,
       getGridInfo: () => gridInfo,
       baselineStep: 8,
       fallbackGap: 24,

@@ -37,6 +37,7 @@ describe('inspector + text change round-trip', () => {
       requestRelayoutNow: vi.fn(),
       renderSelectionInspector: vi.fn(),
       cleanOverride: vi.fn(),
+      shouldShowAutolayoutInspector: () => true,
       getGridInfo: () => null,
       getWidthUnit: () => 'px',
       getHeightUnit: () => 'px',

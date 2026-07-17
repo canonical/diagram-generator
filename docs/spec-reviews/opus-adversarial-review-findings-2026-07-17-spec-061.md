@@ -6,6 +6,11 @@
 
 ## Verdict: Merge with follow-ups
 
+> **Second-pass update (2026-07-17):** re-reviewed with the full test suites run.
+> Verdict unchanged, but the correctness case is now stronger and two findings
+> move. See [Second-pass re-review](#second-pass-re-review-2026-07-17) at the
+> end — it supersedes the first-pass text of **F1** and **F3** where they differ.
+
 The core containment change is real and correct: the branch collapses two
 previously divergent grid predicates into one typed authority
 (`previewContextSupportsGridEditing`), routes the inspector's 9-dot widget
@@ -125,3 +130,89 @@ Did not run (declared, not claimed green):
 3. Address F4: one composition/integration test of the real `canEditGridControls` closure for ELK + engine-switch; consider `?? false` fail-closed default.
 4. Address F5: one live V3 overlay probe to confirm (or refute) the (d) classification of the original "lost grid" report.
 5. Scope-clarify F2: justify the save→reload normalization as an accepted exception and file the ELK blank-numeric-default consistency follow-up.
+
+---
+
+## Second-pass re-review (2026-07-17)
+
+Re-ran on request with both full suites and a deeper trace of the branch's
+actual change. Net: the shipped predicate is correct and now genuinely proven
+green end to end; the remaining findings are bookkeeping/coverage debt, not
+correctness defects. **Verdict stays Merge with follow-ups**, and follow-ups
+F1 + the F3 doc half are trivial edits.
+
+### New evidence
+
+- **Full `packages/layout-engine` suite: 168 files, 1032 tests, all pass**
+  (`npx vitest run`, ~4.6s tests / 58s collect).
+- **Full `apps/preview` suite: 170 tests, all pass, 0 fail, 0 skipped**
+  (`npm test`, ~43s). This is the definitive resolution of F1.
+
+### F1 — CONFIRMED and upgraded
+
+The full `apps/preview` run reports **170 passing, 0 failing**. The recorded
+closeout state is doubly stale: not only was the previously "failing"
+`editor-live-repaint-regression.test.ts` fixed on this branch (first pass), the
+whole suite is green and the count is now 170, not the "168" in
+[tasks.md](../../specs/061-preview-grid-regression/tasks.md) T034 or the "one
+pre-existing ELK option-default failure" in
+[docs/specs.md](../../docs/specs.md). Both must be corrected before merge; a
+reviewer trusting either doc would believe validation is still red.
+
+### F3 — CORRECTED (contract coverage is real; residual gap is narrower)
+
+My first-pass claim that the only coverage was an "initial hidden state" HTML
+check was **wrong and unfair to the branch**. The server contract genuinely
+asserts a capability-driven `grid-controls-section hidden` decision across
+multiple non-grid engines:
+
+- [preview-host-contract.test.ts](../../apps/preview/src/persistence/preview-host-contract.test.ts#L380) "autolayout viewer hides native grid controls for ELK-family frames" loops `elk-layered`, `elk-force`, `elk-stress`, `elk-mrtree`, `elk-radial`, `elk-rectpacking`.
+- [preview-host-contract.test.ts](../../apps/preview/src/persistence/preview-host-contract.test.ts#L417) covers `dagre`; force lane is covered separately; the V3 grid-capable case asserts the section present (unhidden) at [line 729](../../apps/preview/src/persistence/preview-host-contract.test.ts#L729).
+- Because the section is emitted with the `hidden` attribute, it is natively out of tab order, so the "DOM + tab order" half of T031 is effectively satisfied for the grid-controls section.
+
+So T031 is **mostly** satisfied by pre-existing coverage. The residual gap that
+still justifies a follow-up is smaller than first stated:
+
+1. These are **server-render initial-state** assertions for a document whose
+   persisted engine is non-grid. They do **not** exercise the client-side
+   **V3→ELK runtime switch**, which is the path this branch actually changed
+   (`shouldShowAutolayoutInspector` re-evaluation via `syncPanelVisibility`).
+2. They cover the grid-controls **section**, not the inspector **9-dot
+   alignment widget** — the affordance the install-unit change gates.
+3. No apps/preview test asserts the T031 clause **"no grid relayout is
+   dispatched for the non-grid case."**
+
+T032 is still miscoded: it was marked `[x]` although the finding chose *retire*,
+its "if restore" precondition was never met, and no overlay-mount test was added.
+
+### New positive confirmation — the branch's fix reaches display AND mutation
+
+I verified the concern behind FR-001/FR-003 for the 9-dot widget is genuinely
+closed in code (not just cosmetically):
+
+- Display: [app-inspector-display-runtime.ts](../../packages/layout-engine/src/preview-shell/app-inspector-display-runtime.ts#L167) passes `shouldShowAutolayoutInspector()` into the renderer as both `showAutolayoutInspector` and `showLayoutEditingControls`, so the widget is not rendered when the predicate is false.
+- Mutation: [app-inspector-mutation-runtime.ts](../../packages/layout-engine/src/preview-shell/app-inspector-mutation-runtime.ts#L100) gates `layoutEditingEnabled()` off the same predicate, so a stale layout-editing mutation resolves an inert capability transaction.
+
+Combined with the runtime `capabilityGate` on the grid-control dispatch, the
+same predicate now guards the section, the 9-dot widget's rendering, its
+mutation path, and the relayout dispatch. This is a genuine single-authority
+boundary.
+
+### F4 — reinforced (fail-open default is now a 4-site pattern)
+
+The `?? true` fail-open default I flagged in the `canEditGridControls` closure
+also appears at [app-inspector-display-runtime.ts:167](../../packages/layout-engine/src/preview-shell/app-inspector-display-runtime.ts#L167), [:213](../../packages/layout-engine/src/preview-shell/app-inspector-display-runtime.ts#L213), and [app-inspector-mutation-runtime.ts:100](../../packages/layout-engine/src/preview-shell/app-inspector-mutation-runtime.ts#L100). Every consumer of `shouldShowAutolayoutInspector` defaults to *showing/enabling* layout editing when the predicate function is absent. In real wiring it is always provided, so this is not currently exploitable, but for a boundary whose sole purpose is to block a non-grid relayout, fail-closed (`?? false`) is the safer default and would harden the whole family at once.
+
+### New low-severity observation — two predicate consumers resolve the active engine by different paths
+
+`shouldShowAutolayoutInspector` builds its context from `resolveCurrentActiveEngine()` (→ `context.activeEngine`), while `syncPanelVisibility` builds a full `engineWorkspace` and lets `activeEngine(context)` prefer `workspace.activeEngine`. Both ultimately key capabilities off the same layout-engine id, so `gridEditing` should agree, but they are two resolution paths for "the active engine" feeding one predicate. Not a defect today; worth a note so a future engine-resolution change keeps them in lockstep.
+
+### Second-pass validation commands
+
+Ran (in addition to first pass):
+
+- `npx vitest run` (packages/layout-engine, full) → **1032 passed / 168 files**.
+- `npm test` (apps/preview, full) → **170 passed, 0 failed, 0 skipped**.
+
+Still not run: a live V3 + guide-mode `all` overlay DOM probe (F5) — the one
+gap that a code-reading review cannot close.

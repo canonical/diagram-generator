@@ -23,15 +23,18 @@
 
 I traced the active-engine state from render intent through the install-unit
 callback, inspector, grid runtime, and dispatch boundary. I found and fixed
-the fail-open missing-callback default in the runtime grid gate. No additional
-branch defects remain: the typed predicate is the shared authority, numeric
-`0` persists, empty enums persist, generated browser artifacts are fresh, and
-the legacy preview-shell ratchet is untouched.
+the fail-open missing-callback default across every grid-capability consumer:
+the grid runtime plus the inspector's single-display, multi-display, mutation,
+and multi-selection paths all now fail closed. Their focused regressions omit
+the callback and prove controls/mutations remain blocked. No additional branch
+defects remain: the typed predicate is the shared authority, numeric `0`
+persists, empty enums persist, generated browser artifacts are fresh, and the
+legacy preview-shell ratchet is untouched.
 
 ## Validation
 
 - `npm --prefix packages/layout-engine test` — 168 files / 1,032 tests passed.
-- `npm --prefix apps/preview test` — passed, including real Chromium flows.
+- `npm --prefix apps/preview test` — 170 tests passed, including real Chromium flows.
 - `node scripts/check_no_new_python.mjs` — passed.
 - `node scripts/check-browser-bundle-fresh.mjs` — passed.
 - `git diff --check main` — passed.

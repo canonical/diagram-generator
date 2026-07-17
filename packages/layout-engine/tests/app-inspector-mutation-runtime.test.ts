@@ -159,6 +159,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
       getWidthUnit: () => 'px',
       getHeightUnit: () => 'px',
       baselineStep: 8,
+      shouldShowAutolayoutInspector: () => true,
       getMutationContext: () => ({ activeEngineId: 'v3', documentKind: 'frame-diagram' }),
       onMutationTransaction: (result) => mutationResults.push(result),
     });
@@ -217,6 +218,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
       getWidthUnit: () => 'px',
       getHeightUnit: () => 'px',
       baselineStep: 8,
+      shouldShowAutolayoutInspector: () => true,
       getMutationContext: () => ({ activeEngineId: 'v3', documentKind: 'frame-diagram' }),
       onMutationTransaction: (result) => mutationResults.push(result),
     });
@@ -263,6 +265,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
       getWidthUnit: () => 'px',
       getHeightUnit: () => 'px',
       baselineStep: 8,
+      shouldShowAutolayoutInspector: () => true,
     });
 
     runtime.setFrameAlign('panel', 'BOTTOM_LEFT');
@@ -301,6 +304,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
       getWidthUnit: () => 'px',
       getHeightUnit: () => 'px',
       baselineStep: 8,
+      shouldShowAutolayoutInspector: () => true,
       getMutationContext: () => ({ activeEngineId: 'v3', documentKind: 'frame-diagram' }),
       onMutationTransaction: (result) => mutationResults.push(result),
     });
@@ -319,7 +323,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
     ]);
   });
 
-  it('blocks native layout mutations when the active engine is not grid-editable', () => {
+  it('blocks native layout mutations when the capability callback is unavailable', () => {
     let overrides: Record<string, Record<string, unknown>> = {};
     const requestRelayoutNow = vi.fn();
     const renderSelectionInspector = vi.fn();
@@ -341,7 +345,6 @@ describe('createPreviewInspectorMutationRuntime', () => {
       getWidthUnit: () => 'px',
       getHeightUnit: () => 'px',
       baselineStep: 8,
-      shouldShowAutolayoutInspector: () => false,
       getMutationContext: () => ({ activeEngineId: 'elk-layered', documentKind: 'frame-diagram' }),
       onMutationTransaction: (result) => mutationResults.push(result),
     });

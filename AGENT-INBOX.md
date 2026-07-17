@@ -17,7 +17,9 @@ review on `feat/061-preview-grid-regression`: the grid boundary now fails
 closed, a Chromium V3 → ELK regression proves overlay and affordance behavior,
 and ELK blank numeric defaults are normalized at the typed override writer so
 save→reload remains strict. Full layout-engine and preview suites, the browser
-bundle freshness check, and the no-new-Python guard are green; the branch is
+bundle freshness check, and the no-new-Python guard are green. The second-pass
+review's inspector fail-open pattern is now fail-closed; full layout-engine
+coverage and the live Chromium V3 → ELK regression are green. The branch is
 ready to merge.
 
 **Preview canvas resize (2026-07-16).** Fixed the local v3 relayout order:

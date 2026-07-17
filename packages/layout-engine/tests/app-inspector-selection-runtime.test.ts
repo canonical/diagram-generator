@@ -49,6 +49,7 @@ describe('createPreviewInspectorSelectionRuntime', () => {
       getWidthUnit: () => 'px',
       getHeightUnit: () => 'px',
       baselineStep: 8,
+      shouldShowAutolayoutInspector: () => true,
       normalizeSelectionGap: (gap) => gap,
       resolveSelectionDistributeTargets: () => ({}),
       resolveSelectionAlignTargets: () => ({}),
@@ -120,6 +121,7 @@ describe('createPreviewInspectorSelectionRuntime', () => {
       getWidthUnit: () => 'px',
       getHeightUnit: () => 'px',
       baselineStep: 8,
+      shouldShowAutolayoutInspector: () => true,
       normalizeSelectionGap: (gap) => gap,
       resolveSelectionDistributeTargets: () => ({}),
       resolveSelectionAlignTargets: () => ({}),
@@ -148,7 +150,7 @@ describe('createPreviewInspectorSelectionRuntime', () => {
     );
   });
 
-  it('blocks multi-selection layout mutations when the active engine is not grid-editable', () => {
+  it('blocks multi-selection layout mutations when the capability callback is unavailable', () => {
     let overrides: Record<string, Record<string, unknown>> = {};
     const requestRelayoutNow = vi.fn();
     const renderMultiSelectionInspector = vi.fn();
@@ -192,7 +194,6 @@ describe('createPreviewInspectorSelectionRuntime', () => {
       alert: vi.fn(),
       getComponentType: () => 'box',
       normalizeStyleName: (styleName) => styleName,
-      shouldShowAutolayoutInspector: () => false,
     });
 
     runtime.alignSelection('left');
