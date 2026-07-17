@@ -4,12 +4,18 @@
 **Reviewer role:** skeptical pre-merge maintainer (review only, no product edits)
 **Date:** 2026-07-17
 
-## Verdict: Merge with follow-ups
+## Verdict: Merge ready (as of third pass)
 
+> **Third-pass update (2026-07-17):** re-reviewed after commits `b1b5679` and
+> `458c346`. **All five findings are resolved** and independently re-validated.
+> Verdict raised from *Merge with follow-ups* to **Merge ready**. See
+> [Third-pass re-review](#third-pass-re-review-2026-07-17) at the end — it is
+> the authoritative closeout; the first/second-pass findings below are retained
+> for audit trail.
+>
 > **Second-pass update (2026-07-17):** re-reviewed with the full test suites run.
-> Verdict unchanged, but the correctness case is now stronger and two findings
-> move. See [Second-pass re-review](#second-pass-re-review-2026-07-17) at the
-> end — it supersedes the first-pass text of **F1** and **F3** where they differ.
+> Verdict unchanged at the time, but the correctness case was stronger and two
+> findings moved. See [Second-pass re-review](#second-pass-re-review-2026-07-17).
 
 The core containment change is real and correct: the branch collapses two
 previously divergent grid predicates into one typed authority
@@ -216,3 +222,39 @@ Ran (in addition to first pass):
 
 Still not run: a live V3 + guide-mode `all` overlay DOM probe (F5) — the one
 gap that a code-reading review cannot close.
+
+---
+
+## Third-pass re-review (2026-07-17)
+
+Re-reviewed commits `b1b5679` ("harden grid capability regression") and
+`458c346` ("fail closed inspector grid capability"). The response resolves
+every finding, and in two cases (F2, F4) goes further than requested — fixing
+the root cause in product code rather than the test. I re-ran the relevant
+suites myself rather than trusting the summary. **Verdict: Merge ready.**
+
+### Finding-by-finding disposition
+
+- **F1 — RESOLVED.** [tasks.md](../../specs/061-preview-grid-regression/tasks.md) T034 drops the stale "167/168 … unrelated" note; T032 is now explicitly `N/A` with the retire rationale; [docs/specs.md](../../docs/specs.md) row 061 replaces "one pre-existing ELK option-default failure" with the live-coverage summary; `AGENT-INBOX.md` handoff is rewritten to the remediation state. Bookkeeping now matches the shipped behavior.
+
+- **F2 — RESOLVED at the root (better than requested).** The test-side `semanticElkLayoutOverrides` shim is deleted and the strict `assert.deepEqual` on ELK save→reload buckets is restored. The normalization moved into product: [layout-operator-overrides.ts](../../packages/layout-engine/src/preview-shell/layout-operator-overrides.ts#L89) `persistableLayoutOperatorOverrides` drops only blank-valued numeric controls (`value === '' && kind === 'number'`) at both writer paths in `writeLayoutOperatorOverrideBucketForManifest`. I confirmed the predicate is safe: numeric `0` (`0 !== ''`) and blank enums (non-numeric key) are retained; only an empty-string numeric — semantically "use default" — is dropped, which is exactly the asymmetry that previously made save→reload differ. [layout-operator-overrides.test.ts](../../packages/layout-engine/tests/layout-operator-overrides.test.ts#L184) proves blank numeric dropped / blank enum kept.
+
+- **F3 — RESOLVED.** New live Chromium test *"V3 mounts grid guides and ELK removes grid and alignment affordances after a live switch"* ([editor-live-repaint-regression.test.ts](../../apps/preview/src/persistence/editor-live-repaint-regression.test.ts#L908)) exercises the actual client-side V3→ELK switch — the path the branch changed — and asserts on V3: `#dg-grid-overlay` mounts children, `#grid-controls-section` visible with `visibleTabStopsWithin > 0`, and `.dg-align-grid button` count `=== 9`; then on ELK: section not visible, `visibleTabStopsWithin === 0`, and `.dg-align-grid` count `=== 0`. The `visibleTabStopsWithin` helper filters on `disabled`, `tabIndex >= 0`, and non-zero client rects, so it is a genuine tab-order assertion, not a `[hidden]` proxy. T031's "no relayout dispatched" clause is covered by the new runtime dispatch test (below).
+
+- **F4 — RESOLVED (fail-closed everywhere + regressions).** All five consumers now default `?? false`: the `canEditGridControls` closure at [app-grid-editor-runtime.ts](../../packages/layout-engine/src/preview-shell/app-grid-editor-runtime.ts#L429) (with a comment explaining the deliberate runtime fail-closed boundary), plus [app-inspector-display-runtime.ts](../../packages/layout-engine/src/preview-shell/app-inspector-display-runtime.ts#L167) (both single and multi), [app-inspector-mutation-runtime.ts](../../packages/layout-engine/src/preview-shell/app-inspector-mutation-runtime.ts#L100), and [app-inspector-selection-runtime.ts](../../packages/layout-engine/src/preview-shell/app-inspector-selection-runtime.ts#L94). Two new runtime regressions prove the composition my F4 said was untested: *"fails closed for stale grid callbacks after an engine switch"* drives the **real** `canEditGridControls` closure from V3→non-grid and asserts the dispatch returns `inert` without reading runtime state, marking dirty, or requesting relayout; *"fails closed when the grid capability callback is absent"* asserts `applicable: false`. The inspector display/mutation/selection tests were rewritten to *delete* the callback and rely on the fail-closed default, so the default itself is now under test; grid-capable harnesses declare `shouldShowAutolayoutInspector: () => true` explicitly.
+
+- **F5 — RESOLVED.** The same live test's `#dg-grid-overlay > *` assertion after entering guide mode empirically confirms the V3 overlay mounts — closing the one gap a code-reading review could not. This upgrades the finding's (d) "intentional boundary" classification from code-reasoned to demonstrated.
+
+### Independent validation I ran this pass
+
+- `npx vitest run` on the 6 touched layout-engine files (`layout-operator-overrides`, `app-grid-editor-runtime`, three `app-inspector-*`, `preview-ui-context`) → **48 passed**.
+- `node scripts/check-browser-bundle-fresh.mjs` → **fresh** (3 artifacts vs 2 source roots).
+- `node --import tsx --test --test-name-pattern="V3 mounts grid guides and ELK removes" …` → **1 pass** (real Chromium, 4.4s).
+- Prior passes already confirmed full layout-engine (1032) and full apps/preview (170) green; `git diff --stat` shows **no `scripts/preview/*.js` changes**, so the spec 046 ratchet holds and no new Python was added.
+
+### Residual notes (non-blocking)
+
+- The F2 fix assumes `writeLayoutOperatorOverrideBucketForManifest` is the sole persist path for layout-operator buckets. The now-strict live save→reload test passing on the real product path is empirical evidence this holds; no separate writer bypasses the normalization in the exercised flow.
+- A `codex-adversarial-audit-2026-07-17-spec-061.md` was added alongside this file recording the remediation from the implementer side. It does not overwrite this review; both are preserved.
+
+No further defects found. Ready to merge.
