@@ -12,6 +12,19 @@ spec catalog/status → [`docs/specs.md`](docs/specs.md) · human notes →
 [`INBOX.md`](INBOX.md) · durable per-spec detail → `specs/<id>-<slug>/` ·
 adversarial reviews → `docs/spec-reviews/`.
 
+**Spec 075 active (2026-07-17).** `feat/075-preview-folder-workspaces` was
+restored and rebased onto `main` (`1299bbb`). The adversarial hardening slice now
+provides grouped sources, multiple persisted browser handles, one-click
+permission reconnect, authoritative handle-gated saves/imports, local external
+change protection, read-only API enforcement, qualified interchange routing,
+and bounded/duplicate-safe ingest. Full layout-engine (1,058) and preview (185
+pass / 1 Windows symlink skip) suites, TypeScript builds, browser-bundle
+freshness, the no-new-Python ratchet, diff check, and production HTTP smoke are
+green. The in-app browser was unavailable, so the real
+picker/save/reload/regrant journey remains a merge gate alongside Save a copy,
+server-root conflict parity, and temp-cache disposal. Durable findings:
+[`075-preview-folder-workspaces-adversarial-review-2026-07-17.md`](docs/spec-reviews/075-preview-folder-workspaces-adversarial-review-2026-07-17.md).
+
 **Spec 061 merged (2026-07-17).** `feat/061-preview-grid-regression` merged
 cleanly into the primary `main` worktree at `7317feb`; the feature worktree is
 clean and ready for deletion. The complete evidence and review record live in

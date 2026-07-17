@@ -23,7 +23,8 @@ function buildPreviewNavOptions(
       const options = section.links
         .map((link) => {
           const selected = currentPath === link.href ? " selected" : "";
-          return `<option value="${link.href}"${selected}>${htmlEscape(link.label)}</option>`;
+          const readOnly = link.writable === false ? " — read-only" : "";
+          return `<option value="${link.href}"${selected}>${htmlEscape(link.label + readOnly)}</option>`;
         })
         .join("");
       if (!options) {
@@ -43,7 +44,10 @@ function buildBrowseNav(
       const items = section.links
         .map((link) => {
           const active = currentPath === link.href ? " is-active" : "";
-          return `<li><a class="dg-browse-link${active}" href="${link.href}">${htmlEscape(link.label)}</a></li>`;
+          const readOnly = link.writable === false
+            ? '<span class="dg-workspace-lock" aria-label="Read-only" title="Read-only">🔒</span>'
+            : "";
+          return `<li><a class="dg-browse-link${active}" href="${link.href}">${htmlEscape(link.label)}${readOnly}</a></li>`;
         })
         .join("");
       if (!items) {
@@ -58,7 +62,12 @@ function buildIndexSection(section: PreviewHostBrowseSection): string {
   const content =
     section.links.length > 0
       ? `<ul class="dg-browse-list">${section.links
-          .map((link) => `<li><a class="dg-browse-link" href="${link.href}">${htmlEscape(link.label)}</a></li>`)
+          .map((link) => {
+            const readOnly = link.writable === false
+              ? '<span class="dg-workspace-lock" aria-label="Read-only" title="Read-only">🔒</span>'
+              : "";
+            return `<li><a class="dg-browse-link" href="${link.href}">${htmlEscape(link.label)}${readOnly}</a></li>`;
+          })
           .join("")}</ul>`
       : `<p class="bf-form-help">No ${htmlEscape(section.label).toLowerCase()} found.</p>`;
   return `<section class="dg-browse-group"><h2 class="dg-browse-heading">${htmlEscape(section.label)}</h2>${content}</section>`;
@@ -126,6 +135,7 @@ ${baselineStylesHtml}
       <p class="bf-form-help">Node preview app on port ${port}. Spec home: ${htmlEscape(specHome)}</p>
       <div class="dg-workspace-open-row">
         <button class="bf-button is-base" id="dg-open-folder" type="button">Open folder…</button>
+        <button class="bf-button is-base" id="dg-reconnect-folders" type="button" hidden>Reconnect folders…</button>
         <span class="bf-form-help" id="dg-workspace-status" role="status" aria-live="polite"></span>
       </div>
     </div>

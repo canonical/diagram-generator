@@ -160,6 +160,21 @@ body.dg-preview {
        color: var(--bf-color-text-default, #fff);
        font-weight: 500;
 }
+.dg-workspace-lock {
+       color: var(--bf-color-text-muted, #999);
+       font-size: 0.6875rem;
+       margin-inline-start: calc(var(--bf-baseline) * 0.5);
+}
+.dg-workspace-open-row {
+       align-items: center;
+       display: flex;
+       flex-wrap: wrap;
+       gap: calc(var(--bf-baseline) * 0.5);
+       padding: var(--bf-panel-padding-inline, 0.75rem);
+}
+.dg-workspace-open-row .bf-form-help {
+       flex-basis: 100%;
+}
 
 .dg-component-tree {
        align-content: start;

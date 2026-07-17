@@ -17,6 +17,7 @@ import type {
 } from "./builtin-host-deps.js";
 import { buildIndexPageHtml } from "./pages.js";
 import { buildRegisteredPreviewBrowseSections } from "./registry.js";
+import { AUTOLAYOUT_HOST_LANE } from "./lanes.js";
 import { createServerRootSource } from "./workspace/server-root-source.js";
 import { WorkspaceRegistry } from "./workspace/workspace-registry.js";
 import type { DiagramWorkspaceSource } from "./workspace/diagram-workspace-source.js";
@@ -189,9 +190,48 @@ export function createBuiltinPreviewHostInstallDeps(
         source.list().map((entry) => (index === 0 ? entry.slug : entry.qualifiedId)),
       );
 
-  const resolveFrameDir = (slug: string): { framesDir: string; slug: string } | null => {
+  const sourceIsWritable = (source: DiagramWorkspaceSource): boolean => {
+    const hasWritableUserSource = workspaceRegistry
+      .list()
+      .some((candidate) => candidate.id !== source.id && candidate.writable);
+    return source.writable && !(source.kind === "bundled-examples" && hasWritableUserSource);
+  };
+
+  const listWorkspaceBrowseSections = () =>
+    workspaceRegistry.list().flatMap((source, index) => {
+      const writable = sourceIsWritable(source);
+      const links = source.list().map((entry) => {
+        const address = index === 0 ? entry.slug : entry.qualifiedId;
+        return {
+          href: AUTOLAYOUT_HOST_LANE.buildViewerPath(address),
+          label: entry.title,
+          writable,
+        };
+      });
+      return links.length > 0
+        ? [{
+            key: `${AUTOLAYOUT_HOST_LANE.key}-${source.id}`,
+            label: source.label,
+            links,
+          }]
+        : [];
+    });
+
+  const resolveFrameDir = (slug: string): {
+    framesDir: string;
+    slug: string;
+    sourceId: string;
+    writable: boolean;
+  } | null => {
     const resolved = workspaceRegistry.resolveFrameDir(slug);
-    return resolved ? { framesDir: resolved.framesDir, slug: resolved.slug } : null;
+    return resolved
+      ? {
+          framesDir: resolved.framesDir,
+          slug: resolved.slug,
+          sourceId: resolved.source.id,
+          writable: sourceIsWritable(resolved.source),
+        }
+      : null;
   };
 
   const registerWorkspaceSource = (source: DiagramWorkspaceSource): void => {
@@ -208,6 +248,7 @@ export function createBuiltinPreviewHostInstallDeps(
         listAutolayoutDiagrams(): string[] {
           return listWorkspaceDiagramSlugs();
         },
+        listAutolayoutBrowseSections: listWorkspaceBrowseSections,
         findReferenceImage: referenceImageResolver,
         normalizeLayoutEngine,
         resolveFrameDir,

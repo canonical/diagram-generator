@@ -26,7 +26,12 @@ export interface CreateFramePreviewHostDocumentApiOptions {
    * each endpoint operates on the correct folder. When omitted, endpoints keep
    * the historical single-directory behaviour.
    */
-  readonly resolveFrameDir?: (slug: string) => { framesDir: string; slug: string } | null;
+  readonly resolveFrameDir?: (slug: string) => {
+    framesDir: string;
+    slug: string;
+    sourceId: string;
+    writable: boolean;
+  } | null;
 }
 
 export interface CreateForcePreviewHostDocumentApiOptions {
@@ -54,14 +59,31 @@ export const FORCE_PREVIEW_HOST_DOCUMENT_ENDPOINTS = {
 export function createFramePreviewHostDocumentEndpoints(
   options: CreateFramePreviewHostDocumentApiOptions,
 ): readonly PreviewHostDocumentEndpointDescriptor[] {
-  const resolveDoc = (slug: string): { deps: FramePreviewDocumentDeps; slug: string } => {
+  const resolveDoc = (slug: string): {
+    deps: FramePreviewDocumentDeps;
+    slug: string;
+    sourceId: string;
+    writable: boolean;
+  } => {
     // Keep the old single-directory behavior for narrow legacy helpers that
     // do not provide a workspace resolver. Once a resolver is installed, null
     // means the address is not a document in any registered source.
-    if (!options.resolveFrameDir) return { deps: options.framePreviewDocumentDeps, slug };
+    if (!options.resolveFrameDir) {
+      return {
+        deps: options.framePreviewDocumentDeps,
+        slug,
+        sourceId: "default",
+        writable: true,
+      };
+    }
     const resolved = options.resolveFrameDir(slug);
     if (!resolved) throw new Error(`Unknown frame slug: ${slug}`);
-    return { deps: { ...options.framePreviewDocumentDeps, framesDir: resolved.framesDir }, slug: resolved.slug };
+    return {
+      deps: { ...options.framePreviewDocumentDeps, framesDir: resolved.framesDir },
+      slug: resolved.slug,
+      sourceId: resolved.sourceId,
+      writable: resolved.writable,
+    };
   };
   const resolveRender = (slug: string): { deps: FramePreviewRenderDeps; slug: string } => {
     if (!options.resolveFrameDir) return { deps: options.framePreviewRenderDeps, slug };
@@ -114,16 +136,25 @@ export function createFramePreviewHostDocumentEndpoints(
     },
     {
       kind: FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS.mermaidExport,
-      handler: (slug: string) => renderMermaidForSlug(slug, options.framePreviewDocumentDeps),
+      handler: (slug: string) => {
+        const r = resolveDoc(slug);
+        return renderMermaidForSlug(r.slug, r.deps);
+      },
     },
     {
       kind: FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS.d2Export,
-      handler: (slug: string) => renderD2ForSlug(slug, options.framePreviewDocumentDeps),
+      handler: (slug: string) => {
+        const r = resolveDoc(slug);
+        return renderD2ForSlug(r.slug, r.deps);
+      },
     },
     {
       kind: FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS.saveDocument,
       handler: (slug: string, payload: unknown) => {
         const r = resolveDoc(slug);
+        if (!r.writable) {
+          throw new Error(`Workspace source '${r.sourceId}' is read-only`);
+        }
         return saveFramePreviewDocument(r.slug, payload, {
           framePreviewDocumentDeps: r.deps,
           parseYaml: options.parseYaml,

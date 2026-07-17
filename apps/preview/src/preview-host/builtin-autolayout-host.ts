@@ -43,6 +43,7 @@ import {
 import type {
   PreviewHostApiRouteDescriptor,
   PreviewHostApiRouteHandlerContext,
+  PreviewHostBrowseSection,
   PreviewHostViewerPageDefinition,
   PreviewHostViewerRouteDescriptor,
 } from "./types.js";
@@ -139,11 +140,22 @@ function createPreviewInterchangeImportHostApiRoute(
       }
       try {
         const payload = await context.readJsonBody(context.req);
+        const resolved = deps.resolveFrameDir?.(rawSlug);
+        if (deps.resolveFrameDir && !resolved) {
+          context.sendText(404, `Unknown diagram: ${rawSlug}`);
+          return;
+        }
+        if (resolved && !resolved.writable) {
+          context.sendText(403, `Workspace source '${resolved.sourceId}' is read-only`);
+          return;
+        }
         const result = importInterchangeForSlug(
-          rawSlug,
+          resolved?.slug ?? rawSlug,
           format,
           readInterchangeImportSource(payload),
-          deps.framePreviewDocumentDeps,
+          resolved
+            ? { ...deps.framePreviewDocumentDeps, framesDir: resolved.framesDir }
+            : deps.framePreviewDocumentDeps,
         );
         context.sendJson(201, result);
       } catch (error) {
@@ -336,6 +348,9 @@ export function createAutolayoutPreviewHostViewerRoute(
     lane: AUTOLAYOUT_HOST_LANE,
     routePrefixes: ["/view/"],
     listSlugs: () => deps.listAutolayoutDiagrams(),
+    listBrowseSections: deps.listAutolayoutBrowseSections
+      ? (): readonly PreviewHostBrowseSection[] => deps.listAutolayoutBrowseSections?.() ?? []
+      : undefined,
     hasDocument: (slug: string) => {
       const docCtx = resolveDocContext(slug);
       return docCtx !== null && frameDiagramExists(docCtx.slug, docCtx.deps);

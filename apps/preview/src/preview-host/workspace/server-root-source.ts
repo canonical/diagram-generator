@@ -23,8 +23,11 @@ export interface ServerRootSourceOptions {
   readonly id: string;
   readonly label: string;
   readonly dir: string;
-  /** `server-root` (default) or `bundled-examples`. */
-  readonly kind?: Extract<DiagramSourceKind, "server-root" | "bundled-examples">;
+  /**
+   * Logical source kind. Browser folders use this disk adapter only for their
+   * server-side render cache; the browser handle remains the persistence owner.
+   */
+  readonly kind?: DiagramSourceKind;
   /** Defaults to `true`. Set `false` for read-only bundled examples. */
   readonly writable?: boolean;
 }

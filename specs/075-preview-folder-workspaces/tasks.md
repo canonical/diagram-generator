@@ -53,18 +53,18 @@ predecessor's tests are green.
       registry order (default first, then `--root` sources). **Partial:** a
       distinct read-only `bundled-examples` source (vs. the writable default
       corpus dir) is not yet split out — see T014.
-- [~] T012 Grouped nav. **Partial:** all sources' diagrams now appear in the
-      side nav — the default source as bare slugs, additional sources as
-      qualified `sourceId:slug` entries — and open/edit/save correctly.
-      Per-source section headers (regrouping the central lane→section builder)
-      are deferred as presentation polish.
+- [x] T012 Grouped nav. Viewer routes may now contribute typed browse sections;
+      autolayout emits one labelled section per workspace source while the Force
+      lane remains independently registered. Default slugs stay bare and other
+      sources remain qualified.
 - [x] T013 Qualified-address resolution: the request boundary resolves
       `sourceId:slug` to the right source folder + bare slug via the registry;
       bare slugs resolve to the default source (backward compatible). `v3:`
       prefix + `isSafeSlug` (`:` allowed) carry qualified addresses through.
-- [ ] T014 Mark a `bundled-examples` source read-only whenever a writable source
-      is present; expose `writable` in the nav model. **Deferred** (needs the
-      bundled/default split from T011).
+- [x] T014 Mark `bundled-examples` read-only whenever another writable source is
+      present, carry `writable` into nav links, display a lock affordance, and
+      reject document/import writes at the typed API boundary. "Save a copy"
+      remains T032.
 - [x] T015 Extend the file watcher to watch every server-root path
       (`WORKSPACE_ROOT_DIRS` folded into `WATCH_PATHS`). Per-source SSE origin
       tagging deferred with T012 nav polish.
@@ -76,58 +76,88 @@ predecessor's tests are green.
 
 ## Phase 2: Browser open-folder source (File System Access)
 
-- [ ] T020 Add the typed `local-folder` adapter under
-      `packages/layout-engine/src/preview-shell/workspace/`:
-      `showDirectoryPicker()` open, `list` (enumerate `.yaml`), `read`, `write`.
-- [ ] T021 Persist the directory handle in IndexedDB keyed by source id; restore
-      opened folders on load with a one-click permission re-grant when access was
-      dropped.
-- [ ] T022 Implement the client-side save adapter: write edited YAML back to the
-      picked directory using the browser bundle's YAML persistence, bypassing the
-      server writer (FR-006). Do not escape the granted handle (FR-008).
-- [ ] T023 Add the visible "Open folder…" affordance and register `local-folder`
-      sources into the same grouped nav model as server sources, through the typed
-      preview-shell registration seam (not `editor.js`/`layout-bridge.js`, not new
-      `scripts/preview/*.js`).
-- [ ] T024 Feature-detect FS Access write support; hide "Open folder" and show
-      server-root guidance where unsupported (FR-005).
-- [ ] T025 After adding browser-surface exports, rebuild the bundle
-      (`npm --prefix packages/layout-engine run build:browser`) and confirm
-      `check-browser-bundle-fresh` passes; do not commit `dist/`.
-- [ ] T026 [P] Add tests for the local-folder adapter `list/read/write`, handle
-      persistence/restore, and handle-scoped write containment.
-- [ ] T027 [P] Add a client-side `persist → reload` round-trip test for a
-      local-folder source (SC-004, SC-002 client side).
+- [x] T020 Add the typed `local-folder` controller under
+      `packages/layout-engine/src/preview-shell/`: picker open, bounded root-level
+      `.yaml` enumeration, ephemeral localhost render-cache registration, and
+      handle-scoped disk commit.
+- [x] T021 Persist multiple directory handles in IndexedDB keyed by source id;
+      restore granted handles and show a one-click reconnect action for dropped
+      permissions. Migrate the old single `last-folder` record.
+- [x] T022 Make the browser handle authoritative for local-folder saves. The
+      localhost cache canonicalizes YAML; Save remains failed/dirty until the
+      file-handle write succeeds (FR-006, SC-008).
+- [x] T023 Add the visible "Open folder…" affordance and register `local-folder`
+      sources into the grouped nav through typed preview-shell and preview-host
+      seams. Legacy JS changes remain one-line/thin delegation only.
+- [x] T024 Feature-detect FS Access write support; hide "Open folder", do not
+      capture Ctrl/Cmd+O, and show `--root "Name=path"` guidance where unsupported.
+- [x] T025 Rebuild the browser bundle and confirm `check-browser-bundle-fresh`
+      passes; keep `dist/` uncommitted.
+- [x] T026 [P] Add controller tests for multiple handles, per-source save routing,
+      denied-permission reconnect, external-change refusal, and handle-scoped
+      writes.
+- [~] T027 [P] Local-folder `persist → reload`: mocked handle save and persisted
+      multi-handle reconnect are covered, but the real picker/save/browser-reload
+      journey remains required by T045 before SC-004 can close.
+- [x] T028 Give newly opened local folders collision-resistant `local-*` source
+      ids and reuse a stored id only when `isSameEntry` confirms the same handle;
+      prove same-named folders save independently.
+- [x] T029 Bound folder ingest to 500 YAML files, 2 MiB per file, and 25 MiB
+      total in both browser and server; reject case-insensitive duplicate names
+      before registering a partial source.
 
 ## Phase 3: Conflict handling, empty state, polish
 
-- [ ] T030 Add external-change detection: mtime/hash compare for server roots and
-      FS Access change signal / re-read compare for local folders.
-- [ ] T031 On detected external change to an open file, surface a reload /
-      keep-mine prompt instead of a silent overwrite (FR-007, SC-006).
+- [~] T030 Add external-change detection. Local folders re-read and compare the
+      last committed content before every write; server-root mtime/hash handling
+      remains open.
+- [~] T031 Local folders now require explicit overwrite or keep-external choice.
+      Server-root reload/keep-mine UX remains open.
 - [ ] T032 Implement "save a copy to a writable folder…" for edits attempted on a
       read-only source (FR-004, SC-003); route the copy to a chosen writable source.
-- [ ] T033 Add the empty state: bundled examples plus a prominent "Open a folder of
-      your diagrams" call to action when no user folders are open (FR-010).
-- [ ] T034 Add read-only lock badges and disabled-save affordances with accessible
-      labels for read-only sources.
+- [~] T033 Bundled examples and Open folder are visible on the index/viewer, but a
+      designed first-run empty state and explanatory copy remain open.
+- [~] T034 Read-only links have accessible lock labels and server writes are
+      rejected. Pre-emptively disabling/replacing Save with "Save a copy" remains
+      part of T032.
 - [ ] T035 [P] Add a large-nav performance test (hundreds of slugs across sources)
       proving grouped nav and lazy loading stay responsive.
+- [x] T036 Gate save success on the browser-handle commit. Permission/write/
+      conflict failures return non-2xx to the existing save client so dirty state
+      is retained.
+- [ ] T037 Dispose ephemeral local-folder cache directories on host shutdown and
+      remove stale source registrations when a folder is forgotten.
+- [x] T038 Route Mermaid/D2 export and interchange import through qualified source
+      resolution; mirror successful local-folder imports through the same
+      browser-handle commit gate.
 
 ## Phase 4: Security, docs, closeout
 
 - [ ] T040 Confirm safe-mode YAML parsing across all sources and add a test that a
       malicious/custom-tag YAML does not execute or escape (FR-009).
-- [ ] T041 Add path-traversal rejection tests for server roots: `../` slug,
+- [x] T041 Add path-traversal rejection tests for server roots: `../` slug,
       absolute escape, symlink escape (SC-005, FR-008).
-- [ ] T042 Update `docs/agent-index.md` and the `AGENTS.md` handover with the
-      workspace-source model and the open-folder flow; keep it short.
-- [ ] T043 Run full validation: `npm --prefix packages/layout-engine test`,
-      `npm --prefix apps/preview test`, `node scripts/check_no_new_python.mjs`,
-      `build:browser`, `check-browser-bundle-fresh`, preview-shell size budgets.
-- [ ] T044 Adversarial review: prove per-source persist → reload, prove read-only
-      enforcement, prove collision handling, prove no new Python and no new
-      behaviour-heavy `scripts/preview/*.js`, then mark Closeout Ready.
+- [x] T042 Add the cross-runtime workspace flow map and route it from
+      `docs/agent-index.md`; keep live handoff only in `AGENT-INBOX.md` and do not
+      duplicate task state into `AGENTS.md`.
+- [~] T043 Full automated validation is green on 2026-07-17: layout-engine 1,058;
+      preview 185 pass / 1 Windows symlink skip; TypeScript builds; no-new-Python;
+      browser build/freshness; diff check; preview-shell size budgets. T045 live
+      picker evidence still blocks the final closeout run.
+- [~] T044 Adversarial review and remediation are recorded in
+      `docs/spec-reviews/075-preview-folder-workspaces-adversarial-review-2026-07-17.md`.
+      Per-source routing, read-only enforcement, collision handling, and the JS/
+      Python ratchets are proven; remaining findings T037/T045/T046/T047 prevent
+      Closeout Ready.
+- [ ] T045 Run a supported Chromium picker journey against the production bundle:
+      open two same-named folders, edit/save each, externally change one, reload,
+      revoke/re-grant permission, and record the OS files plus grouped nav as
+      evidence. The 2026-07-17 in-app browser was unavailable.
+- [ ] T046 Add server-root mtime/hash optimistic concurrency and reload/keep-mine
+      UX equivalent to the local-folder guard.
+- [ ] T047 Add the complete read-only "Save a copy to…" workflow, including
+      target-folder selection, unsaved override transfer, persist→reload, and
+      accessible pre-save affordances.
 
 ## Task dependency notes
 

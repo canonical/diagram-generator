@@ -1,8 +1,8 @@
 # Spec 075 adversarial review — preview folder workspaces
 
-Date: 2026-07-13  
-Scope: Phase 0 and Phase 1 server slice (`97f1284`, `b4ecffc`)  
-Base: `main` (`ae003b6`)  
+Date: 2026-07-13
+Scope: Phase 0 and Phase 1 server slice (`97f1284`, `b4ecffc`)
+Base: `main` (`ae003b6`)
 Reviewer: Codex
 
 ## Verdict

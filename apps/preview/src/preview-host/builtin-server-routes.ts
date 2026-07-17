@@ -6,6 +6,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
+import { Buffer } from "node:buffer";
 import os from "node:os";
 import path from "node:path";
 
@@ -321,6 +322,10 @@ function workspaceSlugFromFilename(name: string): string | null {
   return isBareSlug(slug) ? slug : null;
 }
 
+const MAX_WORKSPACE_FILE_COUNT = 500;
+const MAX_WORKSPACE_FILE_BYTES = 2 * 1024 * 1024;
+const MAX_WORKSPACE_TOTAL_BYTES = 25 * 1024 * 1024;
+
 export function createPreviewHostWorkspaceRoutes(
   deps: BuiltinPreviewHostServerModuleDeps,
 ): readonly PreviewHostApiRouteDescriptor[] {
@@ -348,8 +353,14 @@ export function createPreviewHostWorkspaceRoutes(
         context.sendText(400, "The selected folder contains no YAML diagrams");
         return;
       }
+      if (rawFiles.length > MAX_WORKSPACE_FILE_COUNT) {
+        context.sendText(413, `A folder can contain at most ${MAX_WORKSPACE_FILE_COUNT} YAML diagrams`);
+        return;
+      }
 
       const validFiles = new Map<string, string>();
+      const normalizedSlugs = new Set<string>();
+      let totalBytes = 0;
       for (const file of rawFiles as unknown[]) {
         if (!file || typeof file !== "object") continue;
         const name = Reflect.get(file, "name");
@@ -357,7 +368,24 @@ export function createPreviewHostWorkspaceRoutes(
         const slug = typeof name === "string" && typeof content === "string"
           ? workspaceSlugFromFilename(name)
           : null;
-        if (slug) validFiles.set(slug, content as string);
+        if (!slug) continue;
+        const normalizedSlug = slug.toLocaleLowerCase("en-US");
+        if (normalizedSlugs.has(normalizedSlug)) {
+          context.sendText(400, `Duplicate diagram filename: ${slug}.yaml`);
+          return;
+        }
+        const bytes = Buffer.byteLength(content as string, "utf8");
+        if (bytes > MAX_WORKSPACE_FILE_BYTES) {
+          context.sendText(413, `${slug}.yaml exceeds the 2 MiB diagram limit`);
+          return;
+        }
+        totalBytes += bytes;
+        if (totalBytes > MAX_WORKSPACE_TOTAL_BYTES) {
+          context.sendText(413, "The selected folder exceeds the 25 MiB workspace limit");
+          return;
+        }
+        normalizedSlugs.add(normalizedSlug);
+        validFiles.set(slug, content as string);
       }
       if (validFiles.size === 0) {
         context.sendText(400, "The selected folder contains no valid root-level YAML diagrams");
@@ -375,7 +403,12 @@ export function createPreviewHostWorkspaceRoutes(
         while (true) {
           const dir = mkdtempSync(path.join(os.tmpdir(), "dg-open-folder-"));
           try {
-            const source = createServerRootSource({ id: sourceId, label, dir });
+            const source = createServerRootSource({
+              id: sourceId,
+              label,
+              dir,
+              kind: "local-folder",
+            });
             deps.registerWorkspaceSource(source);
             openedWorkspace = { source, dir };
             opened.set(sourceId, openedWorkspace);

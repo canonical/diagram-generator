@@ -74,7 +74,12 @@ function parseWorkspaceRootSpecs(
 
 const WORKSPACE_ROOT_SPECS = parseWorkspaceRootSpecs(process.argv.slice(2));
 const WORKSPACE_SOURCES: DiagramWorkspaceSource[] = [
-  createServerRootSource({ id: "default", label: "Diagrams", dir: FRAMES_DIR }),
+  createServerRootSource({
+    id: "default",
+    label: "Bundled examples",
+    dir: FRAMES_DIR,
+    kind: "bundled-examples",
+  }),
   ...WORKSPACE_ROOT_SPECS.map((spec) =>
     createServerRootSource({ id: spec.id, label: spec.label, dir: spec.dir }),
   ),
@@ -158,7 +163,14 @@ const framePreviewRenderDeps: FramePreviewRenderDeps = {
   textAdapterPromise,
 };
 const WATCH_EXTENSIONS = new Set([".yaml", ".yml", ".json", ".html", ".css", ".js", ".svg", ".ttf", ".woff", ".woff2"]);
-const WATCH_PATHS = [FRAMES_DIR, ...WORKSPACE_ROOT_DIRS, FORCE_DEFINITIONS_DIR, PREVIEW_DIR, BF_VENDOR_ROOT, path.join(REPO_ROOT, "packages", "layout-engine", "dist")];
+const WATCH_PATHS = [
+  FRAMES_DIR,
+  ...WORKSPACE_ROOT_DIRS,
+  FORCE_DEFINITIONS_DIR,
+  PREVIEW_DIR,
+  BF_VENDOR_ROOT,
+  path.join(REPO_ROOT, "packages", "layout-engine", "dist"),
+];
 let rebuildGeneration = 0;
 let lastRebuildError: string | null = null;
 let watchIntervalHandle: NodeJS.Timeout | null = null;

@@ -2,7 +2,7 @@ import type { ServerResponse } from "node:http";
 
 import type { FramePreviewDocumentDeps, FramePreviewRenderDeps } from "./frame-documents.js";
 import type { ForcePreviewDocumentDeps } from "./force-documents.js";
-import type { PreviewHostViewerScriptResolver } from "./types.js";
+import type { PreviewHostBrowseSection, PreviewHostViewerScriptResolver } from "./types.js";
 import type { DiagramWorkspaceSource } from "./workspace/diagram-workspace-source.js";
 
 export const BUILTIN_PREVIEW_HOST_SERVER_MODULE_KEY = "builtin-server-routes";
@@ -58,6 +58,7 @@ export interface BuiltinAutolayoutPreviewHostModuleDeps
   readonly framePreviewDocumentDeps: FramePreviewDocumentDeps;
   readonly framePreviewRenderDeps: FramePreviewRenderDeps;
   readonly listAutolayoutDiagrams: () => string[];
+  readonly listAutolayoutBrowseSections?: () => readonly PreviewHostBrowseSection[];
   readonly findReferenceImage: (slug: string) => string | null;
   readonly normalizeLayoutEngine: (layoutEngine: string | undefined) => string;
   /**
@@ -65,7 +66,12 @@ export interface BuiltinAutolayoutPreviewHostModuleDeps
    * `sourceId:slug` address to the backing source directory + bare slug. When
    * omitted, the host keeps the historical single-directory behaviour.
    */
-  readonly resolveFrameDir?: (slug: string) => { framesDir: string; slug: string } | null;
+  readonly resolveFrameDir?: (slug: string) => {
+    framesDir: string;
+    slug: string;
+    sourceId: string;
+    writable: boolean;
+  } | null;
 }
 
 export interface BuiltinForcePreviewHostModuleDeps
