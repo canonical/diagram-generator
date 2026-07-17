@@ -426,7 +426,11 @@ export function createPreviewGridEditorRuntimeFromBrowserHost(
             };
           },
           canEditGridControls: () => {
-            const gridEngineApplicable = options.browser.shouldShowAutolayoutInspector?.() ?? true;
+            // Grid edits must never fall through to native relayout when a
+            // host omits the capability callback. The UI callback is supplied
+            // by the install unit, but this runtime boundary is deliberately
+            // fail-closed for stale or partially wired hosts.
+            const gridEngineApplicable = options.browser.shouldShowAutolayoutInspector?.() ?? false;
             const rootId = options.shared.model.roots?.[0]?.id ?? 'root';
             const rootSelected = options.shared.selectedIds.size === 1
               && options.shared.selectedIds.has(String(rootId));

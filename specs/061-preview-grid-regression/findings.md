@@ -27,10 +27,13 @@ refactor.
   writing overrides when `canEditGridControls` is false.
 
 The combination means non-grid engines do not receive the grid section or
-alignment affordance in the DOM, and stale direct calls are inert. The apps
-preview contract already covers ELK, Dagre, Force, and default frame HTML
-with `grid-controls-section[hidden]`; the layout-engine tests cover the inert
-dispatch path.
+alignment affordance in the DOM, and stale direct calls are inert. The live
+Chromium regression in
+`apps/preview/src/persistence/editor-live-repaint-regression.test.ts` selects
+the V3 grid root, confirms grid controls are in the tab order, then switches to
+ELK and confirms the section is hidden with no tab stops and no 9-dot buttons.
+The layout-engine runtime test invokes the same installed capability closure
+through a stale callback and confirms the dispatch remains inert.
 
 ## Overlay investigation
 
@@ -52,25 +55,23 @@ The typed render path is still connected:
 The default runtime guide mode is deliberately `off` in
 `createPreviewGridRuntimeHost`; `renderPreviewGridOverlayHost` removes the
 overlay in that mode. Cycling the guide mode uses the same typed runtime and
-renders the scene. Therefore the reported “lost overlay” is not classified as
-an active `(a) not mounted/rendered`, `(b) wrong geometry`, or `(c) controls
-dead` regression on the current V3 path: the mount, geometry, and update seams
-are present and covered by focused tests.
+renders the scene. The live Chromium regression cycles V3 guide mode and
+asserts that `#dg-grid-overlay` contains rendered geometry before switching to
+ELK. Therefore the reported “lost overlay” is not classified as an active
+`(a) not mounted/rendered`, `(b) wrong geometry`, or `(c) controls dead`
+regression on the current V3 path.
 
 ### Classification and decision
 
-Classification: **(d), intentional support boundary, with a stale/ambiguous
-overlay report**. Grid editing is intentionally V3-only; non-grid engines do
-not get a grid model or overlay. The evidence does not justify restoring a
-grid overlay to ELK, Force, Sequence, or Dagre, and no larger restoration
-follow-up is opened by this spec. V3 keeps the existing overlay path and its
-guide-mode behavior.
+Classification: **(d), intentional support boundary**. Grid editing is
+intentionally V3-only; non-grid engines do not get a grid model or overlay.
+The evidence does not justify restoring a grid overlay to ELK, Force,
+Sequence, or Dagre, and no larger restoration follow-up is opened by this
+spec. V3 keeps the existing overlay path and its guide-mode behavior.
 
 Decision: **retire the grid affordance on non-grid engines and retain the V3
 typed grid path**. If a future report shows a V3 overlay missing while guide
-mode is `all`, the next owner is `app-scene-host.ts` / `grid-overlay-scene.ts`
-with a focused browser DOM probe; it is outside this investigation because the
-current code and unit coverage show the mount and scene are intact.
+mode is `all`, the next owner is `app-scene-host.ts` / `grid-overlay-scene.ts`.
 
 ## ELK error path
 

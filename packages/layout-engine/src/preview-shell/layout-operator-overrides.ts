@@ -86,6 +86,20 @@ function manifestPersistNamespace(
   return null;
 }
 
+function persistableLayoutOperatorOverrides(
+  manifest: Pick<PreviewEngineManifest, 'controlSpecs'>,
+  overrides: Record<string, unknown>,
+): Record<string, unknown> {
+  const numericKeys = new Set(
+    (manifest.controlSpecs ?? [])
+      .filter((spec) => spec.kind === 'number')
+      .map((spec) => spec.key),
+  );
+  return Object.fromEntries(
+    Object.entries(overrides).filter(([key, value]) => value !== '' || !numericKeys.has(key)),
+  );
+}
+
 export function persistNodeNamespaceForLayoutOperatorNamespace(
   namespace: string | null | undefined,
 ): string | null {
@@ -597,7 +611,7 @@ export function writeLayoutOperatorOverrideBucketForManifest(
   const operatorKey = layoutOperatorKeyForManifest(manifest);
   const registry = ensurePreviewInterpreterNodeRegistryForManifest(model, manifest);
   if (registry && getPreviewInterpreterNode(registry, operatorKey)) {
-    const nextOverrides = { ...(overrides || {}) };
+    const nextOverrides = persistableLayoutOperatorOverrides(manifest, overrides || {});
     const nextRegistry = Object.keys(nextOverrides).length > 0
       ? setPreviewInterpreterNodeParams(
         registry,
@@ -616,7 +630,7 @@ export function writeLayoutOperatorOverrideBucketForManifest(
   }
   const state = readLayoutOperatorOverrideState(model);
   state.activeOperatorKey = operatorKey;
-  const nextOverrides = { ...(overrides || {}) };
+  const nextOverrides = persistableLayoutOperatorOverrides(manifest, overrides || {});
   if (Object.keys(nextOverrides).length > 0) {
     state.byOperator[operatorKey] = nextOverrides;
   } else {

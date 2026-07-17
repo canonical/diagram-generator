@@ -58,13 +58,16 @@
 - [x] T031 Add an apps/preview contract/DOM test proving grid affordances are
       absent on a non-grid engine (DOM + tab order) and present on a grid-capable
       one, and that no grid relayout is dispatched for the non-grid case.
-- [x] T032 If (and only if) the finding chooses an in-scope restore, add a
+      `editor-live-repaint-regression.test.ts` now exercises V3 → ELK in
+      Chromium; the runtime test covers the joined stale-callback dispatch.
+- [x] T032 N/A — the finding retires non-grid affordances rather than choosing
+      an in-scope restore, so no overlay-restore test is required. The V3
+      live regression in T031 covers the retained overlay path.
+      If (and only if) the finding chooses an in-scope restore, add a
       focused overlay-mount test proving the grid overlay renders for a
       grid-capable document.
 - [x] T033 Run `npm --prefix packages/layout-engine test`.
-- [x] T034 Run `npm --prefix apps/preview test` (167/168 passed; the existing
-      `editor-live-repaint-regression.test.ts` ELK option-default mismatch is
-      unrelated to Spec 061).
+- [x] T034 Run `npm --prefix apps/preview test`.
 - [x] T035 Run `node scripts/check_no_new_python.mjs`.
 - [x] T036 Use no-screenshot browser DOM probes only if unit/contract tests miss
       an integration behavior; do not capture screenshots unless asked.

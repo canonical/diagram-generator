@@ -161,6 +161,16 @@ async function selectFirstFrame(page: Page): Promise<string> {
   return id;
 }
 
+async function visibleTabStopsWithin(page: Page, selector: string): Promise<number> {
+  return page.locator(selector).evaluate((section) => Array.from(
+    section.querySelectorAll<HTMLElement>('button, input, select, textarea, [tabindex]'),
+  ).filter((element) => (
+    !element.hasAttribute('disabled')
+    && element.tabIndex >= 0
+    && element.getClientRects().length > 0
+  )).length);
+}
+
 async function selectedSvgFragment(page: Page, componentId: string): Promise<string> {
   return page.locator(`#dg-frame-layer [data-component-id="${componentId}"]`).evaluate((element) => element.outerHTML);
 }
@@ -251,20 +261,6 @@ async function captureLayoutOperatorBrowserState(page: Page): Promise<{
       renderIntentOverrides: { ...(previewWindow.__DG_previewRenderIntent?.engineOverrides ?? {}) },
     };
   });
-}
-
-/**
- * Blank numeric controls are UI defaults. They can be present after reload or
- * omitted after a relayout; blank enum values remain meaningful settings.
- */
-function semanticElkLayoutOverrides(overrides: Record<string, unknown>): Record<string, unknown> {
-  const blankNumericDefaultKeys = new Set([
-    "elk.aspectRatio",
-    "elk.layered.spacing.baseValue",
-  ]);
-  return Object.fromEntries(
-    Object.entries(overrides).filter(([key, value]) => value !== "" || !blankNumericDefaultKeys.has(key)),
-  );
 }
 
 async function fittedViewBox(page: Page): Promise<string> {
@@ -909,6 +905,54 @@ test("autolayout→ELK switch keeps right/bottom canvas padding on mongo-octavia
   }
 });
 
+test("V3 mounts grid guides and ELK removes grid and alignment affordances after a live switch", { timeout: 120_000 }, async (t) => {
+  const framesDir = copyFixtureFrames(["support-engineering-flow"]);
+  const port = await allocatePort();
+  const baseUrl = `http://127.0.0.1:${port}`;
+  const server = startPreviewServer(framesDir, port);
+  const browser = await launchChromiumOrSkip(t);
+  if (!browser) {
+    await stopPreviewServer(server.process);
+    fs.rmSync(framesDir, { recursive: true, force: true });
+    return;
+  }
+
+  try {
+    await server.ready;
+    const page = await openPreviewPage(browser, baseUrl, "support-engineering-flow");
+    try {
+      await selectEngine(page, "v3");
+      await page.keyboard.press("w");
+      await page.waitForFunction(() => (
+        document.querySelectorAll("#dg-grid-overlay > *").length > 0
+      ), undefined, { timeout: 20_000 });
+      assert.ok(await page.locator("#dg-grid-overlay > *").count() > 0, "V3 guide mode should mount grid geometry");
+
+      await selectFirstFrame(page);
+      for (let depth = 0; depth < 5 && !await page.locator("#grid-controls-section").isVisible(); depth += 1) {
+        await page.keyboard.press("Shift+Enter");
+        await settle(page);
+      }
+      assert.equal(await page.locator("#grid-controls-section").isVisible(), true);
+      assert.ok(await visibleTabStopsWithin(page, "#grid-controls-section") > 0);
+
+      await selectFirstFrame(page);
+      assert.equal(await page.locator(".dg-align-grid button").count(), 9);
+
+      await selectEngine(page, "elk-layered");
+      assert.equal(await page.locator("#grid-controls-section").isVisible(), false);
+      assert.equal(await visibleTabStopsWithin(page, "#grid-controls-section"), 0);
+      assert.equal(await page.locator(".dg-align-grid button").count(), 0);
+    } finally {
+      await page.close();
+    }
+  } finally {
+    await browser.close();
+    await stopPreviewServer(server.process);
+    fs.rmSync(framesDir, { recursive: true, force: true });
+  }
+});
+
 test("engine-specific layout buckets stay isolated across layered, radial, and save→reload browser flows", { timeout: 120_000 }, async (t) => {
   const framesDir = copyFixtureFrames(["example-deployment-pipeline"]);
   const port = await allocatePort();
@@ -973,12 +1017,12 @@ test("engine-specific layout buckets stay isolated across layered, radial, and s
 
       assert.equal(reloadedBucketsState.activeOperatorKey, "elk-layered");
       assert.deepEqual(
-        semanticElkLayoutOverrides(reloadedBucketsState.activeLayoutOverrides),
-        semanticElkLayoutOverrides(persistedLayeredOverrides),
+        reloadedBucketsState.activeLayoutOverrides,
+        persistedLayeredOverrides,
       );
       assert.deepEqual(
-        semanticElkLayoutOverrides(reloadedBucketsState.byOperator["elk-radial"] ?? {}),
-        semanticElkLayoutOverrides(persistedRadialOverrides),
+        reloadedBucketsState.byOperator["elk-radial"] ?? {},
+        persistedRadialOverrides,
         "save→reload should preserve the non-active radial bucket",
       );
 
@@ -988,8 +1032,8 @@ test("engine-specific layout buckets stay isolated across layered, radial, and s
 
       assert.equal(radialReloadState.activeOperatorKey, "elk-radial");
       assert.deepEqual(
-        semanticElkLayoutOverrides(radialReloadState.activeLayoutOverrides),
-        semanticElkLayoutOverrides(persistedRadialOverrides),
+        radialReloadState.activeLayoutOverrides,
+        persistedRadialOverrides,
         "switching back after save→reload should restore the live radial override bucket",
       );
       assert.equal(
@@ -1014,12 +1058,10 @@ test("engine-specific layout buckets stay isolated across layered, radial, and s
       await mutateLayoutControlAndRestoreValue(page, layeredControl.id);
       const layeredForcedRecookState = await captureLayoutOperatorBrowserState(page);
       const layeredForcedRecookViewBox = await fittedViewBox(page);
-      const normalizedLayeredOverrides = semanticElkLayoutOverrides(persistedLayeredOverrides);
-
       assert.equal(layeredForcedRecookState.activeOperatorKey, "elk-layered");
       assert.deepEqual(
-        semanticElkLayoutOverrides(layeredForcedRecookState.activeLayoutOverrides),
-        normalizedLayeredOverrides,
+        layeredForcedRecookState.activeLayoutOverrides,
+        persistedLayeredOverrides,
       );
       assert.equal(
         layeredForcedRecookViewBox,
