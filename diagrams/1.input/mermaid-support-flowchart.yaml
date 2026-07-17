@@ -1,0 +1,43 @@
+engine: v3
+title: support-flowchart
+root:
+  id: page
+  direction: vertical
+  children:
+    - id: estate
+      level: 3
+      heading: Estate
+      children:
+        - id: core
+          level: 2
+          heading: Core services
+          children:
+            - id: api
+              level: 1
+              label:
+                - API service
+              children: []
+            - id: worker
+              level: 1
+              label:
+                - Worker
+              children: []
+        - id: note
+          level: 2
+          label:
+            - helper note
+          children: []
+        - id: focus
+          level: 2
+          label:
+            - Escalate
+          children: []
+arrows:
+  - source: api
+    target: worker
+    label:
+      - dispatch
+  - source: worker
+    target: focus
+  - source: note
+    target: api

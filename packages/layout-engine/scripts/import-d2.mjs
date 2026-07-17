@@ -5,7 +5,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { distImport } from './_dist-import.mjs';
 
-const { importD2, serializeDiagramYaml } = await distImport('index.js');
+const { compileDiagramYaml, importD2, serializeDiagramYaml } = await distImport('index.js');
 
 function formatDiagnostics(diagnostics, sourcePath) {
   const prefix = sourcePath ? `${sourcePath}: ` : '';
@@ -35,7 +35,18 @@ if (result.warnings.length > 0) {
   console.error(formatDiagnostics(result.warnings, inputPath));
 }
 
+if (!result.ast.root || result.ast.root.children.length === 0) {
+  console.error(`${inputPath}: No diagram nodes could be imported.`);
+  process.exit(1);
+}
+
 const yaml = serializeDiagramYaml(result.ast);
+const compiled = compileDiagramYaml(yaml, { sourcePath: outputPath ?? inputPath });
+if (compiled.errors.length > 0) {
+  console.error(formatDiagnostics(compiled.errors, outputPath ?? inputPath));
+  process.exit(1);
+}
+
 if (outputPath) {
   writeFileSync(outputPath, yaml, 'utf8');
   console.error(`Wrote ${outputPath}`);

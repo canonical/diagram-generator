@@ -1,6 +1,7 @@
+import { parse as parseYaml } from 'yaml';
+
 import { diagnostic, finishImport, lineSpecs, makeImportedDocument, type DiagramImportResult } from './import-result.js';
 import type { AuthorArrow, AuthorFrameNode, Diagnostic } from './types.js';
-import { parse as parseYaml } from 'yaml';
 
 export interface MermaidImportOptions {
   strict?: boolean;
@@ -19,6 +20,19 @@ interface ParseState {
   rawArrows: RawArrow[];
   stack: AuthorFrameNode[];
 }
+
+interface ParsedNodeDeclaration {
+  id: string;
+  label: string;
+  shape?: string;
+}
+
+const STRICT_ACCEPTED_WARNING_CODES = new Set([
+  'IMPORT_MERMAID_UNSUPPORTED_EDGE_DIRECTION',
+  'IMPORT_MERMAID_UNSUPPORTED_EDGE_STYLE',
+  'IMPORT_MERMAID_UNSUPPORTED_SHAPE',
+  'IMPORT_MERMAID_UNSUPPORTED_STYLE',
+]);
 
 function decodeMermaidLabel(value: string): string {
   const trimmed = value.trim();
@@ -85,10 +99,43 @@ function currentChildren(state: ParseState): AuthorFrameNode[] {
     : state.nodes;
 }
 
+function parseNodeDeclaration(raw: string): ParsedNodeDeclaration | undefined {
+  const bare = raw.match(/^([A-Za-z_][\w-]*)$/);
+  if (bare) return { id: bare[1]!, label: bare[1]! };
+
+  const declaration = raw.match(/^([A-Za-z_][\w-]*)\s*(.+)$/);
+  if (!declaration) return undefined;
+  const id = declaration[1]!;
+  const body = declaration[2]!.trim();
+  const patterns: { shape?: string; pattern: RegExp }[] = [
+    { shape: 'circle', pattern: /^\(\(\s*(.*?)\s*\)\)$/ },
+    { shape: 'stadium', pattern: /^\(\[\s*(.*?)\s*\]\)$/ },
+    { shape: 'subroutine', pattern: /^\[\[\s*(.*?)\s*\]\]$/ },
+    { shape: 'cylinder', pattern: /^\[\(\s*(.*?)\s*\)\]$/ },
+    { shape: 'hexagon', pattern: /^\{\{\s*(.*?)\s*\}\}$/ },
+    { shape: 'diamond', pattern: /^\{\s*(.*?)\s*\}$/ },
+    { shape: 'flag', pattern: /^>\s*(.*?)\s*\]$/ },
+    { shape: 'round', pattern: /^\(\s*(.*?)\s*\)$/ },
+    { pattern: /^\[\s*(.*?)\s*\]$/ },
+  ];
+
+  for (const candidate of patterns) {
+    const match = body.match(candidate.pattern);
+    if (match) {
+      return {
+        id,
+        label: decodeMermaidLabel(match[1] ?? ''),
+        ...(candidate.shape ? { shape: candidate.shape } : {}),
+      };
+    }
+  }
+  return undefined;
+}
+
 function parseNode(raw: string, line: number, state: ParseState): void {
   const normalized = stripMermaidClassSuffix(raw, line, state);
-  const match = normalized.match(/^([A-Za-z_][\w-]*)\s*\[\s*(["']?)(.*?)\2\s*\]$/);
-  if (!match) {
+  const parsed = parseNodeDeclaration(normalized);
+  if (!parsed) {
     state.diagnostics.push(diagnostic(
       'IMPORT_MERMAID_UNSUPPORTED_SYNTAX',
       `Mermaid statement is outside the supported flowchart subset: ${raw}`,
@@ -97,14 +144,20 @@ function parseNode(raw: string, line: number, state: ParseState): void {
     ));
     return;
   }
-  const id = match[1]!;
-  const label = decodeMermaidLabel(match[3] ?? '');
-  const node: AuthorFrameNode = {
-    id,
+
+  if (parsed.shape) {
+    state.diagnostics.push(diagnostic(
+      'IMPORT_MERMAID_UNSUPPORTED_SHAPE',
+      `Mermaid ${parsed.shape} node '${parsed.id}' was imported as a rectangular frame.`,
+      `mermaid.line[${line}]`,
+      line,
+    ));
+  }
+  currentChildren(state).push({
+    id: parsed.id,
     children: [],
-    ...(label ? { label: lineSpecs(label) } : {}),
-  };
-  currentChildren(state).push(node);
+    ...(parsed.label ? { label: lineSpecs(parsed.label) } : {}),
+  });
 }
 
 function parseSubgraph(raw: string, line: number, state: ParseState): void {
@@ -129,11 +182,121 @@ function parseSubgraph(raw: string, line: number, state: ParseState): void {
   state.stack.push(node);
 }
 
+function parseEdgeChain(raw: string, line: number, state: ParseState): boolean {
+  const start = raw.match(/^([A-Za-z_][\w-]*)/);
+  if (!start) return false;
+
+  let source = start[1]!;
+  let remainder = raw.slice(start[0].length);
+  const segments: { connector: string; source: string; target: string; label?: string }[] = [];
+
+  while (remainder.trim().length > 0) {
+    const labelled = remainder.match(/^\s*--\s*(?:"([^"]*)"|'([^']*)')\s*-->\s*([A-Za-z_][\w-]*)/);
+    if (labelled) {
+      const target = labelled[3]!;
+      segments.push({
+        connector: '-->',
+        source,
+        target,
+        label: decodeMermaidLabel(labelled[1] ?? labelled[2] ?? ''),
+      });
+      source = target;
+      remainder = remainder.slice(labelled[0].length);
+      continue;
+    }
+
+    const standard = remainder.match(/^\s*(<-->|-->|==>|-\.->|---)\s*(?:\|([^|]*)\|\s*)?([A-Za-z_][\w-]*)/);
+    if (!standard) return false;
+    const target = standard[3]!;
+    segments.push({
+      connector: standard[1]!,
+      source,
+      target,
+      ...(standard[2] ? { label: decodeMermaidLabel(standard[2]) } : {}),
+    });
+    source = target;
+    remainder = remainder.slice(standard[0].length);
+  }
+
+  if (segments.length === 0) return false;
+  segments.forEach(segment => {
+    state.rawArrows.push({
+      source: segment.source,
+      target: segment.target,
+      ...(segment.label ? { label: segment.label } : {}),
+      line,
+    });
+    if (segment.connector === '<-->') {
+      state.diagnostics.push(diagnostic(
+        'IMPORT_MERMAID_UNSUPPORTED_EDGE_DIRECTION',
+        `Mermaid bidirectional edge ${segment.source} <--> ${segment.target} was imported as ${segment.source} -> ${segment.target}.`,
+        `mermaid.line[${line}]`,
+        line,
+      ));
+    } else if (segment.connector !== '-->') {
+      state.diagnostics.push(diagnostic(
+        'IMPORT_MERMAID_UNSUPPORTED_EDGE_STYLE',
+        `Mermaid '${segment.connector}' edge ${segment.source} -> ${segment.target} was imported as a standard directed arrow.`,
+        `mermaid.line[${line}]`,
+        line,
+      ));
+    }
+  });
+  return true;
+}
+
+function collectNodeIds(nodes: AuthorFrameNode[]): Set<string> {
+  const ids = new Set<string>();
+  const visit = (node: AuthorFrameNode): void => {
+    ids.add(node.id);
+    node.children.forEach(visit);
+  };
+  nodes.forEach(visit);
+  return ids;
+}
+
+function unsupportedDiagramTypeResult(
+  state: ParseState,
+  metadata: Record<string, unknown>,
+  token: string,
+  line: number,
+  strict: boolean,
+): DiagramImportResult {
+  state.diagnostics.push(diagnostic(
+    'IMPORT_MERMAID_UNSUPPORTED_DIAGRAM_TYPE',
+    `Mermaid '${token}' is not supported. The diagram generator can only import Mermaid flowcharts (flowchart/graph). Detected diagram type: ${token}.`,
+    `mermaid.line[${line}]`,
+    line,
+    'error',
+  ));
+  const imported = makeImportedDocument([], [], metadata);
+  state.diagnostics.push(...imported.diagnostics);
+  return finishImport(imported.ast, state.diagnostics, strict, STRICT_ACCEPTED_WARNING_CODES);
+}
+
 export function importMermaid(source: string, options: MermaidImportOptions = {}): DiagramImportResult {
   const state: ParseState = { diagnostics: [], nodes: [], rawArrows: [], stack: [] };
   let direction: 'vertical' | 'horizontal' | undefined;
   const lines = source.split(/\r?\n/);
   const frontmatter = parseFrontmatter(lines, state);
+  const firstStatementIndex = lines.findIndex((value, index) =>
+    index >= frontmatter.next &&
+    value.trim().length > 0 &&
+    !value.trim().startsWith('%%'));
+
+  if (firstStatementIndex >= 0) {
+    const firstStatement = lines[firstStatementIndex]!.trim();
+    const typeToken = firstStatement.match(/^(\S+)/)?.[1] ?? firstStatement;
+    if (!/^(flowchart|graph)\b/i.test(firstStatement)) {
+      return unsupportedDiagramTypeResult(
+        state,
+        frontmatter.metadata,
+        typeToken,
+        firstStatementIndex + 1,
+        options.strict === true,
+      );
+    }
+  }
 
   for (let index = frontmatter.next; index < lines.length; index += 1) {
     const lineValue = lines[index] ?? '';
@@ -181,31 +344,11 @@ export function importMermaid(source: string, options: MermaidImportOptions = {}
       parseSubgraph(raw, line, state);
       continue;
     }
-
-    const edge = raw.match(/^([A-Za-z_][\w-]*)\s+-->\s*(?:\|([^|]*)\|\s*)?([A-Za-z_][\w-]*)$/);
-    const alternateEdge = raw.match(/^([A-Za-z_][\w-]*)\s+--\s*(?:"([^"]*)"|'([^']*)')\s*-->\s*([A-Za-z_][\w-]*)$/);
-    if (edge) {
-      state.rawArrows.push({
-        source: edge[1]!,
-        target: edge[3]!,
-        label: edge[2] ? decodeMermaidLabel(edge[2]) : undefined,
-        line,
-      });
-      continue;
-    }
-    if (alternateEdge) {
-      state.rawArrows.push({
-        source: alternateEdge[1]!,
-        target: alternateEdge[4]!,
-        label: decodeMermaidLabel(alternateEdge[2] ?? alternateEdge[3] ?? ''),
-        line,
-      });
-      continue;
-    }
-    if (raw.includes('-->')) {
+    if (parseEdgeChain(raw, line, state)) continue;
+    if (/(?:<-->|-->|==>|-\.->|---)/.test(raw)) {
       state.diagnostics.push(diagnostic(
         'IMPORT_MERMAID_UNSUPPORTED_EDGE',
-        `Mermaid edge is outside the supported flowchart subset: ${raw}`,
+        `Mermaid edge could not be imported: ${raw}`,
         `mermaid.line[${line}]`,
         line,
       ));
@@ -222,18 +365,29 @@ export function importMermaid(source: string, options: MermaidImportOptions = {}
     ));
   }
 
+  const declaredIds = collectNodeIds(state.nodes);
+  state.rawArrows.forEach(raw => {
+    for (const id of [raw.source, raw.target]) {
+      if (declaredIds.has(id)) continue;
+      state.nodes.push({ id, label: lineSpecs(id), children: [] });
+      declaredIds.add(id);
+    }
+  });
+
   const metadata = {
     ...frontmatter.metadata,
     ...(direction ? { direction } : {}),
   };
-  const ast = makeImportedDocument(state.nodes, [], metadata);
+  const imported = makeImportedDocument(state.nodes, [], metadata);
+  const ast = imported.ast;
+  state.diagnostics.push(...imported.diagnostics);
   const knownIds = new Set(Object.keys(ast.frameIndex));
   const arrows: AuthorArrow[] = [];
   state.rawArrows.forEach((raw, index) => {
     if (!knownIds.has(raw.source) || !knownIds.has(raw.target)) {
       state.diagnostics.push(diagnostic(
         'IMPORT_MERMAID_MISSING_FRAME_REF',
-        `Mermaid edge references a node that was not imported: ${raw.source} -> ${raw.target}`,
+        `Mermaid edge endpoint could not be created: ${raw.source} -> ${raw.target}`,
         `arrows[${index}]`,
         raw.line,
       ));
@@ -247,5 +401,10 @@ export function importMermaid(source: string, options: MermaidImportOptions = {}
     });
   });
   ast.arrows = arrows;
-  return finishImport(ast, state.diagnostics, options.strict === true);
+  return finishImport(
+    ast,
+    state.diagnostics,
+    options.strict === true,
+    STRICT_ACCEPTED_WARNING_CODES,
+  );
 }

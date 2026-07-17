@@ -1,0 +1,89 @@
+engine: v3
+title: MongoDB HA behind Octavia load balancers
+root:
+  id: page
+  direction: vertical
+  children:
+    - id: clients
+      level: 2
+      label:
+        - Mongo
+        - clients
+      children: []
+    - id: lb1
+      level: 2
+      label:
+        - Octavia LB
+      children: []
+    - id: lb2
+      level: 2
+      label:
+        - Octavia LB
+      children: []
+    - id: hub
+      level: 2
+      label:
+        - 3x IPs
+      children: []
+    - id: vm1
+      level: 2
+      heading: VM
+      children:
+        - id: az1
+          level: 1
+          label:
+            - AZ 1
+          children: []
+        - id: mongo_write
+          level: 1
+          label:
+            - Mongo
+            - write
+          children: []
+    - id: vm2
+      level: 2
+      heading: VM
+      children:
+        - id: az2
+          level: 1
+          label:
+            - AZ 2
+          children: []
+        - id: mongo_ro2
+          level: 1
+          label:
+            - Mongo
+            - read-only
+          children: []
+    - id: vm3
+      level: 2
+      heading: VM
+      children:
+        - id: az3
+          level: 1
+          label:
+            - AZ 3
+          children: []
+        - id: mongo_ro3
+          level: 1
+          label:
+            - Mongo
+            - read-only
+          children: []
+arrows:
+  - source: clients
+    target: lb1
+    label:
+      - 1 IP / 3 ports
+  - source: clients
+    target: lb2
+  - source: lb1
+    target: hub
+  - source: lb2
+    target: hub
+  - source: hub
+    target: mongo_write
+  - source: hub
+    target: mongo_ro2
+  - source: hub
+    target: mongo_ro3

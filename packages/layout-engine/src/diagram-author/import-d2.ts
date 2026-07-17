@@ -194,7 +194,9 @@ function pathMap(root: AuthorFrameNode): Map<string, string> {
 export function importD2(source: string, options: D2ImportOptions = {}): DiagramImportResult {
   const state: ParseState = { diagnostics: [], rawArrows: [], line: 0 };
   const parsed = parseBlock(source.split(/\r?\n/), 0, state);
-  const ast = makeImportedDocument(parsed.nodes, [], {});
+  const imported = makeImportedDocument(parsed.nodes, [], {});
+  const ast = imported.ast;
+  state.diagnostics.push(...imported.diagnostics);
   const paths = pathMap(ast.root!);
   const arrows: AuthorArrow[] = [];
 

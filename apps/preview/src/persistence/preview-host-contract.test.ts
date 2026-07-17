@@ -741,6 +741,9 @@ test("static viewer chrome exposes stable right-aside panel groups", () => {
     /id="document-actions-section" data-dg-panel-group="document" data-dg-panel-id="document-actions"/,
   );
   assert.match(template, /<h2 class="dg-section-heading bf-h5">Document<\/h2>/);
+  assert.match(template, /id="btn-export"[^>]*>Copy overrides<\/button>/);
+  assert.doesNotMatch(template, /id="btn-save-svg"/);
+  assert.doesNotMatch(template, /id="btn-save-drawio"/);
   assert.doesNotMatch(template, /<h2 class="dg-section-heading bf-h5">Overrides<\/h2>/);
   assert.match(
     template,

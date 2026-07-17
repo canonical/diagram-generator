@@ -93,8 +93,6 @@ export interface PreviewSaveClientRuntime {
   syncDirtyFromSerialized: (serializedState: string) => void;
   getLastSavedState: () => string | null;
   syncSaveButton: (errorCount?: number | null) => void;
-  syncSaveSvgButton: () => void;
-  syncSaveDrawioButton: () => void;
   saveOverrides: () => Promise<void>;
   saveCurrentSvg: () => void;
   saveCurrentDrawio: () => Promise<void>;
@@ -254,30 +252,6 @@ export function createPreviewSaveClientRuntime(
     }
   }
 
-  function syncSaveSvgButton(): void {
-    const saveSvgButton = options.document.getElementById('btn-save-svg');
-    if (!saveSvgButton) {
-      return;
-    }
-    const svg = options.document.querySelector('#stage svg');
-    saveSvgButton.disabled = resolvePreviewSaveSvgButtonState({
-      hasRenderedSvg: Boolean(svg),
-      exporting: svgExporting,
-    }).disabled;
-  }
-
-  function syncSaveDrawioButton(): void {
-    const saveDrawioButton = options.document.getElementById('btn-save-drawio');
-    if (!saveDrawioButton) {
-      return;
-    }
-    const svg = options.document.querySelector('#stage svg');
-    saveDrawioButton.disabled = resolvePreviewSaveSvgButtonState({
-      hasRenderedSvg: Boolean(svg),
-      exporting: drawioExporting,
-    }).disabled;
-  }
-
   function setDirty(nextDirty: boolean): void {
     dirty = Boolean(nextDirty);
     syncSaveButton();
@@ -289,8 +263,6 @@ export function createPreviewSaveClientRuntime(
   function markSaved(serializedState: string | null): void {
     lastSavedState = serializedState;
     setDirty(false);
-    syncSaveSvgButton();
-    syncSaveDrawioButton();
     syncExportButton();
   }
 
@@ -340,7 +312,6 @@ export function createPreviewSaveClientRuntime(
       return;
     }
     svgExporting = true;
-    syncSaveSvgButton();
     syncExportButton();
     try {
       const svg = options.document.querySelector('#stage svg');
@@ -373,7 +344,6 @@ export function createPreviewSaveClientRuntime(
       );
     } finally {
       svgExporting = false;
-      syncSaveSvgButton();
       syncExportButton();
     }
   }
@@ -384,7 +354,6 @@ export function createPreviewSaveClientRuntime(
       return;
     }
     drawioExporting = true;
-    syncSaveDrawioButton();
     syncExportButton();
     try {
       const svg = options.document.querySelector('#stage svg');
@@ -401,7 +370,6 @@ export function createPreviewSaveClientRuntime(
       alertFn(`Drawio export failed: ${String(error)}`);
     } finally {
       drawioExporting = false;
-      syncSaveDrawioButton();
       syncExportButton();
     }
   }
@@ -653,12 +621,6 @@ export function createPreviewSaveClientRuntime(
         void saveOverrides();
       }
     });
-    options.document.getElementById('btn-save-svg')?.addEventListener?.('click', () => {
-      saveCurrentSvg();
-    });
-    options.document.getElementById('btn-save-drawio')?.addEventListener?.('click', () => {
-      void saveCurrentDrawio();
-    });
     options.document.getElementById('export-format')?.addEventListener?.('change', () => {
       syncExportButton();
     });
@@ -680,8 +642,6 @@ export function createPreviewSaveClientRuntime(
       void importCurrentFile();
     });
     syncSaveButton();
-    syncSaveSvgButton();
-    syncSaveDrawioButton();
     syncExportButton();
     syncImportFileAccept();
     if (typeof runtimeDeps.onBeforeUnload === 'function') {
@@ -697,8 +657,6 @@ export function createPreviewSaveClientRuntime(
     syncDirtyFromSerialized,
     getLastSavedState: () => lastSavedState,
     syncSaveButton,
-    syncSaveSvgButton,
-    syncSaveDrawioButton,
     saveOverrides,
     saveCurrentSvg,
     saveCurrentDrawio,

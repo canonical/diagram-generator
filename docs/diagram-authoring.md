@@ -135,8 +135,18 @@ node packages/layout-engine/scripts/migrate-diagram-yaml.mjs \
 - Lossy: padding, sizing, alignment, icons, anchor-qualified arrow refs, waypoints, arrow labels
 - Invalid edges are skipped defensively when refs are missing or point at the root canvas
 - Emits `MERMAID_UNSUPPORTED_*`, `MERMAID_MISSING_FRAME_REF`, and `MERMAID_ROOT_ENDPOINT_UNSUPPORTED` warnings
-- Import supports `flowchart TB|LR`, labeled nodes, subgraphs, and `-->` edges; unsupported styles/classes are diagnosed
-- Import also accepts Mermaid YAML frontmatter (preserving `title`), `graph`/`TD`/`RL`/`BT` direction aliases, `:::class` suffixes, and `-- "label" -->` edges; dropped class styling is diagnosed without dropping the node
+- Import accepts the hand-authored flowchart subset used by the Mermaid corpus:
+  implicit edge endpoints, chained and labelled edges, bidirectional/open/thick/
+  dotted edge downgrades, standard node-shape declarations, nested labelled
+  subgraphs, comments, and large YAML frontmatter (preserving `title`)
+- Non-rectangular nodes retain their id and label as rectangular frames; class,
+  style, link-style, and click directives are diagnosed and dropped without
+  dropping supported neighbours
+- Non-flowchart Mermaid types fail once with
+  `IMPORT_MERMAID_UNSUPPORTED_DIAGRAM_TYPE`; Sankey, pie, sequence, and the other
+  Mermaid grammars are not converted to phantom frame diagrams
+- Import CLIs refuse empty or structurally invalid output and recompile the
+  serialized YAML before writing it
 
 ### D2 (`exportD2`)
 
@@ -155,9 +165,18 @@ node packages/layout-engine/scripts/export-d2.mjs --slug juju-bootstrap-machines
 - Emits `D2_UNSUPPORTED_*`, `D2_MISSING_FRAME_REF`, and `D2_ROOT_ENDPOINT_UNSUPPORTED` warnings
 - Import supports nested shape blocks, quoted/multiline labels, and dot-path connections; styles/classes/vars are diagnosed and skipped
 - D2 edge attribute blocks are skipped after recovering the connection and label; singular `class:` assignments never become frame nodes
+- Broader hand-authored D2 grammar support is deferred; the existing
+  exporter-round-trip subset remains available and shares the empty/invalid YAML
+  write guard
+- The real D2 compiler golden is opt-in: a normal green suite does not prove D2
+  syntax unless `D2_BIN` points to a D2 executable (for example,
+  `D2_BIN="C:\Program Files\D2\d2.exe"`)
 
 See [`specs/028-diagram-interchange-mermaid-d2/`](../specs/028-diagram-interchange-mermaid-d2/spec.md) for import parsers and round-trip fidelity matrix.
-Use `--strict` on export/import CLIs to make interchange warnings fail the process.
+Use `--strict` on export/import CLIs to make unsupported syntax and structural
+diagnostics fail the process. Mermaid's documented lossy downgrades (shapes,
+styles, and edge direction/style) remain visible warnings because those
+constructs are accepted by the import contract.
 
 ## Reference material
 

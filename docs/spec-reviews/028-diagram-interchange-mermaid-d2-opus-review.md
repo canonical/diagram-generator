@@ -1,5 +1,10 @@
 # Spec 028 review — diagram interchange (Mermaid & D2 import/export)
 
+> **Historical review — superseded.** These findings describe an earlier branch
+> state and their remediation. The current adversarial review is
+> `opus-adversarial-review-findings-2026-07-17-spec-028.md`; do not treat the
+> findings below as open.
+
 **Reviewer:** Opus
 **Scope:** Review only; no files modified by the reviewer.
 
@@ -115,5 +120,6 @@ All findings B1, B2, H1, H2, M1, M2, M3, L1, and L2 were addressed on
 - Real-corpus validation produced zero YAML compile errors for the five
   selected Mermaid files and both D2 files listed in the review.
 
-The optional P3 preview HTTP routes and optional `D2_BIN` gate remain open as
-specified.
+The P3 preview HTTP routes and optional `D2_BIN` gate were subsequently
+implemented. The gate remains opt-in and is skipped unless `D2_BIN` is
+configured.

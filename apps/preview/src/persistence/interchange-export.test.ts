@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
@@ -124,6 +124,28 @@ test("preview import writes a new canonical YAML diagram and refuses overwrite",
     assert.throws(
       () => importInterchangeForSlug("imported-sample", "d2", "source: Source", deps),
       /already exists/,
+    );
+  } finally {
+    rmSync(framesDir, { recursive: true, force: true });
+  }
+});
+
+test("preview import rejects unsupported Mermaid types without writing a phantom diagram", () => {
+  const framesDir = makeTempFramesDir();
+  try {
+    const deps: FramePreviewDocumentDeps = { framesDir };
+    assert.throws(
+      () => importInterchangeForSlug(
+        "unsupported-sankey",
+        "mermaid",
+        "sankey-beta\nA,B,1\n",
+        deps,
+      ),
+      /Mermaid 'sankey-beta'.*Detected diagram type: sankey-beta/,
+    );
+    assert.equal(
+      existsSync(path.join(framesDir, "unsupported-sankey.yaml")),
+      false,
     );
   } finally {
     rmSync(framesDir, { recursive: true, force: true });

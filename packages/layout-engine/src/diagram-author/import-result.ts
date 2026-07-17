@@ -1,5 +1,9 @@
 import { buildFrameIndex } from './build-ast.js';
 import type { AuthorArrow, AuthorFrameNode, DiagramDocument, Diagnostic } from './types.js';
+import {
+  maxStructuralChildNestingDepth,
+  structuralLevelForMaxChildNestingDepth,
+} from '../level-promotion.js';
 
 export interface DiagramImportResult {
   ast: DiagramDocument;
@@ -8,13 +12,45 @@ export interface DiagramImportResult {
   warnings: Diagnostic[];
 }
 
+export interface ImportedDocumentBuild {
+  ast: DiagramDocument;
+  diagnostics: Diagnostic[];
+}
+
+function assignImportedSiblingLevels(siblings: AuthorFrameNode[]): void {
+  if (siblings.length === 0) return;
+  const maxChildNestingDepth = Math.max(
+    ...siblings.map(node => maxStructuralChildNestingDepth(node)),
+  );
+  const level = structuralLevelForMaxChildNestingDepth(maxChildNestingDepth);
+  siblings.forEach(node => {
+    node.level = level;
+    assignImportedSiblingLevels(node.children);
+  });
+}
+
 export function makeImportedDocument(
   children: AuthorFrameNode[],
   arrows: AuthorArrow[],
   metadata: Record<string, unknown> = {},
-): DiagramDocument {
+): ImportedDocumentBuild {
+  assignImportedSiblingLevels(children);
+  const importedIds = new Set<string>();
+  const visit = (node: AuthorFrameNode): void => {
+    importedIds.add(node.id);
+    node.children.forEach(visit);
+  };
+  children.forEach(visit);
+
+  let rootId = 'page';
+  let suffix = 1;
+  while (importedIds.has(rootId)) {
+    rootId = suffix === 1 ? 'page_root' : `page_root_${suffix}`;
+    suffix += 1;
+  }
+
   const root: AuthorFrameNode = {
-    id: 'page',
+    id: rootId,
     children,
     ...(metadata.direction === 'horizontal' || metadata.direction === 'vertical'
       ? { direction: metadata.direction }
@@ -22,15 +58,18 @@ export function makeImportedDocument(
   };
   const indexed = buildFrameIndex(root);
   return {
-    metadata,
-    defaults: {},
-    root,
-    arrows,
-    frameIndex: indexed.frameIndex,
-    source: {
-      engine: 'v3',
-      title: metadata.title,
+    ast: {
+      metadata,
+      defaults: {},
+      root,
+      arrows,
+      frameIndex: indexed.frameIndex,
+      source: {
+        engine: 'v3',
+        title: metadata.title,
+      },
     },
+    diagnostics: indexed.diagnostics,
   };
 }
 
@@ -38,9 +77,12 @@ export function finishImport(
   ast: DiagramDocument,
   diagnostics: Diagnostic[],
   strict: boolean,
+  strictAcceptedWarnings: ReadonlySet<string> = new Set(),
 ): DiagramImportResult {
   const normalized = diagnostics.map(diagnostic =>
-    strict && diagnostic.level === 'warning'
+    strict &&
+    diagnostic.level === 'warning' &&
+    !strictAcceptedWarnings.has(diagnostic.code)
       ? { ...diagnostic, level: 'error' as const }
       : diagnostic,
   );
@@ -61,11 +103,12 @@ export function diagnostic(
   message: string,
   path: string,
   line?: number,
+  level: Diagnostic['level'] = 'warning',
 ): Diagnostic {
   return {
     code,
     message,
-    level: 'warning',
+    level,
     path,
     ...(line === undefined ? {} : { line }),
   };

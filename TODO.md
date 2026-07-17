@@ -16,8 +16,10 @@ archived** (see `docs/specs.md`) — do **not** start 073/074; they are done. Th
 merged-spec bookkeeping is also done: 048, 051, 052, 054–060, 062, 063, 071, 073,
 074 are archived under `docs/spec-archive/`.
 
-Docs-only spec packages 028 and 075 are merged to `main`; their feature
-branches are deleted. Implementation starts on fresh `feat/<id>-<slug>` branches.
+The docs-only package for 075 is merged to `main`; implementation starts on a
+fresh `feat/075-preview-folder-workspaces` branch. Spec 028 implementation is
+**Closeout Ready** on its matching feature branch and should be reviewed, merged,
+and archived before any follow-up syntax expansion.
 
 **076 is RETIRED (2026-07-08) — superseded by 077.** The post-mortem proved 076
 never used Mermaid's algorithm: it lowered cross-cluster edges flat, owned geometry
@@ -49,9 +51,10 @@ gated stages**. Do them in this order; do not skip the gate.
    `diagram-generator-planning` repo owns a new audit
    (`specs/004-mermaid-composite-lowering-audit/`, requested in that repo's
    `AGENT-INBOX.md`) of every Mermaid ELK lowering trick. Not this repo's code.
-2. **Spec 028 — Mermaid import** (`specs/028-diagram-interchange-mermaid-d2/`),
-   reusing the archived 077 cluster->ELK lowering
-   (`docs/spec-archive/077-mermaid-elk-cluster-lowering-port/`). No Dagre.
+2. **Spec 028 — Mermaid import: Closeout Ready**
+   (`specs/028-diagram-interchange-mermaid-d2/`). Review/merge/archive the
+   completed Mermaid-first interchange branch. Any broader Mermaid grammar work
+   is a follow-up; no Dagre.
 
 ### Lane B — standing user-facing regressions (parallel, independent of Epic A)
 

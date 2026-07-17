@@ -17,10 +17,14 @@ cleanly into the primary `main` worktree at `7317feb`; the feature worktree is
 clean and ready for deletion. The complete evidence and review record live in
 `docs/spec-reviews/` and `specs/061-preview-grid-regression/`.
 
-**Opus review request (028).** Use
-[`opus-adversarial-review-request-2026-07-17-spec-028.md`](docs/spec-reviews/opus-adversarial-review-request-2026-07-17-spec-028.md).
-Write findings only to
-`docs/spec-reviews/opus-adversarial-review-findings-2026-07-17-spec-028.md`.
+**Spec 028 closeout (2026-07-17).** The Mermaid-first scope revision and current
+adversarial-review remediation are implemented on
+`feat/028-diagram-interchange-mermaid-d2`. The three requested Mermaid corpus
+conversions are committed inputs, non-flowchart guard smoke tests pass, Copy
+overrides is restored, the real D2 compiler gate passes, and the full
+layout-engine (1,050) + preview (173) suites are green. See
+[`validation.md`](specs/028-diagram-interchange-mermaid-d2/validation.md).
+Review, merge, then archive the spec package; do not start duplicate work.
 
 **Preview canvas resize (2026-07-16).** Fixed the local v3 relayout order:
 after arrows are rerouted, the stage is fitted again to the new root dimensions.

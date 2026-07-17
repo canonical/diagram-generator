@@ -146,6 +146,207 @@ describe('diagram interchange imports', () => {
     expect(compiled.errors).toEqual([]);
   });
 
+  it('creates implicit Mermaid nodes and expands labelled edge chains', () => {
+    const result = importMermaid([
+      'graph TD',
+      '  A --> B -->|checks| C --> D',
+      '',
+    ].join('\n'));
+
+    expect(result.errors).toEqual([]);
+    expect(result.warnings).toEqual([]);
+    expect(result.ast.root?.children.map(node => [node.id, node.label?.[0]?.text])).toEqual([
+      ['A', 'A'],
+      ['B', 'B'],
+      ['C', 'C'],
+      ['D', 'D'],
+    ]);
+    expect(result.ast.arrows).toEqual([
+      { source: 'A', target: 'B', kind: 'directed' },
+      { source: 'B', target: 'C', kind: 'directed', label: [{ text: 'checks' }] },
+      { source: 'C', target: 'D', kind: 'directed' },
+    ]);
+    expect(compileDiagramYaml(serializeDiagramYaml(result.ast)).errors).toEqual([]);
+  });
+
+  it('keeps explicit subgraph placement when an edge references a node before its declaration', () => {
+    const result = importMermaid([
+      'flowchart TB',
+      '  api --> worker',
+      '  subgraph core["Core"]',
+      '    api["API"]',
+      '    worker["Worker"]',
+      '  end',
+    ].join('\n'));
+
+    expect(result.errors).toEqual([]);
+    expect(result.ast.root?.children).toMatchObject([{
+      id: 'core',
+      children: [{ id: 'api' }, { id: 'worker' }],
+    }]);
+    expect(result.ast.arrows).toMatchObject([{ source: 'api', target: 'worker' }]);
+  });
+
+  it('serializes imported sibling-promotion levels for corpus-valid frame YAML', () => {
+    const result = importMermaid([
+      'flowchart TB',
+      '  subgraph deep["Deep"]',
+      '    subgraph inner["Inner"]',
+      '      leaf["Leaf"]',
+      '    end',
+      '  end',
+      '  peer["Peer"]',
+    ].join('\n'));
+
+    expect(result.ast.root?.children).toMatchObject([
+      {
+        id: 'deep',
+        level: 3,
+        children: [{
+          id: 'inner',
+          level: 2,
+          children: [{ id: 'leaf', level: 1 }],
+        }],
+      },
+      { id: 'peer', level: 3 },
+    ]);
+    const yaml = serializeDiagramYaml(result.ast);
+    expect(yaml).toMatch(/id: deep\s+level: 3/);
+    expect(yaml).toMatch(/id: inner\s+level: 2/);
+    expect(yaml).toMatch(/id: leaf\s+level: 1/);
+  });
+
+  it('downgrades bidirectional and alternate Mermaid edges without dropping connectivity', () => {
+    const result = importMermaid([
+      'flowchart LR',
+      '  a <--> b',
+      '  b <-->|returns| c',
+      '  c --- d',
+      '  d ==> e',
+      '  e -.-> f',
+    ].join('\n'), { strict: true });
+
+    expect(result.errors).toEqual([]);
+    expect(result.ast.arrows.map(arrow => [arrow.source, arrow.target, arrow.label?.[0]?.text])).toEqual([
+      ['a', 'b', undefined],
+      ['b', 'c', 'returns'],
+      ['c', 'd', undefined],
+      ['d', 'e', undefined],
+      ['e', 'f', undefined],
+    ]);
+    expect(result.warnings.filter(entry =>
+      entry.code === 'IMPORT_MERMAID_UNSUPPORTED_EDGE_DIRECTION')).toHaveLength(2);
+    expect(result.warnings.filter(entry =>
+      entry.code === 'IMPORT_MERMAID_UNSUPPORTED_EDGE_STYLE')).toHaveLength(3);
+    expect(compileDiagramYaml(serializeDiagramYaml(result.ast)).errors).toEqual([]);
+  });
+
+  it('imports standard non-rectangular Mermaid node shapes as labelled frames', () => {
+    const result = importMermaid([
+      'flowchart TB',
+      '  a(round)',
+      '  b{diamond}',
+      '  c((circle))',
+      '  d([stadium])',
+      '  e[[subroutine]]',
+      '  f[(cylinder)]',
+      '  g{{hexagon}}',
+      '  h>flag]',
+    ].join('\n'), { strict: true });
+
+    expect(result.errors).toEqual([]);
+    expect(result.ast.root?.children.map(node => [node.id, node.label?.[0]?.text])).toEqual([
+      ['a', 'round'],
+      ['b', 'diamond'],
+      ['c', 'circle'],
+      ['d', 'stadium'],
+      ['e', 'subroutine'],
+      ['f', 'cylinder'],
+      ['g', 'hexagon'],
+      ['h', 'flag'],
+    ]);
+    expect(result.warnings.filter(entry =>
+      entry.code === 'IMPORT_MERMAID_UNSUPPORTED_SHAPE')).toHaveLength(8);
+    expect(compileDiagramYaml(serializeDiagramYaml(result.ast)).errors).toEqual([]);
+  });
+
+  it('rejects non-flowchart Mermaid types with one clear error and no phantom frames', () => {
+    for (const token of ['sequenceDiagram', 'pie', 'sankey-beta', 'futureDiagram']) {
+      const result = importMermaid(`${token}\n  ignored content\n`);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]).toMatchObject({
+        code: 'IMPORT_MERMAID_UNSUPPORTED_DIAGRAM_TYPE',
+        level: 'error',
+      });
+      expect(result.errors[0]?.message).toContain(token);
+      expect(result.diagnostics).toHaveLength(1);
+      expect(result.ast.root?.children).toEqual([]);
+    }
+  });
+
+  it('surfaces duplicate ids and avoids a synthetic root collision with a node named page', () => {
+    const duplicate = importMermaid([
+      'flowchart TB',
+      '  A["Start"]',
+      '  A["Restart"]',
+    ].join('\n'));
+    expect(duplicate.errors).toMatchObject([{
+      code: 'DUPLICATE_FRAME_ID',
+      level: 'error',
+    }]);
+
+    const page = importMermaid([
+      'flowchart TB',
+      '  page["Home"]',
+    ].join('\n'));
+    expect(page.errors).toEqual([]);
+    expect(page.ast.root?.id).toBe('page_root');
+    expect(page.ast.root?.children[0]?.id).toBe('page');
+    expect(compileDiagramYaml(serializeDiagramYaml(page.ast)).errors).toEqual([]);
+  });
+
+  it('keeps comments, large frontmatter, nested subgraphs, and styling diagnostics isolated', () => {
+    const result = importMermaid([
+      '---',
+      'title: Styled corpus',
+      'config:',
+      '  themeVariables:',
+      '    primaryColor: "#000"',
+      '    nested:',
+      '      one: true',
+      '  themeCSS: |',
+      '    .node { color: white; }',
+      '---',
+      '%% body comment',
+      'flowchart TB',
+      '  subgraph outer["Outer"]:::section',
+      '    subgraph inner["Inner"]',
+      '      api["API"]:::leaf',
+      '      worker["Worker"]',
+      '    end',
+      '  end',
+      '  api --> worker',
+      '  classDef leaf fill:#fff',
+      '  class api leaf',
+      '  style worker fill:#000',
+      '  linkStyle 0 stroke:#fff',
+    ].join('\n'), { strict: true });
+
+    expect(result.errors).toEqual([]);
+    expect(result.ast.metadata.title).toBe('Styled corpus');
+    expect(result.ast.root?.children).toMatchObject([{
+      id: 'outer',
+      children: [{
+        id: 'inner',
+        children: [{ id: 'api' }, { id: 'worker' }],
+      }],
+    }]);
+    expect(result.ast.arrows).toMatchObject([{ source: 'api', target: 'worker' }]);
+    expect(result.warnings.filter(entry =>
+      entry.code === 'IMPORT_MERMAID_UNSUPPORTED_STYLE')).toHaveLength(6);
+    expect(compileDiagramYaml(serializeDiagramYaml(result.ast)).errors).toEqual([]);
+  });
+
   it('diagnoses and skips D2 class assignments and edge attribute blocks', () => {
     const result = importD2([
       'engine: {',
@@ -175,7 +376,7 @@ describe('diagram interchange imports', () => {
     expect(compiled.errors).toEqual([]);
   });
 
-  it('round-trips Mermaid exporter structure and reports strict unsupported syntax', () => {
+  it('round-trips Mermaid exporter structure and preserves accepted style warnings under strict mode', () => {
     const yamlPath = join(repoRoot, 'diagrams', '1.input', 'tiered-network-architecture.yaml');
     const compiled = compileDiagramYaml(readFileSync(yamlPath, 'utf8'), { sourcePath: yamlPath });
     const exported = exportMermaid(compiled.ast);
@@ -189,6 +390,9 @@ describe('diagram interchange imports', () => {
 
     const strict = importMermaid('flowchart TB\nclassDef highlighted fill:#fff\na["A"]\n');
     expect(strict.warnings).toHaveLength(1);
-    expect(importMermaid('flowchart TB\nclassDef highlighted fill:#fff\na["A"]\n', { strict: true }).errors).toHaveLength(1);
+    const strictAccepted = importMermaid('flowchart TB\nclassDef highlighted fill:#fff\na["A"]\n', { strict: true });
+    expect(strictAccepted.errors).toEqual([]);
+    expect(strictAccepted.warnings).toHaveLength(1);
+    expect(importMermaid('flowchart TB\nthis is unsupported\n', { strict: true }).errors).toHaveLength(1);
   });
 });
