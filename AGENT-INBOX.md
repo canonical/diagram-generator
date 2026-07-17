@@ -17,31 +17,15 @@ cleanly into the primary `main` worktree at `7317feb`; the feature worktree is
 clean and ready for deletion. The complete evidence and review record live in
 `docs/spec-reviews/` and `specs/061-preview-grid-regression/`.
 
-**Spec 028 closeout (2026-07-17).** The Mermaid-first scope revision and current
-adversarial-review remediation are implemented on
-`feat/028-diagram-interchange-mermaid-d2`. The three requested Mermaid corpus
-conversions are committed inputs, non-flowchart guard smoke tests pass, Copy
-overrides is restored, the real D2 compiler gate passes, and the full
-layout-engine (1,050) + preview (173) suites are green. See
+**Spec 028 merge ready (2026-07-17).** The Mermaid-first implementation and
+review remediation are complete on `feat/028-diagram-interchange-mermaid-d2`.
+The full layout-engine (1,050) and preview (173) suites plus the real D2 compiler
+gate are green; see
 [`validation.md`](specs/028-diagram-interchange-mermaid-d2/validation.md).
-Review, merge, then archive the spec package; do not start duplicate work.
-
-**Preview canvas resize (2026-07-16).** Fixed the local v3 relayout order:
-after arrows are rerouted, the stage is fitted again to the new root dimensions.
-Previously, the initial fit included stale arrow paths, so a root direction
-round-trip could retain the old horizontal canvas extent. Targeted runtime tests
-and a live `vertical -> horizontal -> vertical` run now return the canvas to
-`1752x728`.
-
-**Opus adversarial review findings (2026-07-15).** Filed at
-[`opus-adversarial-review-findings-2026-07-15-v3-autolayout-ports-save.md`](docs/spec-reviews/opus-adversarial-review-findings-2026-07-15-v3-autolayout-ports-save.md).
-Source-level pass (live save/reload + resize not yet exercised, so not `No
-findings`). Highlights: F1 FILL/HUG parser defaults confirmed correct; F2 min/max
-relayout clear led to the inspector/YAML persist defect: a clear now carries an
-explicit null marker so an authored bound is deleted, while numeric `0` remains a
-real bound; F3 `createScene`
-alias is present in the TS browser entry, so the reload `TypeError` is most likely
-a stale `dist` IIFE — rebuild and retest; F4 confirm parallel arrows are a real
-port model, not an anonymous heuristic, before closeout; F5 add a containment
-regression. See the file for owners, reproductions, and dispositions.
-
+Opus independently re-reviewed remediation commit `228adde`; the **Merge ready**
+verdict is appended to
+[`opus-adversarial-review-findings-2026-07-17-spec-028.md`](docs/spec-reviews/opus-adversarial-review-findings-2026-07-17-spec-028.md)
+(the final section). One documented non-blocking limitation remains: inline
+node declarations on an edge require separate node declarations. After merge,
+leave this worktree in place but mark it ready for deletion pending user
+verification in the primary worktree.

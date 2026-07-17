@@ -333,3 +333,115 @@ feature branch, and do not conflate that artifact with these current findings.
 | F5 | Low | Document that D2 syntactic validity is unverified without `D2_BIN`. |
 | F6 | Info | Add implicit-node and duplicate-id regression tests. |
 | F7 | Info | Decide whether prior review docs belong on the feature branch. |
+
+---
+
+# Re-review of remediation — commit `228adde` (2026-07-17, later same day)
+
+**Scope of this pass:** independently verify commit
+`228adde feat(interchange): support hand-authored Mermaid flowcharts` against the
+2026-07-17 Mermaid-first spec revision (FR-004 rewrite, FR-008/009/010) and the
+findings above. I did not take the implementer's summary at face value — every
+claim below was reproduced from source, the CLI, or a test run. Scratch inputs
+were written to the OS temp directory only; no product files were changed by this
+re-review other than appending this section.
+
+## Verdict: **Merge ready** (one documented limitation noted as optional polish)
+
+The two findings that mattered — **F1** (real hand-authored Mermaid imported to
+empty diagrams) and **F2** (CLIs emitting invalid YAML with exit 0) — are
+genuinely fixed at the shared layer, verified end to end. The remediation is
+honest: `validation.md` and the fidelity matrix disclose exactly what is and is
+not supported, including the residual limitation I re-confirmed below.
+
+## What I verified (reproduced, not trusted)
+
+**F1 / FR-004 hand-authored coverage — fixed.** Ran the Mermaid CLI on
+hand-authored inputs the exporter never produces:
+
+- Implicit nodes: `graph TD\n A --> B\n B --> C` → three frames + two arrows,
+  exit 0 (previously empty + `MISSING_FRAME_REF`, exit 0).
+- Chained edges with labels: `a -->|x| b --> c -->|y| d` → four frames, three
+  arrows, labels on the right segments.
+- Bidirectional / alternate links: `<-->`, `---`, `==>`, `-.->` all import one
+  directed arrow each with `IMPORT_MERMAID_UNSUPPORTED_EDGE_DIRECTION` /
+  `_EDGE_STYLE` warnings — connectivity preserved, not dropped.
+- All standard node shapes (`(round)`, `{diamond}`, `((circle))`, `([stadium])`,
+  `[[subroutine]]`, `[(cylinder)]`, `{{hexagon}}`, `>flag]`) import as labelled
+  frames with one `IMPORT_MERMAID_UNSUPPORTED_SHAPE` each.
+- Large `config`/`themeVariables`/`themeCSS` frontmatter, `%%` comments, nested
+  labelled subgraphs, and `:::class` suffixes all handled (covered by the new
+  "keeps comments, large frontmatter, nested subgraphs…" test).
+
+**F2 / FR-009 no invalid or empty YAML — fixed.** `import-result.ts`
+`makeImportedDocument` now returns `buildFrameIndex` diagnostics (previously
+discarded); `finishImport` surfaces them. Reproduced:
+
+- Duplicate ids (`A["Start"]` / `A["Restart"]`) → `DUPLICATE_FRAME_ID` error,
+  CLI exit 1 (previously invalid YAML, exit 0).
+- The `page` wrapper collision is gone: the synthetic root renames to `page_root`
+  when an imported node is named `page`; output compiles with zero errors.
+- Empty import → `No diagram nodes could be imported.`, exit 1.
+- Both `import-mermaid.mjs` and `import-d2.mjs` re-compile the serialised YAML
+  and fail before writing — the same safety net the preview route already had.
+
+**F4 — fixed cleanly.** `#btn-export` ("Copy overrides") is restored in
+`viewer-unified.html`, and the previously-orphaned `syncSaveSvgButton` /
+`syncSaveDrawioButton` helpers, their calls, the `btn-save-svg` / `btn-save-drawio`
+listeners, and the interface members were all removed. Grepped the whole
+workspace: **no dangling references** to the removed methods.
+
+**FR-008 diagram-type guard — implemented.** Non-flowchart Mermaid is rejected
+before statement parsing with exactly one `IMPORT_MERMAID_UNSUPPORTED_DIAGRAM_TYPE`
+error naming the type. Reproduced against real corpus files: `sankey-beta`,
+`pie`, `sequenceDiagram`, plus an unknown token (`futureDiagram`) — each one
+error, zero phantom frames, exit 1.
+
+**FR-010 corpus examples — present and valid.** All three exist in
+`diagrams/1.input/` and compile with **0 errors** (independently recompiled):
+`mermaid-support-flowchart.yaml`, `mermaid-mongo-octavia-ha.yaml`,
+`mermaid-lifecycle-details.yaml`.
+
+**F6 tests — genuinely hand-authored.** The import suite grew 7 → 15 tests with
+assertions for implicit nodes, chained edges, bidirectional/alternate downgrades
+under `--strict`, eight node shapes, the type guard, duplicate ids, and the
+`page_root` collision — not exporter symmetry. My targeted runs:
+`diagram-author-import` (15), `diagram-author-import-cli` (4), `app-save-client`
+(14) → **33 passed**.
+
+**F7 — handled.** My original findings above are byte-for-byte intact (untampered);
+the earlier `028-...-opus-review.md` artifact carries a "superseded" banner.
+
+**Deliberate semantic change (acceptable).** Under `--strict`, accepted lossy
+constructs (`UNSUPPORTED_STYLE/SHAPE/EDGE_DIRECTION/EDGE_STYLE`) now stay warnings
+instead of failing, while genuine unsupported syntax still errors. This matches
+the FR-004 "diagnose + drop" contract and is covered by an updated test. Worth a
+line in release notes since it changes the old strict-on-`classDef` behaviour.
+
+## Residual limitation (documented; optional polish)
+
+- **Inline node declarations on an edge** — `A[Start] --> B[Done]` (label +
+  shape declared inline on the edge, no separate node line) is **not** parsed:
+  it emits `IMPORT_MERMAID_UNSUPPORTED_EDGE` and, if it is the only content,
+  fails the whole import ("No diagram nodes could be imported", exit 1). This is
+  a very common hand-authored idiom. It is **honestly documented** in the
+  fidelity matrix's "Known import limitations" table with recovery guidance
+  (declare nodes separately, then use a chain), so it is a scoped limitation, not
+  a defect. Optional future polish: parse inline endpoint declarations, or echo
+  the "declare nodes separately" hint in the CLI/preview error text so a user
+  who pastes such a snippet isn't left with a bare "unsupported edge" message.
+
+## What I did not independently run
+
+- The full `npm --prefix packages/layout-engine test` (claimed 1,050) and
+  `apps/preview test` (claimed 173) — I re-ran the import/CLI/save-client suites
+  (33 passed) and independently recompiled the three corpus outputs instead.
+- The `D2_BIN` real-compiler gate — no D2 binary is installed in this
+  environment. The validation log records it passing with a local D2 install;
+  this remains opt-in (original F5) and unverified here.
+
+## Disposition
+
+Original F1, F2, F4, F6, F7 closed and verified. F3/F5 remain honestly deferred
+and documented. No new blocking issues. Recommend merge; consider the inline-edge
+idiom and the CLI error-message hint as a small follow-up.
