@@ -164,7 +164,7 @@ export function createPreviewInspectorDisplayRuntime(
       arrowNode,
       componentType,
     }));
-    const showLayoutEditingControls = options.shouldShowAutolayoutInspector?.() ?? true;
+    const showLayoutEditingControls = options.shouldShowAutolayoutInspector?.() ?? false;
     renderPreviewSingleSelectionInspectorRuntimeHost({
       inspector: options.getInspector() ?? null,
       cid,
@@ -210,7 +210,7 @@ export function createPreviewInspectorDisplayRuntime(
 
   const renderMultiSelectionInspector = (): void => {
     const info = options.getSelectionActionInfo();
-    const showLayoutEditingControls = options.shouldShowAutolayoutInspector?.() ?? true;
+    const showLayoutEditingControls = options.shouldShowAutolayoutInspector?.() ?? false;
     options.syncPanelVisibility?.({
       count: options.selectedIds.size,
       kind: 'multi',

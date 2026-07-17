@@ -12,9 +12,15 @@ spec catalog/status → [`docs/specs.md`](docs/specs.md) · human notes →
 [`INBOX.md`](INBOX.md) · durable per-spec detail → `specs/<id>-<slug>/` ·
 adversarial reviews → `docs/spec-reviews/`.
 
-**Active handoff.** Specs 028 diagram interchange and 061 preview-grid
-regression are rebased in their dedicated worktrees, fully validated, and ready
-for adversarial review. Do not start duplicate implementations.
+**Spec 061 audit remediation (2026-07-17).** Addressing the recorded Opus
+review on `feat/061-preview-grid-regression`: the grid boundary now fails
+closed, a Chromium V3 → ELK regression proves overlay and affordance behavior,
+and ELK blank numeric defaults are normalized at the typed override writer so
+save→reload remains strict. Full layout-engine and preview suites, the browser
+bundle freshness check, and the no-new-Python guard are green. The second-pass
+review's inspector fail-open pattern is now fail-closed; full layout-engine
+coverage and the live Chromium V3 → ELK regression are green. The branch is
+ready to merge.
 
 **Preview canvas resize (2026-07-16).** Fixed the local v3 relayout order:
 after arrows are rerouted, the stage is fitted again to the new root dimensions.

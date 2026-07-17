@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { dispatchPreviewGridControlChange } from '../src/preview-shell/app-grid-host.js';
 import '../src/preview-engine/index.js';
 
 const mocks = vi.hoisted(() => ({
@@ -403,6 +404,62 @@ describe('createPreviewGridEditorRuntimeFromBrowserHost', () => {
 
     await bootstrapOptions.runtimeBootstrap.writeClipboardText('copy');
     expect(options.browser.writeClipboardText).toHaveBeenCalledWith('copy');
+  });
+
+  it('fails closed for stale grid callbacks after an engine switch', () => {
+    const options = createOptions();
+    let gridEditingSupported = true;
+    (options.browser as any).shouldShowAutolayoutInspector = vi.fn(() => gridEditingSupported);
+    const runtime = createPreviewGridEditorRuntimeFromBrowserHost(options);
+    runtime.getSceneFacade();
+
+    const sceneOptions = mocks.createSceneFacade.mock.calls[0]?.[0] as any;
+    const capabilityGate = sceneOptions.gridRuntime.canEditGridControls as () => {
+      applicable: boolean;
+      reason: string;
+    };
+    expect(capabilityGate().applicable).toBe(true);
+
+    gridEditingSupported = false;
+    const resolveRuntimeUpdate = vi.fn(() => {
+      throw new Error('stale grid callback must not read runtime state');
+    });
+    const setDirty = vi.fn();
+    const requestRelayout = vi.fn();
+    const result = dispatchPreviewGridControlChange({
+      gridInfo: { cols: 8 } as never,
+      capabilityGate,
+      resolveRuntimeUpdate,
+      getPendingAction: vi.fn(() => null),
+      beginPendingAction: vi.fn(),
+      setPendingAction: vi.fn(),
+      setGridOverrides: vi.fn(),
+      pruneLinkedRootOverrides: vi.fn(),
+      setDirty,
+      clearRelayoutTimer: vi.fn(),
+      scheduleRelayout: vi.fn(),
+      setRelayoutTimer: vi.fn(),
+      requestRelayout,
+      commitPendingAction: vi.fn(),
+      setOverlayGridInfo: vi.fn(),
+      setRowsControlValue: vi.fn(),
+      renderGridOverlay: vi.fn(),
+    });
+
+    expect(result.kind).toBe('inert');
+    expect(resolveRuntimeUpdate).not.toHaveBeenCalled();
+    expect(setDirty).not.toHaveBeenCalled();
+    expect(requestRelayout).not.toHaveBeenCalled();
+  });
+
+  it('fails closed when the grid capability callback is absent', () => {
+    const options = createOptions();
+    delete (options.browser as any).shouldShowAutolayoutInspector;
+    const runtime = createPreviewGridEditorRuntimeFromBrowserHost(options);
+    runtime.getSceneFacade();
+
+    const sceneOptions = mocks.createSceneFacade.mock.calls[0]?.[0] as any;
+    expect(sceneOptions.gridRuntime.canEditGridControls()).toMatchObject({ applicable: false });
   });
 
   it('hydrates active-engine layout overrides from namespaced frame YAML on reset', () => {

@@ -81,6 +81,7 @@ describe('createPreviewInspectorDisplayRuntime', () => {
       isWidthCoerced: () => false,
       isHeightCoerced: () => false,
       getGridInfo: () => ({ col_widths: [120], col_gap: 24, row_heights: [40], row_gap: 24 }),
+      shouldShowAutolayoutInspector: () => true,
       baselineStep: 8,
       fallbackGap: 24,
       snapStep: 8,
@@ -144,6 +145,7 @@ describe('createPreviewInspectorDisplayRuntime', () => {
       isWidthCoerced: () => true,
       isHeightCoerced: () => false,
       getGridInfo: () => null,
+      shouldShowAutolayoutInspector: () => true,
       baselineStep: 8,
       fallbackGap: 24,
       snapStep: 8,
@@ -196,6 +198,7 @@ describe('createPreviewInspectorDisplayRuntime', () => {
       isWidthCoerced: () => false,
       isHeightCoerced: () => false,
       getGridInfo: () => null,
+      shouldShowAutolayoutInspector: () => true,
       baselineStep: 8,
       fallbackGap: 24,
       snapStep: 8,
@@ -215,7 +218,7 @@ describe('createPreviewInspectorDisplayRuntime', () => {
     expect(inspector.innerHTML).not.toContain('data-dg-panel-id="single-selection"');
   });
 
-  it('hides single-selection autolayout controls when the active engine is not grid-editable', () => {
+  it('hides single-selection autolayout controls when the capability callback is unavailable', () => {
     const inspector = { innerHTML: '' };
     const syncPanelVisibility = vi.fn();
     const runtime = createPreviewInspectorDisplayRuntime({
@@ -246,7 +249,6 @@ describe('createPreviewInspectorDisplayRuntime', () => {
       isWidthCoerced: () => false,
       isHeightCoerced: () => false,
       getGridInfo: () => null,
-      shouldShowAutolayoutInspector: () => false,
       baselineStep: 8,
       fallbackGap: 24,
       snapStep: 8,
@@ -268,7 +270,7 @@ describe('createPreviewInspectorDisplayRuntime', () => {
     expect(inspector.innerHTML).not.toContain('Drag to move');
   });
 
-  it('hides multi-selection layout controls when the active engine is not grid-editable', () => {
+  it('hides multi-selection layout controls when the capability callback is unavailable', () => {
     const inspector = { innerHTML: '' };
     const setMultiActionGap = vi.fn();
     const runtime = createPreviewInspectorDisplayRuntime({
@@ -346,7 +348,6 @@ describe('createPreviewInspectorDisplayRuntime', () => {
       isWidthCoerced: () => false,
       isHeightCoerced: () => false,
       getGridInfo: () => ({ col_widths: [120], col_gap: 24, row_heights: [40], row_gap: 24 }),
-      shouldShowAutolayoutInspector: () => false,
       baselineStep: 8,
       fallbackGap: 24,
       snapStep: 8,
@@ -411,6 +412,7 @@ describe('createPreviewInspectorDisplayRuntime', () => {
       isWidthCoerced: () => false,
       isHeightCoerced: () => false,
       getGridInfo: () => null,
+      shouldShowAutolayoutInspector: () => true,
       baselineStep: 8,
       fallbackGap: 24,
       snapStep: 8,

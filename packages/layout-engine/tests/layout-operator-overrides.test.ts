@@ -181,6 +181,42 @@ describe('layout operator overrides', () => {
     });
   });
 
+  it('omits blank numeric defaults while retaining blank enum values', () => {
+    const model = {};
+    const manifest = {
+      id: 'elk-layered',
+      layoutEngineKey: 'elk-layered',
+      controlSpecs: [
+        {
+          key: 'elk.aspectRatio',
+          label: 'Aspect ratio',
+          group: 'Layout',
+          kind: 'number' as const,
+          defaultValue: '',
+          persistNamespace: 'meta.elk' as const,
+        },
+        {
+          key: 'elk.direction',
+          label: 'Direction',
+          group: 'Layout',
+          kind: 'enum' as const,
+          defaultValue: '',
+          persistNamespace: 'meta.elk' as const,
+          enumValues: [{ value: '', label: 'Automatic' }],
+        },
+      ],
+    };
+
+    writeLayoutOperatorOverrideBucketForManifest(model, manifest, {
+      'elk.aspectRatio': '',
+      'elk.direction': '',
+    }, 'meta.elk');
+
+    expect(readLayoutOperatorOverrideBucketForManifest(model, manifest)).toEqual({
+      'elk.direction': '',
+    });
+  });
+
   it('does not leak option buckets across layered to radial to layered switches', () => {
     const model = {};
 

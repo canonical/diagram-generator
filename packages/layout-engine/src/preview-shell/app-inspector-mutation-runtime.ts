@@ -97,7 +97,7 @@ export interface PreviewInspectorMutationRuntime {
 export function createPreviewInspectorMutationRuntime(
   options: CreatePreviewInspectorMutationRuntimeOptions,
 ): PreviewInspectorMutationRuntime {
-  const layoutEditingEnabled = (): boolean => options.shouldShowAutolayoutInspector?.() ?? true;
+  const layoutEditingEnabled = (): boolean => options.shouldShowAutolayoutInspector?.() ?? false;
   const resolveLayoutTransaction = (settings: {
     mutationKind?: 'inspector-layout' | 'geometry';
     sourceControl: string;

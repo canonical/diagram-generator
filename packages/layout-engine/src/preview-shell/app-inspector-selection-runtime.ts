@@ -91,7 +91,7 @@ export interface PreviewInspectorSelectionRuntime {
 export function createPreviewInspectorSelectionRuntime(
   options: CreatePreviewInspectorSelectionRuntimeOptions,
 ): PreviewInspectorSelectionRuntime {
-  const layoutEditingEnabled = (): boolean => options.shouldShowAutolayoutInspector?.() ?? true;
+  const layoutEditingEnabled = (): boolean => options.shouldShowAutolayoutInspector?.() ?? false;
   const applySelectionTargets = (
     items: PreviewSelectionActionItem[],
     targets: Record<string, unknown>,

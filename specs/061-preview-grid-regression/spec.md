@@ -1,7 +1,7 @@
 # Spec 061: Preview grid regression investigation
 
 **Feature Branch**: `feat/061-preview-grid-regression`
-**Status**: Draft
+**Status**: Review
 **Created**: 2026-07-05
 **Priority**: Spec candidate promoted from INBOX; part of the current
 open-work queue alongside spec 064 and spec 070.
