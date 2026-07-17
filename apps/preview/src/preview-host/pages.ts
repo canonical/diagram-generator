@@ -133,9 +133,11 @@ ${baselineStylesHtml}
     <div class="bf-panel-header">
       <h1 class="bf-h4">Preview index</h1>
       <p class="bf-form-help">Node preview app on port ${port}. Spec home: ${htmlEscape(specHome)}</p>
+      <p class="bf-form-help">Open a folder you own to edit its root-level YAML diagrams directly. Bundled examples remain read-only; edit one and use <strong>Save a copy…</strong> to keep it in a folder you choose.</p>
       <div class="dg-workspace-open-row">
         <button class="bf-button is-base" id="dg-open-folder" type="button">Open folder…</button>
         <button class="bf-button is-base" id="dg-reconnect-folders" type="button" hidden>Reconnect folders…</button>
+        <button class="bf-button is-base" id="dg-forget-folder" type="button" hidden>Forget current folder</button>
         <span class="bf-form-help" id="dg-workspace-status" role="status" aria-live="polite"></span>
       </div>
     </div>

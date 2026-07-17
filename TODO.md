@@ -67,10 +67,9 @@ These are isolated bugfixes; two different GPT agents can take them at once.
 ### Lane C — independent features (parallel, outsource anytime)
 
 7. **Spec 075 — preview folder workspaces.** In progress on its matching feature
-   branch. Browser safety/grouping/reconnect is implemented; next gates are the
-   real picker journey, read-only Save a copy, server-root conflict parity, and
-   ephemeral-cache disposal. (Also solves the folder-backed navigation backlog
-   idea below.)
+   branch. Implementation and the real-handle Chromium journey are green; the
+   remaining gates are native OS picker/regrant evidence and Opus closeout
+   review. (Also solves the folder-backed navigation backlog idea below.)
 8. **Spec 070 — layers palette reorder.**
 
 ### Blocked (do not touch)

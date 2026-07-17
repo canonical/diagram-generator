@@ -33,6 +33,25 @@ Save/import mutation for local-folder
      -> unchanged: write handle, return original success
      -> externally changed: explicit overwrite / keep-external choice
      -> permission/write failure: return non-2xx, retain editor dirty state
+
+Server-root save
+  -> viewer config carries SHA-256 workspace revision
+  -> save/import sends expected revision
+  -> mismatch: 409 + current revision
+     -> reload external, or keep editor state and retry explicit overwrite
+
+Read-only Save a copy…
+  -> choose browser folder
+  -> register/reuse writable local source
+  -> copy authored YAML into cache
+  -> apply current unsaved override payload to target
+  -> commit canonical target YAML through its file handle
+  -> navigate to qualified writable copy
+
+Forget / shutdown
+  -> unregister local source
+  -> remove IndexedDB record when user forgets
+  -> recursively dispose ephemeral cache directory
 ```
 
 ## Current owners

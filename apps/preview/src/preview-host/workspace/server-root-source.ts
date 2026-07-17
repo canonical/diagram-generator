@@ -8,6 +8,7 @@
  * allowlist.
  */
 
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync, realpathSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
@@ -114,6 +115,9 @@ export function createServerRootSource(options: ServerRootSourceOptions): Diagra
         throw new Error(`Workspace source '${id}' is read-only`);
       }
       writeFileSync(requirePath(slug), yaml, "utf8");
+    },
+    revision(slug: string): string {
+      return createHash("sha256").update(readFileSync(requirePath(slug))).digest("hex");
     },
     resolvePath(slug: string): string {
       return requirePath(slug);

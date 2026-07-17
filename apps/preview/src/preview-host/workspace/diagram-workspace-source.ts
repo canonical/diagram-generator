@@ -49,6 +49,12 @@ export interface DiagramWorkspaceSource {
   /** Write raw YAML text for a bare slug. Throws if read-only or out of bounds. */
   write(slug: string, yaml: string): void;
   /**
+   * Stable revision of the current raw YAML, used for optimistic concurrency.
+   * Disk-backed sources return a content hash; callers must not treat mtimes as
+   * sufficient because cloud-sync clients can preserve or coarsen timestamps.
+   */
+  revision?(slug: string): string;
+  /**
    * Absolute on-disk path for a bare slug, when the source is disk-backed.
    * Present only for `server-root` / `bundled-examples`; used to bridge into the
    * existing render/save deps that key off a directory + slug.

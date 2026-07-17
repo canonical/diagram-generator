@@ -51,6 +51,12 @@ export interface BuiltinPreviewHostServerRouteDeps
   readonly framesDir: string;
   readonly findReferenceImage: (slug: string) => string | null;
   readonly registerWorkspaceSource?: (source: DiagramWorkspaceSource) => void;
+  readonly unregisterWorkspaceSource?: (sourceId: string) => boolean;
+  readonly copyWorkspaceDocument?: (
+    sourceAddress: string,
+    targetSourceId: string,
+    targetSlug: string,
+  ) => { address: string; workspaceRevision: string | null };
 }
 
 export interface BuiltinAutolayoutPreviewHostModuleDeps
@@ -71,6 +77,7 @@ export interface BuiltinAutolayoutPreviewHostModuleDeps
     slug: string;
     sourceId: string;
     writable: boolean;
+    revision: string | null;
   } | null;
 }
 

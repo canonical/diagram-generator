@@ -330,6 +330,14 @@ export function createPreviewHostWorkspaceRoutes(
   deps: BuiltinPreviewHostServerModuleDeps,
 ): readonly PreviewHostApiRouteDescriptor[] {
   const opened = new Map<string, { source: ReturnType<typeof createServerRootSource>; dir: string }>();
+  const forgetOpenedWorkspace = (sourceId: string): boolean => {
+    const workspace = opened.get(sourceId);
+    if (!workspace) return false;
+    opened.delete(sourceId);
+    deps.unregisterWorkspaceSource?.(sourceId);
+    rmSync(workspace.dir, { recursive: true, force: true });
+    return true;
+  };
 
   const openRoute: PreviewHostApiRouteDescriptor = {
     key: "workspace-open",
@@ -349,7 +357,8 @@ export function createPreviewHostWorkspaceRoutes(
       const labelValue = Reflect.get(body, "label");
       const label = typeof labelValue === "string" && labelValue.trim() ? labelValue.trim() : "Opened folder";
       const rawFiles = Reflect.get(body, "files");
-      if (!Array.isArray(rawFiles) || rawFiles.length === 0) {
+      const allowEmpty = Reflect.get(body, "allowEmpty") === true;
+      if (!Array.isArray(rawFiles) || (rawFiles.length === 0 && !allowEmpty)) {
         context.sendText(400, "The selected folder contains no YAML diagrams");
         return;
       }
@@ -387,7 +396,7 @@ export function createPreviewHostWorkspaceRoutes(
         normalizedSlugs.add(normalizedSlug);
         validFiles.set(slug, content as string);
       }
-      if (validFiles.size === 0) {
+      if (validFiles.size === 0 && !allowEmpty) {
         context.sendText(400, "The selected folder contains no valid root-level YAML diagrams");
         return;
       }
@@ -432,6 +441,69 @@ export function createPreviewHostWorkspaceRoutes(
       slugs.sort((a, b) => a.localeCompare(b));
       context.sendJson(200, { ok: true, sourceId, label, slugs });
     },
+    dispose() {
+      for (const sourceId of [...opened.keys()]) forgetOpenedWorkspace(sourceId);
+    },
+  };
+
+  const closeRoute: PreviewHostApiRouteDescriptor = {
+    key: "workspace-close",
+    method: "POST",
+    matchMode: "exact",
+    routePrefixes: ["/api/workspaces/close"],
+    async handle(_match, context) {
+      const body = await context.readJsonBody(context.req);
+      const sourceId = body && typeof body === "object" && !Array.isArray(body)
+        ? Reflect.get(body, "sourceId")
+        : null;
+      if (typeof sourceId !== "string" || !sourceId.startsWith("local-")) {
+        context.sendText(400, "Expected a local workspace source id");
+        return;
+      }
+      if (!forgetOpenedWorkspace(sourceId)) {
+        context.sendText(404, `Workspace source '${sourceId}' is not open`);
+        return;
+      }
+      context.sendJson(200, { ok: true, sourceId });
+    },
+  };
+
+  const copyRoute: PreviewHostApiRouteDescriptor = {
+    key: "workspace-copy",
+    method: "POST",
+    matchMode: "exact",
+    routePrefixes: ["/api/workspaces/copy"],
+    async handle(_match, context) {
+      if (typeof deps.copyWorkspaceDocument !== "function") {
+        context.sendText(501, "Workspace copying is unavailable in this preview host");
+        return;
+      }
+      const body = await context.readJsonBody(context.req);
+      const sourceAddress = body && typeof body === "object" && !Array.isArray(body)
+        ? Reflect.get(body, "sourceAddress")
+        : null;
+      const targetSourceId = body && typeof body === "object" && !Array.isArray(body)
+        ? Reflect.get(body, "targetSourceId")
+        : null;
+      const targetSlug = body && typeof body === "object" && !Array.isArray(body)
+        ? Reflect.get(body, "targetSlug")
+        : null;
+      if (
+        typeof sourceAddress !== "string"
+        || typeof targetSourceId !== "string"
+        || typeof targetSlug !== "string"
+        || !isBareSlug(targetSlug)
+      ) {
+        context.sendText(400, "Expected valid sourceAddress, targetSourceId, and targetSlug values");
+        return;
+      }
+      try {
+        context.sendJson(200, deps.copyWorkspaceDocument(sourceAddress, targetSourceId, targetSlug));
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        context.sendText(/already exists/.test(message) ? 409 : 400, message);
+      }
+    },
   };
 
   const yamlRoute: PreviewHostApiRouteDescriptor = {
@@ -449,7 +521,7 @@ export function createPreviewHostWorkspaceRoutes(
     },
   };
 
-  return [openRoute, yamlRoute];
+  return [openRoute, closeRoute, copyRoute, yamlRoute];
 }
 
 export function createBuiltinPreviewHostServerRoutes(

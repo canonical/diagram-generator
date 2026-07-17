@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { EventEmitter } from "node:events";
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
@@ -1942,7 +1942,9 @@ test("workspace folder route adds YAML diagrams without removing the Force lane"
     assert.deepEqual(responses, [{ ok: true, sourceId: "My-folder", label: "My folder", slugs: ["alpha"] }]);
 
     let yaml = "";
-    await routes[1]!.handle({ slug: "My-folder:alpha" } as never, {
+    const yamlRoute = routes.find((route) => route.key === "workspace-yaml");
+    assert.ok(yamlRoute);
+    await yamlRoute!.handle({ slug: "My-folder:alpha" } as never, {
       req: {} as never,
       res: {} as never,
       pathname: "/api/workspaces/yaml/My-folder%3Aalpha",
@@ -1998,6 +2000,125 @@ test("workspace folder route rejects ambiguous and oversized uploads before regi
     assert.equal(status, expectedStatus);
   }
   assert.equal(registrations, 0);
+});
+
+test("workspace routes copy into writable folders and dispose caches when forgotten", async () => {
+  const sources = new Map<string, ReturnType<typeof createServerRootSource>>();
+  const removed: string[] = [];
+  const sourceDir = mkdtempSync(path.join(os.tmpdir(), "dg-workspace-copy-source-"));
+  writeFileSync(
+    path.join(sourceDir, "example.yaml"),
+    "engine: v3\nroot:\n  id: page\n  children: []\n",
+    "utf8",
+  );
+  const source = createServerRootSource({
+    id: "examples",
+    label: "Examples",
+    dir: sourceDir,
+    kind: "bundled-examples",
+    writable: false,
+  });
+  sources.set(source.id, source);
+  const routes = createPreviewHostWorkspaceRoutes({
+    registerWorkspaceSource: (registered) => {
+      sources.set(registered.id, registered as ReturnType<typeof createServerRootSource>);
+    },
+    unregisterWorkspaceSource: (sourceId) => {
+      removed.push(sourceId);
+      return sources.delete(sourceId);
+    },
+    copyWorkspaceDocument: (sourceAddress, targetSourceId, targetSlug) => {
+      const target = sources.get(targetSourceId)!;
+      target.write(targetSlug, sources.get("examples")!.read(sourceAddress.split(":").at(-1)!));
+      return {
+        address: `${targetSourceId}:${targetSlug}`,
+        workspaceRevision: target.revision?.(targetSlug) ?? null,
+      };
+    },
+  } as never);
+  const openRoute = routes.find((route) => route.key === "workspace-open")!;
+  let openedPayload: { sourceId?: string } = {};
+  await openRoute.handle({} as never, {
+    req: {} as never,
+    res: {} as never,
+    pathname: "/api/workspaces/open",
+    sendJson: (_status, payload) => {
+      openedPayload = payload as { sourceId?: string };
+    },
+    sendText: (_status, message) => {
+      throw new Error(message);
+    },
+    sendBytes: () => {},
+    readJsonBody: async () => ({
+      label: "Empty target",
+      sourceId: "local-target",
+      allowEmpty: true,
+      files: [],
+    }),
+  });
+  const target = sources.get(openedPayload.sourceId!);
+  assert.ok(target?.directory && existsSync(target.directory));
+
+  const copyRoute = routes.find((route) => route.key === "workspace-copy")!;
+  let copiedPayload: unknown = null;
+  await copyRoute.handle({} as never, {
+    req: {} as never,
+    res: {} as never,
+    pathname: "/api/workspaces/copy",
+    sendJson: (_status, payload) => {
+      copiedPayload = payload;
+    },
+    sendText: (_status, message) => {
+      throw new Error(message);
+    },
+    sendBytes: () => {},
+    readJsonBody: async () => ({
+      sourceAddress: "examples:example",
+      targetSourceId: openedPayload.sourceId,
+      targetSlug: "example",
+    }),
+  });
+  assert.equal((copiedPayload as { address: string }).address, "local-target:example");
+  assert.match(target!.read("example"), /id: page/);
+
+  const cacheDir = target!.directory!;
+  openRoute.dispose?.();
+  assert.equal(existsSync(cacheDir), false);
+  assert.deepEqual(removed, ["local-target"]);
+  rmSync(sourceDir, { recursive: true, force: true });
+});
+
+test("grouped workspace navigation renders the maximum supported corpus within its budget", () => {
+  const sections = Array.from({ length: 5 }, (_, sourceIndex) => ({
+    key: `source-${sourceIndex}`,
+    label: `Source ${sourceIndex}`,
+    links: Array.from({ length: 100 }, (_, diagramIndex) => ({
+      href: `/view/v3:source-${sourceIndex}:diagram-${diagramIndex}`,
+      label: `Diagram ${diagramIndex}`,
+      writable: sourceIndex > 0,
+    })),
+  }));
+  const started = performance.now();
+  const html = buildViewerPageHtml({
+    title: "Large workspace",
+    mode: "grid",
+    currentPath: "/view/v3:source-4:diagram-99",
+    templateHtml: "%TITLE%%NAV_OPTIONS%%BROWSE_NAV%%MODE_SCRIPTS%%CONFIG_SCRIPT%",
+    browseSections: sections,
+    inspectorEmptyText: "",
+    modeScriptsHtml: "",
+    configScript: "",
+    visibleTemplateSections: [],
+    sectionVisibilityPlaceholders: [],
+    baselineStylesHtml: "",
+  });
+  const elapsedMs = performance.now() - started;
+
+  assert.ok(elapsedMs < 1_000, `500-diagram navigation took ${elapsedMs.toFixed(1)}ms`);
+  assert.equal((html.match(/<option /g) ?? []).length, 500);
+  assert.equal((html.match(/<optgroup /g) ?? []).length, 5);
+  assert.match(html, /Source 4/);
+  assert.match(html, /diagram-99" selected/);
 });
 
 test("builtin preview host install preserves frame-yaml document ownership across preview and save routes", async () => {
@@ -2413,6 +2534,56 @@ test("builtin preview host install preserves frame-yaml document ownership acros
     assert.equal(readFileSync(tempFramePath, "utf8"), defaultBeforeQualifiedSave);
     assert.notEqual(readFileSync(otherFramePath, "utf8"), otherBeforeQualifiedSave);
 
+    const openedRevision = (qualifiedSavePayload as Record<string, unknown>).workspaceRevision;
+    assert.equal(typeof openedRevision, "string");
+    writeFileSync(
+      otherFramePath,
+      `${readFileSync(otherFramePath, "utf8")}\n# external cloud-sync edit\n`,
+      "utf8",
+    );
+    let conflictStatus = 0;
+    let conflictPayload: unknown = null;
+    await qualifiedSaveMatch.route.handle(qualifiedSaveMatch, {
+      req: {} as never,
+      res: {} as never,
+      pathname: qualifiedSaveMatch.pathname,
+      sendJson: (statusCode, payload) => {
+        conflictStatus = statusCode;
+        conflictPayload = payload;
+      },
+      sendText: (_statusCode, message) => {
+        throw new Error(`expected structured conflict, received: ${message}`);
+      },
+      sendBytes: () => {},
+      readJsonBody: async () => ({
+        workspaceRevision: openedRevision,
+        grid_overrides: { outer_margin: 19 },
+      }),
+    });
+    assert.equal(conflictStatus, 409);
+    const externalRevision = (conflictPayload as Record<string, unknown>).workspaceRevision;
+    assert.equal(typeof externalRevision, "string");
+    assert.match(readFileSync(otherFramePath, "utf8"), /external cloud-sync edit/);
+
+    let overwriteStatus = 0;
+    await qualifiedSaveMatch.route.handle(qualifiedSaveMatch, {
+      req: {} as never,
+      res: {} as never,
+      pathname: qualifiedSaveMatch.pathname,
+      sendJson: (statusCode) => {
+        overwriteStatus = statusCode;
+      },
+      sendText: (_statusCode, message) => {
+        throw new Error(message);
+      },
+      sendBytes: () => {},
+      readJsonBody: async () => ({
+        workspaceRevision: externalRevision,
+        grid_overrides: { outer_margin: 19 },
+      }),
+    });
+    assert.equal(overwriteStatus, 200);
+
     const bundledBeforeSave = readFileSync(bundledFramePath, "utf8");
     const readOnlySaveMatch = resolveRegisteredPreviewHostApiRoute(
       "POST",
@@ -2436,7 +2607,7 @@ test("builtin preview host install preserves frame-yaml document ownership acros
       sendBytes: () => {},
       readJsonBody: async () => ({ grid_overrides: { outer_margin: 17 } }),
     });
-    assert.equal(readOnlyStatus, 400);
+    assert.equal(readOnlyStatus, 403);
     assert.match(readOnlyMessage, /read-only/);
     assert.equal(readFileSync(bundledFramePath, "utf8"), bundledBeforeSave);
 

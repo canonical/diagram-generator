@@ -123,6 +123,12 @@ function readInterchangeImportSource(payload: unknown): string {
   return source;
 }
 
+function readWorkspaceRevision(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
+  const revision = (payload as Record<string, unknown>).workspaceRevision;
+  return typeof revision === "string" ? revision : null;
+}
+
 function createPreviewInterchangeImportHostApiRoute(
   format: "mermaid" | "d2",
   deps: BuiltinAutolayoutPreviewHostModuleDeps,
@@ -149,6 +155,18 @@ function createPreviewInterchangeImportHostApiRoute(
           context.sendText(403, `Workspace source '${resolved.sourceId}' is read-only`);
           return;
         }
+        const expectedRevision = readWorkspaceRevision(payload);
+        if (
+          expectedRevision !== null
+          && resolved?.revision !== null
+          && expectedRevision !== resolved?.revision
+        ) {
+          context.sendJson(409, {
+            error: "This diagram changed on disk after it was opened.",
+            workspaceRevision: resolved?.revision ?? null,
+          });
+          return;
+        }
         const result = importInterchangeForSlug(
           resolved?.slug ?? rawSlug,
           format,
@@ -157,7 +175,8 @@ function createPreviewInterchangeImportHostApiRoute(
             ? { ...deps.framePreviewDocumentDeps, framesDir: resolved.framesDir }
             : deps.framePreviewDocumentDeps,
         );
-        context.sendJson(201, result);
+        const workspaceRevision = deps.resolveFrameDir?.(rawSlug)?.revision ?? null;
+        context.sendJson(201, { ...result, workspaceRevision });
       } catch (error) {
         context.sendText(400, error instanceof Error ? error.message : String(error));
       }
@@ -334,13 +353,30 @@ export function createAutolayoutPreviewHostViewerRoute(
 ): PreviewHostViewerRouteDescriptor {
   const resolveDocContext = (
     slug: string,
-  ): { deps: typeof deps.framePreviewDocumentDeps; slug: string } | null => {
-    if (!deps.resolveFrameDir) return { deps: deps.framePreviewDocumentDeps, slug };
+  ): {
+    deps: typeof deps.framePreviewDocumentDeps;
+    slug: string;
+    sourceId: string;
+    writable: boolean;
+    revision: string | null;
+  } | null => {
+    if (!deps.resolveFrameDir) {
+      return {
+        deps: deps.framePreviewDocumentDeps,
+        slug,
+        sourceId: "default",
+        writable: true,
+        revision: null,
+      };
+    }
     const resolved = deps.resolveFrameDir(slug);
     if (!resolved) return null;
     return {
       deps: { ...deps.framePreviewDocumentDeps, framesDir: resolved.framesDir },
       slug: resolved.slug,
+      sourceId: resolved.sourceId,
+      writable: resolved.writable,
+      revision: resolved.revision,
     };
   };
   return {
@@ -410,6 +446,9 @@ export function createAutolayoutPreviewHostViewerRoute(
         icon_size: deps.iconSize ?? ICON_SIZE,
         col_gap: deps.gridGutter ?? GRID_GUTTER,
         has_reference: hasReference,
+        workspace_source_id: docCtx.sourceId,
+        workspace_writable: docCtx.writable,
+        workspace_revision: docCtx.revision,
       });
       const modeScripts = buildPreviewModeScriptsHtml({
         previewAssetUrl: deps.previewAssetUrl,

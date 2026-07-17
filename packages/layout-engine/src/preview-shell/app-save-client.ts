@@ -7,6 +7,9 @@ import { createPreviewOverridePayload } from './preview-override-model.js';
 export interface PreviewSaveClientRuntimeWindow {
   addEventListener?: (type: string, listener: (event: unknown) => unknown) => void;
   location?: { assign?: (url: string) => void };
+  __DG_CONFIG?: {
+    workspace_revision?: string | null;
+  } | null;
 }
 
 export interface PreviewImportFileLike {
@@ -53,6 +56,7 @@ export interface PreviewSaveClientRuntimeOptions {
     json: () => Promise<unknown>;
   }>;
   alertFn?: (message: string) => void;
+  confirmFn?: (message: string) => boolean;
   blobCtor?: new (parts: unknown[], options?: { type?: string }) => PreviewSaveClientRuntimeBlobLike;
   urlApi?: {
     createObjectURL: (value: PreviewSaveClientRuntimeBlobLike) => string;
@@ -209,6 +213,7 @@ export function createPreviewSaveClientRuntime(
   let initialized = false;
 
   const alertFn = options.alertFn ?? ((message: string) => globalThis.alert?.(message));
+  const confirmFn = options.confirmFn ?? ((message: string) => globalThis.confirm?.(message) ?? false);
 
   function requireDeps(): PreviewSaveClientRuntimeDeps {
     if (!deps) {
@@ -433,16 +438,39 @@ export function createPreviewSaveClientRuntime(
     }
     const format = readImportFormat();
     try {
+      const importPayload: Record<string, unknown> = { source: await file.text() };
+      const workspaceRevision = options.previewWindow.__DG_CONFIG?.workspace_revision;
+      if (
+        typeof workspaceRevision === 'string'
+        && slug === currentDocumentSlug(runtimeDeps.slug)
+      ) {
+        importPayload.workspaceRevision = workspaceRevision;
+      }
       const response = await options.fetchFn?.(`/api/import/${format}?slug=${encodeURIComponent(slug)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source: await file.text() }),
+        body: JSON.stringify(importPayload),
       });
       if (!response) {
         throw new Error('Preview save client requires fetch() support for import');
       }
       if (!response.ok) {
-        throw new Error(await response.text() || response.statusText || 'Unknown import error');
+        const message = await response.text();
+        if (response.status === 409) {
+          try {
+            const conflict = JSON.parse(message) as { workspaceRevision?: string };
+            if (typeof conflict.workspaceRevision === 'string') {
+              const config = options.previewWindow.__DG_CONFIG;
+              if (config) config.workspace_revision = conflict.workspaceRevision;
+            }
+          } catch {
+            // Older hosts return a plain conflict message.
+          }
+          throw new Error(
+            'The target YAML changed on disk. Review or reload it, then import again to overwrite it.',
+          );
+        }
+        throw new Error(message || response.statusText || 'Unknown import error');
       }
       const result = await response.json() as { slug?: string; warnings?: Array<{ message?: string }> };
       const importedSlug = typeof result.slug === 'string' && result.slug.length > 0 ? result.slug : slug;
@@ -542,6 +570,10 @@ export function createPreviewSaveClientRuntime(
       return;
     }
     payload = normalized.payload;
+    const workspaceRevision = options.previewWindow.__DG_CONFIG?.workspace_revision;
+    if (typeof workspaceRevision === 'string') {
+      payload.workspaceRevision = workspaceRevision;
+    }
 
     if (typeof options.fetchFn !== 'function') {
       throw new Error('Preview save client requires fetch() support');
@@ -563,13 +595,57 @@ export function createPreviewSaveClientRuntime(
       });
       if (!response.ok) {
         const message = await response.text();
+        if (response.status === 409 && !message.includes('external file was kept')) {
+          let conflictPayload: { error?: string; workspaceRevision?: string } = {};
+          try {
+            conflictPayload = JSON.parse(message) as typeof conflictPayload;
+          } catch {
+            // Older hosts return a plain conflict message.
+          }
+          const reloadExternal = confirmFn(
+            'This diagram changed on disk after you opened it.\n\n'
+            + 'Choose OK to reload the external version and discard your editor changes, '
+            + 'or Cancel to keep your editor changes. If you keep them, Save again to overwrite the external version.',
+          );
+          if (typeof conflictPayload.workspaceRevision === 'string') {
+            const config = options.previewWindow.__DG_CONFIG;
+            if (config) config.workspace_revision = conflictPayload.workspaceRevision;
+          }
+          if (reloadExternal) {
+            await runtimeDeps.reloadDiagram();
+            dirty = false;
+            runtimeDeps.onSaveSuccess?.();
+            runtimeDeps.setStatus?.('External version reloaded', 'ok');
+          } else {
+            runtimeDeps.setStatus?.('External version changed; editor changes kept', 'error');
+          }
+          return;
+        }
         alertFn(`Save failed: ${message || response.statusText || 'Unknown error'}`);
         return;
       }
       try {
-        const responsePayload = await response.json() as { canonicalState?: unknown } | null;
+        const responsePayload = await response.json() as {
+          canonicalState?: unknown;
+          workspaceRevision?: string | null;
+          workspaceCopyAddress?: string;
+        } | null;
         if (responsePayload && typeof responsePayload.canonicalState === 'object') {
           canonicalState = responsePayload.canonicalState;
+        }
+        if (typeof responsePayload?.workspaceRevision === 'string') {
+          const config = options.previewWindow.__DG_CONFIG;
+          if (config) config.workspace_revision = responsePayload.workspaceRevision;
+        }
+        if (typeof responsePayload?.workspaceCopyAddress === 'string') {
+          dirty = false;
+          runtimeDeps.clearCoercedKeys?.();
+          runtimeDeps.onSaveSuccess?.();
+          runtimeDeps.setStatus?.('Copy saved', 'ok');
+          options.previewWindow.location?.assign?.(
+            `/view/v3:${responsePayload.workspaceCopyAddress}`,
+          );
+          return;
         }
       } catch {
         // Best-effort canonical-state decode only.

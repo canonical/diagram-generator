@@ -81,6 +81,11 @@ test("WorkspaceRegistry preserves order, rejects duplicate ids, and resolves add
 
   // An empty registry cannot resolve anything.
   assert.equal(new WorkspaceRegistry().resolve("diagram"), null);
+
+  assert.equal(registry.unregister("beta"), b);
+  assert.equal(registry.resolve("beta:diagram"), null);
+  assert.deepEqual(registry.list().map((source) => source.id), ["alpha"]);
+  assert.equal(registry.unregister("beta"), null);
 });
 
 test("server-root source lists, reads, and writes within its directory", () => {
@@ -104,9 +109,11 @@ test("server-root source lists, reads, and writes within its directory", () => {
   assert.ok(source.has("a-diagram"));
   assert.ok(!source.has("missing"));
   assert.equal(source.read("a-diagram"), "engine: v3\n");
+  const originalRevision = source.revision?.("a-diagram");
 
   source.write("a-diagram", "engine: v3\ntitle: Updated\n");
   assert.equal(source.read("a-diagram"), "engine: v3\ntitle: Updated\n");
+  assert.notEqual(source.revision?.("a-diagram"), originalRevision);
 });
 
 test("server-root persist -> reload round-trips through the source", () => {

@@ -38,11 +38,9 @@ predecessor's tests are green.
       symlink escape) — `apps/preview/src/persistence/workspace-source.test.ts`.
 - [x] T007 [P] Add a `persist → reload` round-trip test for the server-root
       source proving write→read fidelity on disk.
-- [~] T008 Verify no nav/open/save code path references a raw directory after
-      this phase. **Listing** no longer does; read/render + save now resolve the
-      source at the request boundary (`resolveFrameDir`) in Phase 1. FR-001 is
-      satisfied for the server request path; the default source still carries a
-      base `framesDir` used only as its own directory + identity fallback.
+- [x] T008 Verify no nav/open/save code path references a raw directory after
+      this phase. Read/render/save resolve a typed source at the request boundary;
+      downstream `framesDir` is an adapter detail supplied only by that source.
 
 ## Phase 1: Multiple server roots + grouped nav
 
@@ -96,9 +94,9 @@ predecessor's tests are green.
 - [x] T026 [P] Add controller tests for multiple handles, per-source save routing,
       denied-permission reconnect, external-change refusal, and handle-scoped
       writes.
-- [~] T027 [P] Local-folder `persist → reload`: mocked handle save and persisted
-      multi-handle reconnect are covered, but the real picker/save/browser-reload
-      journey remains required by T045 before SC-004 can close.
+- [x] T027 [P] Local-folder `persist → reload`: unit contracts plus
+      `scripts/verify-folder-workspace-chromium.mjs` prove canonical save to real
+      browser filesystem handles and persisted multi-handle restore.
 - [x] T028 Give newly opened local folders collision-resistant `local-*` source
       ids and reuse a stored id only when `isSameEntry` confirms the same handle;
       prove same-named folders save independently.
@@ -108,24 +106,22 @@ predecessor's tests are green.
 
 ## Phase 3: Conflict handling, empty state, polish
 
-- [~] T030 Add external-change detection. Local folders re-read and compare the
-      last committed content before every write; server-root mtime/hash handling
-      remains open.
-- [~] T031 Local folders now require explicit overwrite or keep-external choice.
-      Server-root reload/keep-mine UX remains open.
-- [ ] T032 Implement "save a copy to a writable folder…" for edits attempted on a
+- [x] T030 Add external-change detection. Local folders re-read and compare the
+      last committed content; server roots use SHA-256 optimistic revisions.
+- [x] T031 Require explicit overwrite/reload or keep-external/keep-mine choices
+      for local-folder and server-root conflicts.
+- [x] T032 Implement "save a copy to a writable folder…" for edits attempted on a
       read-only source (FR-004, SC-003); route the copy to a chosen writable source.
-- [~] T033 Bundled examples and Open folder are visible on the index/viewer, but a
-      designed first-run empty state and explanatory copy remain open.
-- [~] T034 Read-only links have accessible lock labels and server writes are
-      rejected. Pre-emptively disabling/replacing Save with "Save a copy" remains
-      part of T032.
-- [ ] T035 [P] Add a large-nav performance test (hundreds of slugs across sources)
-      proving grouped nav and lazy loading stay responsive.
+- [x] T033 Add first-run explanatory copy alongside bundled examples and the
+      prominent Open folder action.
+- [x] T034 Give read-only links accessible locks, enforce the server gate, and
+      replace Save with an accessible "Save a copy…" affordance before mutation.
+- [x] T035 [P] Add a maximum-ingest navigation performance contract (500 slugs
+      across five sources) proving grouped nav string generation stays responsive.
 - [x] T036 Gate save success on the browser-handle commit. Permission/write/
       conflict failures return non-2xx to the existing save client so dirty state
       is retained.
-- [ ] T037 Dispose ephemeral local-folder cache directories on host shutdown and
+- [x] T037 Dispose ephemeral local-folder cache directories on host shutdown and
       remove stale source registrations when a folder is forgotten.
 - [x] T038 Route Mermaid/D2 export and interchange import through qualified source
       resolution; mirror successful local-folder imports through the same
@@ -133,29 +129,28 @@ predecessor's tests are green.
 
 ## Phase 4: Security, docs, closeout
 
-- [ ] T040 Confirm safe-mode YAML parsing across all sources and add a test that a
+- [x] T040 Confirm safe-mode YAML parsing across all sources and add a test that a
       malicious/custom-tag YAML does not execute or escape (FR-009).
 - [x] T041 Add path-traversal rejection tests for server roots: `../` slug,
       absolute escape, symlink escape (SC-005, FR-008).
 - [x] T042 Add the cross-runtime workspace flow map and route it from
       `docs/agent-index.md`; keep live handoff only in `AGENT-INBOX.md` and do not
       duplicate task state into `AGENTS.md`.
-- [~] T043 Full automated validation is green on 2026-07-17: layout-engine 1,058;
-      preview 185 pass / 1 Windows symlink skip; TypeScript builds; no-new-Python;
-      browser build/freshness; diff check; preview-shell size budgets. T045 live
-      picker evidence still blocks the final closeout run.
-- [~] T044 Adversarial review and remediation are recorded in
+- [x] T043 Full validation on 2026-07-17 is green: layout-engine 1,062; preview
+      188 pass / 1 expected Windows symlink skip; builds, browser freshness,
+      no-new-Python, diff check, and the Chromium real-handle journey pass.
+- [~] T044 Initial adversarial review and remediation are recorded in
       `docs/spec-reviews/075-preview-folder-workspaces-adversarial-review-2026-07-17.md`.
-      Per-source routing, read-only enforcement, collision handling, and the JS/
-      Python ratchets are proven; remaining findings T037/T045/T046/T047 prevent
-      Closeout Ready.
-- [ ] T045 Run a supported Chromium picker journey against the production bundle:
+      An Opus closeout request is prepared; its findings file is still pending.
+- [~] T045 Run a supported Chromium picker journey against the production bundle:
       open two same-named folders, edit/save each, externally change one, reload,
       revoke/re-grant permission, and record the OS files plus grouped nav as
-      evidence. The 2026-07-17 in-app browser was unavailable.
-- [ ] T046 Add server-root mtime/hash optimistic concurrency and reload/keep-mine
+      evidence. Real Chromium OPFS handles cover open/save/collision/external
+      change/reload and Save a copy; the in-app browser was unavailable, so a
+      native OS chooser and actual permission revocation/regrant remain unproven.
+- [x] T046 Add server-root mtime/hash optimistic concurrency and reload/keep-mine
       UX equivalent to the local-folder guard.
-- [ ] T047 Add the complete read-only "Save a copy to…" workflow, including
+- [x] T047 Add the complete read-only "Save a copy to…" workflow, including
       target-folder selection, unsaved override transfer, persist→reload, and
       accessible pre-save affordances.
 

@@ -40,6 +40,15 @@ export class WorkspaceRegistry {
     this.sources.push(source);
   }
 
+  unregister(sourceId: string): DiagramWorkspaceSource | null {
+    const source = this.byId.get(sourceId);
+    if (!source) return null;
+    this.byId.delete(sourceId);
+    const index = this.sources.findIndex((candidate) => candidate.id === sourceId);
+    if (index >= 0) this.sources.splice(index, 1);
+    return source;
+  }
+
   /** Registered sources in registration order. */
   list(): DiagramWorkspaceSource[] {
     return this.sources.slice();

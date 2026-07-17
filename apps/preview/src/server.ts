@@ -21,13 +21,12 @@ import { installBuiltinPreviewHost } from "./preview-host/install-builtins.js";
 import { routeRegisteredPreviewHostRequest } from "./preview-host/request-router.js";
 import { createServerRootSource } from "./preview-host/workspace/server-root-source.js";
 import type { DiagramWorkspaceSource } from "./preview-host/workspace/diagram-workspace-source.js";
+import { parsePreviewYaml } from "./safe-yaml.js";
 
 const DEFAULT_PORT = 8100;
 const SPEC_HOME = "docs/spec-archive/045-preview-host-engine-modularity/";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const require = createRequire(import.meta.url);
-const { parse: parseYaml } = require("yaml") as { parse: (raw: string) => unknown };
 const APP_ROOT = path.resolve(__dirname, "..");
 const REPO_ROOT = path.resolve(APP_ROOT, "..", "..");
 const SCRIPTS_DIR = path.join(REPO_ROOT, "scripts");
@@ -475,7 +474,7 @@ function bfStylesLinkHtml(): string {
   return '<link rel="stylesheet" href="/preview/bf-os.css">';
 }
 
-installBuiltinPreviewHost(createBuiltinPreviewHostInstallDeps({
+const uninstallBuiltinPreviewHost = installBuiltinPreviewHost(createBuiltinPreviewHostInstallDeps({
   framePreviewDocumentDeps,
   forcePreviewDocumentDeps,
   framePreviewRenderDeps,
@@ -490,7 +489,7 @@ installBuiltinPreviewHost(createBuiltinPreviewHostInstallDeps({
   iconsDir: ICONS_DIR,
   resolvePreviewAssetPath,
   ensureLayoutEngineBrowserAssets,
-  parseYaml,
+  parseYaml: parsePreviewYaml,
   templateHtml: readFileSync(VIEWER_TEMPLATE, "utf8"),
   baselineStylesHtml: bfStylesLinkHtml(),
   previewAssetUrl,
@@ -565,6 +564,20 @@ export function startPreviewServer(port = parsePort(process.argv.slice(2), proce
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const port = parsePort(process.argv.slice(2), process.env);
   const server = startPreviewServer(port);
+  let shuttingDown = false;
+  const shutdown = (): void => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    uninstallBuiltinPreviewHost();
+    for (const client of sseClients) client.end();
+    sseClients.clear();
+    server.close(() => {
+      process.exit(0);
+    });
+  };
+  process.once("SIGINT", shutdown);
+  process.once("SIGTERM", shutdown);
+  process.once("exit", uninstallBuiltinPreviewHost);
   server.on("listening", () => {
     process.stdout.write(`[preview-app] listening on http://127.0.0.1:${port}\n`);
   });

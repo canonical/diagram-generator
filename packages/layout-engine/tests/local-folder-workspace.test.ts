@@ -44,11 +44,25 @@ function fakeDirectory(
   files: readonly FakeFileHandle[],
   permission: { value: PermissionState } = { value: 'granted' },
 ): FileSystemDirectoryHandle {
+  const mutableFiles = [...files];
   const directory = {
     kind: 'directory',
     name,
     async *entries() {
-      for (const file of files) yield [file.name, file] as [string, FileSystemHandle];
+      for (const file of mutableFiles) yield [file.name, file] as [string, FileSystemHandle];
+    },
+    async getFileHandle(filename: string, options?: { create?: boolean }) {
+      const existing = mutableFiles.find((file) => file.name === filename);
+      if (existing) return existing;
+      if (!options?.create) throw new DOMException('Not found', 'NotFoundError');
+      const created = fakeFileHandle(filename, '');
+      mutableFiles.push(created);
+      return created;
+    },
+    async removeEntry(filename: string) {
+      const index = mutableFiles.findIndex((file) => file.name === filename);
+      if (index < 0) throw new DOMException('Not found', 'NotFoundError');
+      mutableFiles.splice(index, 1);
     },
     async queryPermission() {
       return permission.value;
@@ -303,5 +317,130 @@ describe('preview local-folder workspace', () => {
     expect(permission.value).toBe('granted');
     expect(elements.get('dg-reconnect-folders')?.hidden).toBe(true);
     expect(uploads).toEqual(['local-alpha']);
+  });
+
+  it('saves unsaved read-only edits as a new YAML file in a chosen folder', async () => {
+    const targetDirectory = fakeDirectory('My diagrams', []);
+    const assigned: string[] = [];
+    const { document } = fakeDocument();
+    const persisted = memoryStore();
+    const windowObject = {
+      __DG_CONFIG: {
+        slug: 'examples:alpha',
+        workspace_writable: false,
+      },
+      location: { assign: (url: string) => assigned.push(url) },
+      confirm: () => true,
+      showDirectoryPicker: async () => targetDirectory,
+    } as unknown as Window & {
+      __DG_CONFIG: { slug: string; workspace_writable: boolean };
+      __DG_workspaceFetch?: typeof fetch;
+    };
+    const calls: Array<{ url: string; body: Record<string, unknown> }> = [];
+    const fetchFn = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const body = typeof init?.body === 'string'
+        ? JSON.parse(init.body) as Record<string, unknown>
+        : {};
+      calls.push({ url, body });
+      if (url === '/api/workspaces/open') {
+        return jsonResponse({
+          sourceId: 'local-target',
+          label: 'My diagrams',
+          slugs: [],
+        });
+      }
+      if (url === '/api/workspaces/copy') {
+        return jsonResponse({
+          address: 'local-target:alpha',
+          workspaceRevision: 'copy-revision',
+        });
+      }
+      if (url === '/api/overrides/local-target:alpha') {
+        expect(body.workspaceRevision).toBe('copy-revision');
+        return jsonResponse({
+          canonicalState: { slug: 'alpha' },
+          workspaceRevision: 'saved-revision',
+        });
+      }
+      if (url === '/api/workspaces/yaml/local-target%3Aalpha') {
+        return new Response('engine: v3\nroot:\n  id: copied\n', { status: 200 });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    };
+    createPreviewLocalFolderWorkspace({
+      windowObject,
+      document,
+      fetchFn: fetchFn as typeof fetch,
+      handleStore: persisted.store,
+      createSourceId: () => 'local-target',
+    });
+
+    const response = await windowObject.__DG_workspaceFetch?.('/api/overrides/examples:alpha', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ overrides: { copied: { dx: 8 } } }),
+    });
+
+    expect(response?.ok).toBe(true);
+    expect(await response?.json()).toMatchObject({
+      workspaceCopyAddress: 'local-target:alpha',
+    });
+    expect((await targetDirectory.getFileHandle('alpha.yaml')).getFile).toBeTypeOf('function');
+    await expect((await (await targetDirectory.getFileHandle('alpha.yaml')).getFile()).text()).resolves.toBe(
+      'engine: v3\nroot:\n  id: copied\n',
+    );
+    expect(calls.map((call) => call.url)).toEqual([
+      '/api/workspaces/open',
+      '/api/workspaces/copy',
+      '/api/overrides/local-target:alpha',
+      '/api/workspaces/yaml/local-target%3Aalpha',
+    ]);
+    expect(persisted.records().map((record) => record.sourceId)).toEqual(['local-target']);
+    expect(assigned).toEqual([]);
+  });
+
+  it('forgets the current folder without deleting its YAML file', async () => {
+    const file = fakeFileHandle('alpha.yaml', 'engine: v3\n');
+    const directory = fakeDirectory('Alpha', [file]);
+    const assigned: string[] = [];
+    const persisted = memoryStore();
+    const windowObject = {
+      __DG_CONFIG: { slug: '' },
+      location: { assign: (url: string) => assigned.push(url) },
+      confirm: () => true,
+      showDirectoryPicker: async () => directory,
+    } as unknown as Window & {
+      __DG_CONFIG: { slug: string };
+    };
+    const closed: string[] = [];
+    const controller = createPreviewLocalFolderWorkspace({
+      windowObject,
+      document: fakeDocument().document,
+      fetchFn: (async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input) === '/api/workspaces/open') {
+          return jsonResponse({ sourceId: 'local-alpha', label: 'Alpha', slugs: ['alpha'] });
+        }
+        if (String(input) === '/api/workspaces/close') {
+          closed.push((JSON.parse(String(init?.body)) as { sourceId: string }).sourceId);
+          return jsonResponse({ ok: true });
+        }
+        return jsonResponse({});
+      }) as typeof fetch,
+      handleStore: persisted.store,
+      createSourceId: () => 'local-alpha',
+    });
+    await controller.openFolder();
+    windowObject.__DG_CONFIG.slug = 'local-alpha:alpha';
+
+    await controller.forgetCurrentFolder();
+
+    expect(closed).toEqual(['local-alpha']);
+    expect(persisted.records()).toEqual([]);
+    expect(file.content).toBe('engine: v3\n');
+    expect(assigned).toEqual([
+      '/view/v3:local-alpha:alpha',
+      '/',
+    ]);
   });
 });

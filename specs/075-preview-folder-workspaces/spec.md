@@ -1,11 +1,11 @@
 # Spec 075: Preview folder workspaces
 
 **Feature Branch**: `feat/075-preview-folder-workspaces`
-**Status**: In progress — source abstraction, multi-root navigation, and the
-browser-folder safety/UX slice are implemented; live picker and closeout work remain
+**Status**: In progress — implementation and real-handle Chromium coverage are
+complete; native OS-picker/regrant evidence and final adversarial review remain
 **Created**: 2026-07-06
 **Support files**: [`plan.md`](./plan.md), [`tasks.md`](./tasks.md),
-[`workspace-flow.md`](./workspace-flow.md)
+[`workspace-flow.md`](./workspace-flow.md), [`validation.md`](./validation.md)
 
 ## Problem
 

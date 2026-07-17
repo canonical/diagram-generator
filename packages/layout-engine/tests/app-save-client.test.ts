@@ -241,6 +241,122 @@ describe('preview save client runtime', () => {
     expect(saveButton.disabled).toBe(true);
   });
 
+  it('keeps editor changes after a server-root conflict and retries against the new revision', async () => {
+    const previewWindow = {
+      __DG_CONFIG: { workspace_revision: 'opened-revision' as string | null },
+    };
+    const requestRevisions: unknown[] = [];
+    const fetchFn = vi.fn(async (_input: string, init?: Record<string, unknown>) => {
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      requestRevisions.push(body.workspaceRevision);
+      if (requestRevisions.length === 1) {
+        return {
+          ok: false,
+          status: 409,
+          statusText: 'Conflict',
+          text: async () => JSON.stringify({
+            error: 'changed on disk',
+            workspaceRevision: 'external-revision',
+          }),
+          json: async () => ({}),
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        text: async () => '',
+        json: async () => ({ workspaceRevision: 'saved-revision' }),
+      };
+    });
+    const runtime = createPreviewSaveClientRuntime({
+      document: {
+        body: { appendChild() {} },
+        activeElement: null,
+        createElement: () => ({ click() {}, remove() {} }),
+        getElementById: () => null,
+        querySelector: () => null,
+      },
+      previewWindow,
+      fetchFn,
+      alertFn: vi.fn(),
+      confirmFn: () => false,
+    });
+    const reloadDiagram = vi.fn();
+    runtime.init({
+      slug: 'other:demo',
+      getModel: () => ({
+        overrides: {},
+        gridOverrides: {},
+        removedIds: new Set<string>(),
+        get: () => null,
+      }),
+      getSelectedIds: () => [],
+      restoreSelectionIds: vi.fn(),
+      serializeDirtyState: () => '{}',
+      reloadDiagram,
+      getConstraintSummary: () => ({ errors: 0 }),
+      getLayoutRelayoutStatus: () => ({ localReady: true }),
+      getLayoutRelayoutRuntime: () => ({ lastMode: 'local-ready' }),
+      setStatus: vi.fn(),
+    });
+    runtime.setDirty(true);
+
+    await runtime.saveOverrides();
+    expect(runtime.isDirty()).toBe(true);
+    expect(previewWindow.__DG_CONFIG.workspace_revision).toBe('external-revision');
+    expect(reloadDiagram).not.toHaveBeenCalled();
+
+    await runtime.saveOverrides();
+    expect(requestRevisions).toEqual(['opened-revision', 'external-revision']);
+    expect(previewWindow.__DG_CONFIG.workspace_revision).toBe('saved-revision');
+  });
+
+  it('navigates to a successfully saved read-only copy without reloading the old source', async () => {
+    const assigned: string[] = [];
+    const runtime = createPreviewSaveClientRuntime({
+      document: {
+        body: { appendChild() {} },
+        activeElement: null,
+        createElement: () => ({ click() {}, remove() {} }),
+        getElementById: () => null,
+        querySelector: () => null,
+      },
+      previewWindow: { location: { assign: (url) => assigned.push(url) } },
+      fetchFn: async () => ({
+        ok: true,
+        status: 200,
+        text: async () => '',
+        json: async () => ({ workspaceCopyAddress: 'local-mine:demo' }),
+      }),
+      alertFn: vi.fn(),
+    });
+    const reloadDiagram = vi.fn();
+    runtime.init({
+      slug: 'examples:demo',
+      getModel: () => ({
+        overrides: {},
+        gridOverrides: {},
+        removedIds: new Set<string>(),
+        get: () => null,
+      }),
+      getSelectedIds: () => [],
+      restoreSelectionIds: vi.fn(),
+      serializeDirtyState: () => '{}',
+      reloadDiagram,
+      getConstraintSummary: () => ({ errors: 0 }),
+      getLayoutRelayoutStatus: () => ({ localReady: true }),
+      getLayoutRelayoutRuntime: () => ({ lastMode: 'local-ready' }),
+    });
+    runtime.setDirty(true);
+
+    await runtime.saveOverrides();
+
+    expect(reloadDiagram).not.toHaveBeenCalled();
+    expect(assigned).toEqual(['/view/v3:local-mine:demo']);
+    expect(runtime.isDirty()).toBe(false);
+  });
+
   it('emits canonical drag, nudge, multi-select, and resize overrides before POST', async () => {
     const fetchFn = vi.fn(async (_input, init) => ({
       ok: true,

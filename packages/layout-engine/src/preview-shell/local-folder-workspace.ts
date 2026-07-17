@@ -27,6 +27,7 @@ export interface PreviewLocalFolderController {
   openFolder(): Promise<void>;
   restoreFolders(): Promise<void>;
   reconnectFolders(): Promise<void>;
+  forgetCurrentFolder(): Promise<void>;
 }
 
 interface PreviewLocalFolderFileState {
@@ -42,7 +43,11 @@ interface PreviewLocalFolderState {
 }
 
 interface PreviewLocalFolderWindow extends Window {
-  __DG_CONFIG?: { slug?: string } | null;
+  __DG_CONFIG?: {
+    slug?: string;
+    workspace_writable?: boolean;
+    workspace_revision?: string | null;
+  } | null;
   __DG_workspaceFetch?: typeof fetch;
   __DG_localFolderWorkspace?: PreviewLocalFolderController;
 }
@@ -59,6 +64,7 @@ export interface PreviewLocalFolderWorkspaceOptions {
   readonly fetchFn: typeof fetch;
   readonly handleStore?: PreviewLocalFolderHandleStore;
   readonly confirmExternalOverwrite?: (message: string) => boolean | Promise<boolean>;
+  readonly confirmForgetFolder?: (message: string) => boolean | Promise<boolean>;
   readonly createSourceId?: (label: string) => string;
 }
 
@@ -210,6 +216,7 @@ async function uploadFolder(
   label: string,
   files: readonly PreviewLocalFolderFile[],
   sourceId: string,
+  allowEmpty = false,
 ): Promise<PreviewLocalFolderOpenResult> {
   const response = await fetchFn('/api/workspaces/open', {
     method: 'POST',
@@ -217,6 +224,7 @@ async function uploadFolder(
     body: JSON.stringify({
       label,
       sourceId,
+      allowEmpty,
       files: files.map(({ name, content }) => ({ name, content })),
     }),
   });
@@ -235,6 +243,37 @@ function configuredAddress(
     slug: configuredSlug.slice(separator + 1),
     address: configuredSlug,
   };
+}
+
+function parseQualifiedAddress(address: string): {
+  sourceId: string;
+  slug: string;
+  address: string;
+} | null {
+  const separator = address.indexOf(':');
+  if (separator <= 0 || separator === address.length - 1) return null;
+  return {
+    sourceId: address.slice(0, separator),
+    slug: address.slice(separator + 1),
+    address,
+  };
+}
+
+function currentSourceSlug(windowObject: PreviewLocalFolderWindow): string {
+  const address = windowObject.__DG_CONFIG?.slug ?? '';
+  const separator = address.indexOf(':');
+  return separator >= 0 ? address.slice(separator + 1) : address;
+}
+
+function copySlug(sourceSlug: string, state: PreviewLocalFolderState): string {
+  const occupied = new Set([...state.files.keys()].map((slug) => slug.toLocaleLowerCase('en-US')));
+  if (!occupied.has(sourceSlug.toLocaleLowerCase('en-US'))) return sourceSlug;
+  let suffix = 1;
+  while (true) {
+    const candidate = `${sourceSlug}-copy${suffix === 1 ? '' : `-${suffix}`}`;
+    if (!occupied.has(candidate.toLocaleLowerCase('en-US'))) return candidate;
+    suffix += 1;
+  }
 }
 
 async function currentFileText(handle: FileSystemFileHandle): Promise<string> {
@@ -270,12 +309,15 @@ export function createPreviewLocalFolderWorkspace(
   const handleStore = options.handleStore ?? createIndexedDbPreviewLocalFolderHandleStore();
   const confirmExternalOverwrite = options.confirmExternalOverwrite
     ?? ((message: string) => windowObject.confirm(message));
+  const confirmForgetFolder = options.confirmForgetFolder
+    ?? ((message: string) => windowObject.confirm(message));
   const createSourceId = options.createSourceId ?? defaultSourceId;
   const states = new Map<string, PreviewLocalFolderState>();
   const knownLocalSourceIds = new Set<string>();
   let storedRecords: PreviewLocalFolderHandleRecord[] = [];
   let deniedRecords: PreviewLocalFolderHandleRecord[] = [];
   let opening = false;
+  let restoreInFlight: Promise<void> | null = null;
 
   async function persistRecords(): Promise<void> {
     try {
@@ -302,13 +344,14 @@ export function createPreviewLocalFolderWorkspace(
     directory: FileSystemDirectoryHandle,
     record: PreviewLocalFolderHandleRecord | null,
     navigate: boolean,
+    allowEmpty = false,
   ): Promise<PreviewLocalFolderOpenResult> {
     const files = await readDirectory(directory);
-    if (files.length === 0) {
+    if (files.length === 0 && !allowEmpty) {
       throw new Error('The selected folder has no root-level .yaml diagrams.');
     }
     const requestedSourceId = record?.sourceId ?? createSourceId(directory.name);
-    const result = await uploadFolder(fetchFn, directory.name, files, requestedSourceId);
+    const result = await uploadFolder(fetchFn, directory.name, files, requestedSourceId, allowEmpty);
     const state: PreviewLocalFolderState = {
       sourceId: result.sourceId,
       label: result.label,
@@ -337,8 +380,10 @@ export function createPreviewLocalFolderWorkspace(
     return result;
   }
 
-  async function mirrorSavedYaml(): Promise<void> {
-    const address = configuredAddress(windowObject);
+  async function mirrorSavedYaml(addressOverride?: string, allowCreate = false): Promise<void> {
+    const address = addressOverride
+      ? parseQualifiedAddress(addressOverride)
+      : configuredAddress(windowObject);
     if (!address) return;
     const targetsLocalFolder = knownLocalSourceIds.has(address.sourceId)
       || address.sourceId.startsWith('local-');
@@ -347,9 +392,14 @@ export function createPreviewLocalFolderWorkspace(
     if (!state) {
       throw new Error(`Reconnect ${address.sourceId} before saving.`);
     }
-    const fileState = state.files.get(address.slug);
+    let fileState = state.files.get(address.slug);
     if (!fileState) {
-      throw new Error(`The opened folder no longer contains ${address.slug}.yaml.`);
+      if (!allowCreate) {
+        throw new Error(`The opened folder no longer contains ${address.slug}.yaml.`);
+      }
+      const handle = await state.directory.getFileHandle(`${address.slug}.yaml`, { create: true });
+      fileState = { handle, content: await currentFileText(handle) };
+      state.files.set(address.slug, fileState);
     }
     const yamlResponse = await fetchFn(
       `/api/workspaces/yaml/${encodeURIComponent(address.address)}`,
@@ -377,17 +427,131 @@ export function createPreviewLocalFolderWorkspace(
     setStatus(document, `Saved ${address.slug}.yaml to ${state.label}.`);
   }
 
+  async function saveCopy(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+    const picker = (windowObject as Window & {
+      showDirectoryPicker?: (options?: { mode?: 'read' | 'readwrite' }) => Promise<FileSystemDirectoryHandle>;
+    }).showDirectoryPicker;
+    if (typeof picker !== 'function') {
+      return saveFailureResponse(new Error(
+        'Saving a copy requires a Chromium-based browser on localhost. '
+        + 'You can also restart the preview with --root "Name=path".',
+      ));
+    }
+    const sourceAddress = windowObject.__DG_CONFIG?.slug ?? '';
+    const sourceSlug = currentSourceSlug(windowObject);
+    if (!sourceAddress || !sourceSlug) {
+      return saveFailureResponse(new Error('The source diagram address is unavailable.'));
+    }
+
+    let directory: FileSystemDirectoryHandle | null = null;
+    let state: PreviewLocalFolderState | null = null;
+    let targetSlug = '';
+    try {
+      directory = await picker.call(windowObject, { mode: 'readwrite' });
+      const result = await openDirectory(
+        directory,
+        await findExistingRecord(directory),
+        false,
+        true,
+      );
+      state = states.get(result.sourceId) ?? null;
+      if (!state) throw new Error('The selected folder could not be connected.');
+      targetSlug = copySlug(sourceSlug, state);
+      const targetHandle = await directory.getFileHandle(`${targetSlug}.yaml`, { create: true });
+      const initialContent = await currentFileText(targetHandle);
+      state.files.set(targetSlug, { handle: targetHandle, content: initialContent });
+
+      const copyResponse = await fetchFn('/api/workspaces/copy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceAddress,
+          targetSourceId: state.sourceId,
+          targetSlug,
+        }),
+      });
+      if (!copyResponse.ok) {
+        throw new Error(await copyResponse.text() || `Copy failed (${copyResponse.status})`);
+      }
+      const copyResult = await copyResponse.json() as {
+        address?: string;
+        workspaceRevision?: string | null;
+      };
+      const targetAddress = copyResult.address;
+      if (typeof targetAddress !== 'string') throw new Error('The copy response had no target address.');
+
+      let targetInit = init;
+      if (typeof init?.body === 'string') {
+        const body = JSON.parse(init.body) as Record<string, unknown>;
+        if (typeof copyResult.workspaceRevision === 'string') {
+          body.workspaceRevision = copyResult.workspaceRevision;
+        }
+        targetInit = { ...init, body: JSON.stringify(body) };
+      }
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+      const targetUrl = url.replace(/\/api\/overrides\/[^?#]*/, `/api/overrides/${targetAddress}`);
+      const targetResponse = await fetchFn(targetUrl, targetInit);
+      if (!targetResponse.ok) {
+        throw new Error(await targetResponse.text() || `Save copy failed (${targetResponse.status})`);
+      }
+      await mirrorSavedYaml(targetAddress);
+      const responsePayload = await targetResponse.json() as Record<string, unknown>;
+      return new Response(JSON.stringify({
+        ...responsePayload,
+        workspaceCopyAddress: targetAddress,
+      }), {
+        status: targetResponse.status,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    } catch (error) {
+      if (directory && state && targetSlug) {
+        state.files.delete(targetSlug);
+        try {
+          await directory.removeEntry(`${targetSlug}.yaml`);
+        } catch {
+          // Best-effort cleanup of a target file created before a failed copy.
+        }
+        try {
+          const record = storedRecords.find((candidate) => candidate.sourceId === state?.sourceId) ?? null;
+          await openDirectory(directory, record, false, true);
+        } catch {
+          // The original error remains the actionable failure.
+        }
+      }
+      return saveFailureResponse(error);
+    }
+  }
+
   windowObject.__DG_workspaceFetch = async (input, init) => {
-    const response = await fetchFn(input, init);
     const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
     const workspaceMutation = url.includes('/api/overrides/')
       || url.includes('/api/import/mermaid')
       || url.includes('/api/import/d2');
+    const currentAddress = configuredAddress(windowObject);
+    if (
+      init?.method === 'POST'
+      && workspaceMutation
+      && currentAddress?.sourceId.startsWith('local-')
+      && restoreInFlight
+    ) {
+      await restoreInFlight;
+    }
+    if (
+      init?.method === 'POST'
+      && url.includes('/api/overrides/')
+      && windowObject.__DG_CONFIG?.workspace_writable === false
+    ) {
+      return saveCopy(input, init);
+    }
+    const response = await fetchFn(input, init);
     if (!response.ok || init?.method !== 'POST' || !workspaceMutation) {
       return response;
     }
     try {
-      await mirrorSavedYaml();
+      const importAddress = url.includes('/api/import/')
+        ? new URL(url, windowObject.location.href || 'http://127.0.0.1').searchParams.get('slug')
+        : null;
+      await mirrorSavedYaml(importAddress ?? undefined, importAddress !== null);
       return response;
     } catch (error) {
       console.warn('Could not save YAML to the opened folder', error);
@@ -423,38 +587,46 @@ export function createPreviewLocalFolderWorkspace(
     },
 
     async restoreFolders() {
-      try {
-        storedRecords = await handleStore.load();
-      } catch (error) {
-        console.warn('Could not read remembered folder handles', error);
-        setStatus(document, 'This browser could not restore remembered folders.', 'error');
-        return;
-      }
-      for (const record of storedRecords) knownLocalSourceIds.add(record.sourceId);
-      deniedRecords = [];
-      let restored = 0;
-      for (const record of storedRecords) {
+      const operation = (async () => {
         try {
-          if (await directoryPermission(record.handle, false) !== 'granted') {
-            deniedRecords.push(record);
-            continue;
-          }
-          await openDirectory(record.handle, record, false);
-          restored += 1;
+          storedRecords = await handleStore.load();
         } catch (error) {
-          console.warn(`Could not restore folder '${record.label}'`, error);
-          deniedRecords.push(record);
+          console.warn('Could not read remembered folder handles', error);
+          setStatus(document, 'This browser could not restore remembered folders.', 'error');
+          return;
         }
-      }
-      setReconnectVisibility(document, deniedRecords.length);
-      if (deniedRecords.length > 0) {
-        setStatus(
-          document,
-          `${deniedRecords.length} folder${deniedRecords.length === 1 ? '' : 's'} need permission to reconnect.`,
-          'error',
-        );
-      } else if (restored > 0) {
-        setStatus(document, `${restored} folder${restored === 1 ? '' : 's'} reconnected.`);
+        for (const record of storedRecords) knownLocalSourceIds.add(record.sourceId);
+        deniedRecords = [];
+        let restored = 0;
+        for (const record of storedRecords) {
+          try {
+            if (await directoryPermission(record.handle, false) !== 'granted') {
+              deniedRecords.push(record);
+              continue;
+            }
+            await openDirectory(record.handle, record, false);
+            restored += 1;
+          } catch (error) {
+            console.warn(`Could not restore folder '${record.label}'`, error);
+            deniedRecords.push(record);
+          }
+        }
+        setReconnectVisibility(document, deniedRecords.length);
+        if (deniedRecords.length > 0) {
+          setStatus(
+            document,
+            `${deniedRecords.length} folder${deniedRecords.length === 1 ? '' : 's'} need permission to reconnect.`,
+            'error',
+          );
+        } else if (restored > 0) {
+          setStatus(document, `${restored} folder${restored === 1 ? '' : 's'} reconnected.`);
+        }
+      })();
+      restoreInFlight = operation;
+      try {
+        await operation;
+      } finally {
+        if (restoreInFlight === operation) restoreInFlight = null;
       }
     },
 
@@ -481,6 +653,41 @@ export function createPreviewLocalFolderWorkspace(
       } else if (restored > 0) {
         setStatus(document, `${restored} folder${restored === 1 ? '' : 's'} reconnected.`);
       }
+    },
+
+    async forgetCurrentFolder() {
+      const address = configuredAddress(windowObject);
+      if (!address || !address.sourceId.startsWith('local-')) return;
+      if (restoreInFlight) await restoreInFlight;
+      if (storedRecords.length === 0 && !states.has(address.sourceId)) {
+        try {
+          storedRecords = await handleStore.load();
+        } catch {
+          // The server-side registration can still be removed.
+        }
+      }
+      const state = states.get(address.sourceId);
+      const label = state?.label
+        ?? storedRecords.find((record) => record.sourceId === address.sourceId)?.label
+        ?? address.sourceId;
+      if (!await confirmForgetFolder(
+        `Forget ${label}? This removes the folder from the preview but does not delete any files.`,
+      )) return;
+      const response = await fetchFn('/api/workspaces/close', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceId: address.sourceId }),
+      });
+      if (!response.ok && response.status !== 404) {
+        setStatus(document, await response.text() || 'Could not forget the folder.', 'error');
+        return;
+      }
+      states.delete(address.sourceId);
+      knownLocalSourceIds.delete(address.sourceId);
+      storedRecords = storedRecords.filter((record) => record.sourceId !== address.sourceId);
+      deniedRecords = deniedRecords.filter((record) => record.sourceId !== address.sourceId);
+      await persistRecords();
+      windowObject.location.assign('/');
     },
   };
 
@@ -511,6 +718,30 @@ export function initPreviewLocalFolderWorkspace(): PreviewLocalFolderController 
   }
   const reconnectButton = document.getElementById('dg-reconnect-folders');
   reconnectButton?.addEventListener('click', () => void controller.reconnectFolders());
+  const forgetButton = document.getElementById('dg-forget-folder') as HTMLElement | null;
+  const currentAddress = configuredAddress(windowObject);
+  if (forgetButton) {
+    forgetButton.hidden = !currentAddress?.sourceId.startsWith('local-');
+    forgetButton.addEventListener('click', () => void controller.forgetCurrentFolder());
+  }
+  if (windowObject.__DG_CONFIG?.workspace_writable === false) {
+    const saveButton = document.getElementById('btn-save');
+    if (saveButton) {
+      saveButton.textContent = 'Save a copy…';
+      saveButton.setAttribute(
+        'aria-label',
+        'Save a copy of this read-only example to a folder you choose',
+      );
+      saveButton.setAttribute(
+        'title',
+        'This example is read-only. Save your edits as a copy in a folder you choose.',
+      );
+    }
+    setStatus(
+      document,
+      'This example is read-only. Edit it, then choose Save a copy… to keep your own YAML file.',
+    );
+  }
   if (!pickerSupported) {
     setStatus(
       document,

@@ -20,7 +20,10 @@ import { buildRegisteredPreviewBrowseSections } from "./registry.js";
 import { AUTOLAYOUT_HOST_LANE } from "./lanes.js";
 import { createServerRootSource } from "./workspace/server-root-source.js";
 import { WorkspaceRegistry } from "./workspace/workspace-registry.js";
-import type { DiagramWorkspaceSource } from "./workspace/diagram-workspace-source.js";
+import {
+  formatQualifiedSlug,
+  type DiagramWorkspaceSource,
+} from "./workspace/diagram-workspace-source.js";
 import type { FramePreviewDocumentDeps, FramePreviewRenderDeps } from "./frame-documents.js";
 import type { ForcePreviewDocumentDeps } from "./force-documents.js";
 import type { PreviewHostModuleInstallDeps } from "./modules.js";
@@ -222,6 +225,7 @@ export function createBuiltinPreviewHostInstallDeps(
     slug: string;
     sourceId: string;
     writable: boolean;
+    revision: string | null;
   } | null => {
     const resolved = workspaceRegistry.resolveFrameDir(slug);
     return resolved
@@ -230,12 +234,42 @@ export function createBuiltinPreviewHostInstallDeps(
           slug: resolved.slug,
           sourceId: resolved.source.id,
           writable: sourceIsWritable(resolved.source),
+          revision: resolved.source.kind === "server-root" && resolved.source.has(resolved.slug)
+            ? resolved.source.revision?.(resolved.slug) ?? null
+            : null,
         }
       : null;
   };
 
   const registerWorkspaceSource = (source: DiagramWorkspaceSource): void => {
     workspaceRegistry.register(source);
+  };
+  const unregisterWorkspaceSource = (sourceId: string): boolean =>
+    workspaceRegistry.unregister(sourceId) !== null;
+  const copyWorkspaceDocument = (
+    sourceAddress: string,
+    targetSourceId: string,
+    targetSlug: string,
+  ): { address: string; workspaceRevision: string | null } => {
+    const source = workspaceRegistry.resolve(sourceAddress);
+    const target = workspaceRegistry.get(targetSourceId);
+    if (!source || !source.source.has(source.slug)) {
+      throw new Error(`Unknown source diagram: ${sourceAddress}`);
+    }
+    if (!target) throw new Error(`Unknown target workspace: ${targetSourceId}`);
+    if (!sourceIsWritable(target)) {
+      throw new Error(`Workspace source '${targetSourceId}' is read-only`);
+    }
+    if (target.has(targetSlug)) {
+      throw new Error(`${targetSlug}.yaml already exists in ${target.label}`);
+    }
+    target.write(targetSlug, source.source.read(source.slug));
+    return {
+      address: formatQualifiedSlug(target.id, targetSlug),
+      workspaceRevision: target.kind === "server-root"
+        ? target.revision?.(targetSlug) ?? null
+        : null,
+    };
   };
 
   const moduleContexts = new Map<string, unknown>([
@@ -284,6 +318,8 @@ export function createBuiltinPreviewHostInstallDeps(
         addSseClient: options.addSseClient,
         removeSseClient: options.removeSseClient,
         registerWorkspaceSource,
+        unregisterWorkspaceSource,
+        copyWorkspaceDocument,
       } satisfies BuiltinPreviewHostServerRouteDeps,
     ],
   ]);

@@ -1,4 +1,7 @@
-import type { PreviewHostDocumentEndpointDescriptor } from "./types.js";
+import {
+  PreviewHostHttpError,
+  type PreviewHostDocumentEndpointDescriptor,
+} from "./types.js";
 import {
   componentTreeForSlug,
   frameTreeForSlug,
@@ -31,6 +34,7 @@ export interface CreateFramePreviewHostDocumentApiOptions {
     slug: string;
     sourceId: string;
     writable: boolean;
+    revision: string | null;
   } | null;
 }
 
@@ -64,6 +68,7 @@ export function createFramePreviewHostDocumentEndpoints(
     slug: string;
     sourceId: string;
     writable: boolean;
+    revision: string | null;
   } => {
     // Keep the old single-directory behavior for narrow legacy helpers that
     // do not provide a workspace resolver. Once a resolver is installed, null
@@ -74,6 +79,7 @@ export function createFramePreviewHostDocumentEndpoints(
         slug,
         sourceId: "default",
         writable: true,
+        revision: null,
       };
     }
     const resolved = options.resolveFrameDir(slug);
@@ -83,6 +89,7 @@ export function createFramePreviewHostDocumentEndpoints(
       slug: resolved.slug,
       sourceId: resolved.sourceId,
       writable: resolved.writable,
+      revision: resolved.revision,
     };
   };
   const resolveRender = (slug: string): { deps: FramePreviewRenderDeps; slug: string } => {
@@ -153,13 +160,40 @@ export function createFramePreviewHostDocumentEndpoints(
       handler: (slug: string, payload: unknown) => {
         const r = resolveDoc(slug);
         if (!r.writable) {
-          throw new Error(`Workspace source '${r.sourceId}' is read-only`);
+          throw new PreviewHostHttpError(`Workspace source '${r.sourceId}' is read-only`, 403);
         }
-        return saveFramePreviewDocument(r.slug, payload, {
+        const payloadRecord = payload && typeof payload === "object" && !Array.isArray(payload)
+          ? payload as Record<string, unknown>
+          : null;
+        const expectedRevision = payloadRecord?.workspaceRevision;
+        if (
+          typeof expectedRevision === "string"
+          && r.revision !== null
+          && expectedRevision !== r.revision
+        ) {
+          throw new PreviewHostHttpError(
+            "This diagram changed on disk after it was opened. Reload the external version or keep your editor changes and try again.",
+            409,
+            {
+              error: "This diagram changed on disk after it was opened.",
+              workspaceRevision: r.revision,
+            },
+          );
+        }
+        const savePayload = payloadRecord
+          ? Object.fromEntries(
+              Object.entries(payloadRecord).filter(([key]) => key !== "workspaceRevision"),
+            )
+          : payload;
+        const result = saveFramePreviewDocument(r.slug, savePayload, {
           framePreviewDocumentDeps: r.deps,
           parseYaml: options.parseYaml,
           normalizeLayoutEngine: options.normalizeLayoutEngine,
         });
+        const nextRevision = options.resolveFrameDir?.(slug)?.revision ?? null;
+        return result && typeof result === "object" && !Array.isArray(result)
+          ? { ...result, workspaceRevision: nextRevision }
+          : { result, workspaceRevision: nextRevision };
       },
     },
   ] as const;
