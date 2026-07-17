@@ -17,6 +17,11 @@ cleanly into the primary `main` worktree at `7317feb`; the feature worktree is
 clean and ready for deletion. The complete evidence and review record live in
 `docs/spec-reviews/` and `specs/061-preview-grid-regression/`.
 
+**Opus review request (028).** Use
+[`opus-adversarial-review-request-2026-07-17-spec-028.md`](docs/spec-reviews/opus-adversarial-review-request-2026-07-17-spec-028.md).
+Write findings only to
+`docs/spec-reviews/opus-adversarial-review-findings-2026-07-17-spec-028.md`.
+
 **Preview canvas resize (2026-07-16).** Fixed the local v3 relayout order:
 after arrows are rerouted, the stage is fitted again to the new root dimensions.
 Previously, the initial fit included stale arrow paths, so a root direction
