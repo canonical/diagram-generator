@@ -6,7 +6,7 @@
 
 **Created**: 2026-06-06
 
-**Status**: Closeout Ready
+**Status**: Merged to `main`; pending user verification and archive
 
 **Depends on**: spec **022** (diagram authoring AST — compile, validate, lower, **export** adapters landed in v1).
 

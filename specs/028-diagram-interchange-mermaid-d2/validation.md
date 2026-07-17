@@ -1,6 +1,7 @@
 # Validation — Mermaid-first hand-authored import
 
-Validated 2026-07-17 on `feat/028-diagram-interchange-mermaid-d2`.
+Validated 2026-07-17 on `feat/028-diagram-interchange-mermaid-d2`, including a
+full post-rebase run before the clean fast-forward merge to `main`.
 
 ## Review remediation
 
@@ -41,8 +42,8 @@ host document load plus the complete preview browser regression suite.
 
 ## Green commands
 
-- `npm --prefix packages/layout-engine test` — 170 files, 1,050 tests.
-- `npm --prefix apps/preview test` — 173 tests.
+- `npm --prefix packages/layout-engine test` — 170 files, 1,054 tests after rebase.
+- `npm --prefix apps/preview test` — 174 tests after rebase.
 - `D2_BIN="C:\Program Files\D2\d2.exe" npm --prefix packages/layout-engine test -- tests/diagram-author-export-d2.test.ts` — 9 tests.
 - `node scripts/check-browser-bundle-fresh.mjs`.
 - `node scripts/check_no_new_python.mjs`.

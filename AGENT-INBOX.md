@@ -17,15 +17,14 @@ cleanly into the primary `main` worktree at `7317feb`; the feature worktree is
 clean and ready for deletion. The complete evidence and review record live in
 `docs/spec-reviews/` and `specs/061-preview-grid-regression/`.
 
-**Spec 028 merge ready (2026-07-17).** The Mermaid-first implementation and
-review remediation are complete on `feat/028-diagram-interchange-mermaid-d2`.
-The full layout-engine (1,050) and preview (173) suites plus the real D2 compiler
-gate are green; see
-[`validation.md`](specs/028-diagram-interchange-mermaid-d2/validation.md).
-Opus independently re-reviewed remediation commit `228adde`; the **Merge ready**
-verdict is appended to
-[`opus-adversarial-review-findings-2026-07-17-spec-028.md`](docs/spec-reviews/opus-adversarial-review-findings-2026-07-17-spec-028.md)
-(the final section). One documented non-blocking limitation remains: inline
-node declarations on an edge require separate node declarations. After merge,
-leave this worktree in place but mark it ready for deletion pending user
-verification in the primary worktree.
+**Spec 028 merged (2026-07-17).** The reviewed Mermaid-first implementation
+fast-forwarded cleanly into the primary `main` worktree at `32e0390`. After the
+rebase, the full layout-engine (1,054) and preview (174) suites, browser-bundle
+freshness check, Python ratchet, and diff check were green; the real D2 compiler
+gate had also passed. The feature worktree is clean and ready for deletion
+pending user verification in the primary worktree. Durable validation and the
+Opus re-review live in
+[`validation.md`](specs/028-diagram-interchange-mermaid-d2/validation.md) and
+[`opus-adversarial-review-findings-2026-07-17-spec-028.md`](docs/spec-reviews/opus-adversarial-review-findings-2026-07-17-spec-028.md).
+One documented non-blocking limitation remains: inline node declarations on an
+edge require separate node declarations.
