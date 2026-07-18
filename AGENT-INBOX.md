@@ -12,25 +12,18 @@ spec catalog/status → [`docs/specs.md`](docs/specs.md) · human notes →
 [`INBOX.md`](INBOX.md) · durable per-spec detail → `specs/<id>-<slug>/` ·
 adversarial reviews → `docs/spec-reviews/`.
 
-**Spec 080 implementation complete; both adversarial review passes remediated
-(2026-07-18).**
-`feat/080-renderable-interchange-import` includes the spec-075 folder-workspace
-dependency. Mermaid and D2 imports share a blocking structural-loss gate; the
-bounded tokenizer → typed IR → lowering path preserves compound topology,
-reverse/local direction, supported styles, and selects/persists v3 or ELK from
-engine capabilities. Preview server-root and local-folder import paths have
-no-write-on-block plus persist→reload regressions. Phase 7 focused evidence is
-74/74 plus Phase 8's 39/39, and the full layout-engine suite is 1,136/1,136;
-the full preview suite is 190 pass, 1 expected Windows symlink skip. Durable
-evidence and review records live in the spec package and `docs/spec-reviews/`.
-The first implementation review resolved all original findings but found six
-breadth/truthfulness gaps; T070–T075 now close them with unquoted edge labels,
-direction-less headers, scoped D2 implicit endpoints, conflicting-label
-diagnostics, decorated-edge downgrades, and re-verified corpus SHA-256 provenance.
-The second review addendum's T076/T077 are also green: no-space edges retain
-hyphenated/dotted ids, and dotted labelled edges preserve labels/topology. Its
-two untracked review fixtures were removed rather than committed. Final Opus
-approval is pending.
+**Spec 080 merged to `main` and archived (2026-07-18).**
+The reviewed renderable-interchange implementation and all T070–T077 remediation
+landed in merge `eb5e958`. Mermaid and D2 imports share a blocking
+structural-loss gate, preserve supported compound topology and direction, and
+select/persist a compatible v3 or ELK engine. Post-merge validation is green:
+layout engine 1,136/1,136; preview 190 pass with one expected Windows symlink
+skip; browser freshness, preview build, no-new-Python, and diff checks pass.
+The maintainer requested merge after the second review's remaining “almost”
+items were fixed; no additional third-party approval pass was run. Durable
+evidence is archived under
+`docs/spec-archive/080-renderable-interchange-import/` and review records remain
+under `docs/spec-reviews/`.
 
 **Spec 061 merged (2026-07-17).** `feat/061-preview-grid-regression` merged
 cleanly into the primary `main` worktree at `7317feb`; the feature worktree is

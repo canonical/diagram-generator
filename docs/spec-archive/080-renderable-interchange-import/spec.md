@@ -6,7 +6,7 @@
 
 **Created**: 2026-07-18
 
-**Status**: Implemented — both adversarial review passes remediated; final approval pending
+**Status**: Merged to `main` and archived 2026-07-18
 
 **Depends on**: spec **028** (Mermaid & D2 interchange, merged), spec **022** (diagram authoring AST), the ELK layered engine in `packages/graph-layout-elk/`, and the preview folder-workspace import route from spec **075**.
 
@@ -15,7 +15,7 @@
 ## Origin
 
 This spec was created from the 2026-07-18 adversarial review recorded in
-[`docs/spec-reviews/opus-adversarial-review-findings-2026-07-18-renderable-interchange-import.md`](../../docs/spec-reviews/opus-adversarial-review-findings-2026-07-18-renderable-interchange-import.md).
+[`docs/spec-reviews/opus-adversarial-review-findings-2026-07-18-renderable-interchange-import.md`](../../spec-reviews/opus-adversarial-review-findings-2026-07-18-renderable-interchange-import.md).
 Read that findings file first. The review reproduced a folder-workspace Mermaid
 import that reported "Imported with 41 warning(s)" while silently dropping edges,
 both endpoint nodes of those edges, and a subgraph-local `direction` statement.

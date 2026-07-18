@@ -1,7 +1,7 @@
 # Validation: renderable interchange import
 
 **Spec**: 080-renderable-interchange-import
-**Status**: Implementation complete — both adversarial review passes remediated; final approval pending.
+**Status**: Merged to `main` and archived 2026-07-18.
 
 Evidence below was recorded on Windows in
 `feat/080-renderable-interchange-import` on 2026-07-18.
@@ -128,6 +128,6 @@ git diff --check
 
 Per `AGENTS.md`, the preview import/write closeout requires repo-owned
 `import → persist → reload` regressions for both server-root and local-folder
-sources. T041/T042 and the full suites are green. Both Opus review passes are on
-disk and T070–T077 are remediated. Final status remains Review until the final
-approval pass confirms the Phase 8 boundary fixes.
+sources. T041/T042 and the full suites are green. Both review records are on
+disk and T070–T077 are remediated. The maintainer requested merge after those
+remaining “almost” items were addressed; no additional approval pass was run.
