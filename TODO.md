@@ -55,6 +55,15 @@ gated stages**. Do them in this order; do not skip the gate.
    (`specs/028-diagram-interchange-mermaid-d2/`). After user verification in the
    primary worktree, archive the package and delete the feature branch/worktree.
    Any broader Mermaid grammar work is a follow-up; no Dagre.
+3. **Spec 080 — renderable interchange import (follow-up to 028).** Authored
+   2026-07-18 from the Opus adversarial review; **import-blocking** defects found
+   (structural loss surfaced as warnings, inline-declared edges and subgraph-local
+   direction dropped). Capability-based contract: one shared structural-loss gate
+   that blocks before write; tokenizer/parser/IR replaces per-line regex; phased
+   D2 parity. spec.md + plan.md + tasks.md + validation.md +
+   `contracts/import-capability-matrix.md` drafted on
+   `feat/080-renderable-interchange-import`. Not implemented — GPT executes the
+   test-first task list; observe Phase gate A (parser/IR) before persistence.
 
 ### Lane B — standing user-facing regressions (parallel, independent of Epic A)
 

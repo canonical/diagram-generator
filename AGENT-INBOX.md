@@ -29,6 +29,19 @@ has one unrelated failure because the user's uncommitted
 `request-to-hardware-stack.yaml` now selects ELK instead of the fixture's
 historical v3 expectation; preserve that YAML.
 
+**Spec 080 authored (2026-07-18) — NOT implemented.** `feat/080-renderable-interchange-import`
+is the plan-only follow-up to merged spec 028. The 2026-07-18 Opus adversarial
+review returned **import-blocking / changes requested**: the interchange importer
+surfaces structural loss (dropped edges, dropped endpoint nodes, dropped
+subgraph-local direction) as non-blocking warnings and writes the falsified
+diagram to disk with an "Imported with N warning(s)" success toast. Full findings:
+[`opus-adversarial-review-findings-2026-07-18-renderable-interchange-import.md`](docs/spec-reviews/opus-adversarial-review-findings-2026-07-18-renderable-interchange-import.md)
+(written in the 075 worktree). New spec package:
+[`specs/080-renderable-interchange-import/`](specs/080-renderable-interchange-import/)
+— spec.md, plan.md, tasks.md, validation.md, contracts/import-capability-matrix.md.
+Next: GPT implements the test-first task list (T000–T063); observe Phase gate A
+(parser/IR) before touching preview persistence. No implementation task is done.
+
 **Spec 061 merged (2026-07-17).** `feat/061-preview-grid-regression` merged
 cleanly into the primary `main` worktree at `7317feb`; the feature worktree is
 clean and ready for deletion. The complete evidence and review record live in
