@@ -26,6 +26,7 @@ import {
   type PreviewEngineContext,
   type PreviewDocumentKind,
   type PreviewRenderableDocument,
+  type DiagramImportResult,
   type TextMeasureAdapter,
 } from "@diagram-generator/layout-engine";
 import {
@@ -421,7 +422,12 @@ export function importInterchangeForSlug(
   format: InterchangeImportFormat,
   source: string,
   deps: FramePreviewDocumentDeps,
-): { ok: true; slug: string; warnings: unknown[] } {
+): {
+  ok: true;
+  slug: string;
+  warnings: unknown[];
+  summary: DiagramImportResult["summary"];
+} {
   const framePath = path.join(deps.framesDir, `${slug}.yaml`);
   if (existsSync(framePath)) {
     throw new Error(`A diagram named '${slug}' already exists`);
@@ -441,7 +447,12 @@ export function importInterchangeForSlug(
     throw new Error(compiled.errors.map((diagnostic) => diagnostic.message).join("\n"));
   }
   writeFileSync(framePath, yaml, "utf8");
-  return { ok: true, slug, warnings: imported.warnings };
+  return {
+    ok: true,
+    slug,
+    warnings: imported.warnings,
+    summary: imported.summary,
+  };
 }
 
 function resolveFramePreviewEngineResolutionForDocument(

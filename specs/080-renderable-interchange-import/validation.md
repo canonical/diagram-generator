@@ -1,7 +1,7 @@
 # Validation: renderable interchange import
 
 **Spec**: 080-renderable-interchange-import
-**Status**: Draft — no product code implemented in the authoring pass.
+**Status**: Implementation active — Gate A green.
 
 This file records the evidence each phase must produce. It is empty of results
 until implementation runs; the review pass only defines the required proofs.
@@ -28,19 +28,24 @@ npm --prefix packages/layout-engine run build:browser   # if browser surface cha
 ## Required evidence by phase
 
 ### Phase 0 — structural-loss gate
-- [ ] `finishImport` blocks `structural`/`invalid`/`type` in non-strict mode (unit).
-- [ ] Screenshot inline-declared edge input **blocks** before Phase 2 (T004) — proves the silent-loss hole is closed.
-- [ ] Preview server route writes nothing on structural loss; local-folder mirrors nothing; CLIs exit non-zero.
+- [x] `finishImport` blocks `structural`/`invalid`/`type` in non-strict mode (unit).
+- [x] The screenshot input first proved the blocking gate, then Phase 2 converted
+  it to a faithful two-frame/one-arrow import with visual class downgrades.
+- [ ] Preview server route writes nothing on structural loss and the Mermaid CLI
+  exits non-zero. Local-folder proof awaits the spec-075 dependency rebase; the
+  D2 CLI proof awaits T050.
 
 ### Phase 1 + Gate A
-- [ ] Tokenizer/parser tests green for every token kind and malformed/oversized input.
-- [ ] Every pre-existing `diagram-author-import.test.ts` assertion still passes on the IR path (T013).
-- [ ] **Gate A**: `importMermaid` fully on IR path, no persistence wiring changed. Record commit + test output here.
+- [x] Tokenizer/parser tests green for every token kind and malformed/oversized input.
+- [x] Every pre-existing `diagram-author-import.test.ts` assertion passes on the IR path (T013).
+- [x] **Gate A**: `importMermaid` is fully on the IR path. Focused evidence:
+  `6 files / 43 tests passed` from the import, CLI, tokenizer, parser, lowerer,
+  and topology suites on 2026-07-18.
 
 ### Phase 2 — supported/blocking constructs
-- [ ] Matrix rows MF-16/17/18/19/20(LR,TB)/26/27 import faithfully (topology + counts asserted, not just compile).
-- [ ] Matrix rows MF-28 block; MF-30 downgrades.
-- [ ] False-positive battery: self-loop, parallel edges, cycle, disconnected — exact node/edge counts and parent links asserted.
+- [x] Matrix rows MF-16/17/18/19/20(LR,TB)/26/27 import faithfully (topology + counts asserted, not just compile).
+- [x] Matrix row MF-28 blocks; MF-30 strips markdown to plain text and downgrades visually.
+- [x] Self-loop, parallel edges, cycle, and disconnected-component tests assert exact topology and parent containment.
 
 ### Phase 3 — reverse direction + engine selection
 - [ ] Before T030: `RL`/`BT` (top-level and subgraph-local) **block** (no silent collapse).

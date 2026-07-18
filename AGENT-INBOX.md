@@ -12,35 +12,16 @@ spec catalog/status → [`docs/specs.md`](docs/specs.md) · human notes →
 [`INBOX.md`](INBOX.md) · durable per-spec detail → `specs/<id>-<slug>/` ·
 adversarial reviews → `docs/spec-reviews/`.
 
-**Spec 075 active (2026-07-17).** `feat/075-preview-folder-workspaces` is rebased
-on `main` (`1299bbb`). The remaining implementation is complete: read-only Save
-a copy, SHA-256 server-root conflict handling, first-run guidance, safe-YAML and
-large-nav contracts, forget/shutdown cache disposal, and a reusable Chromium
-real-filesystem-handle journey. Full layout-engine (1,062) and preview (188 pass /
-1 expected Windows symlink skip) suites, builds, browser freshness,
-no-new-Python, diff check, and the production Chromium journey are green. Native
-OS chooser/regrant evidence remains unavailable because the in-app browser is
-unavailable; final Opus findings are requested under `docs/spec-reviews/`.
-The 2026-07-18 open-folder follow-up now lists local folders before the large
-bundled corpus and refreshes navigation once when persisted handles recreate
-server-side registrations. Focused contracts, builds, bundle freshness, and the
-production Chromium real-handle journey are green. The broad preview contract
-has one unrelated failure because the user's uncommitted
-`request-to-hardware-stack.yaml` now selects ELK instead of the fixture's
-historical v3 expectation; preserve that YAML.
-
-**Spec 080 authored (2026-07-18) — NOT implemented.** `feat/080-renderable-interchange-import`
-is the plan-only follow-up to merged spec 028. The 2026-07-18 Opus adversarial
-review returned **import-blocking / changes requested**: the interchange importer
-surfaces structural loss (dropped edges, dropped endpoint nodes, dropped
-subgraph-local direction) as non-blocking warnings and writes the falsified
-diagram to disk with an "Imported with N warning(s)" success toast. Full findings:
-[`opus-adversarial-review-findings-2026-07-18-renderable-interchange-import.md`](docs/spec-reviews/opus-adversarial-review-findings-2026-07-18-renderable-interchange-import.md)
-(written in the 075 worktree). New spec package:
-[`specs/080-renderable-interchange-import/`](specs/080-renderable-interchange-import/)
-— spec.md, plan.md, tasks.md, validation.md, contracts/import-capability-matrix.md.
-Next: GPT implements the test-first task list (T000–T063); observe Phase gate A
-(parser/IR) before touching preview persistence. No implementation task is done.
+**Spec 080 implementation active (2026-07-18).** Phase gate A and Mermaid
+lowering are green on `feat/080-renderable-interchange-import`: all imports use
+the bounded tokenizer → typed IR → lowering path; inline/chained/fan-out edges,
+local LR/TB directions, markdown downgrades, topology batteries, shared
+structural blocking, preview-server no-write, and CLI category reporting are
+covered (43 focused tests green). The branch now includes the spec-075 folder
+workspace dependency. Next: prove local-folder no-mirror, then complete reverse
+directions, capability-driven engine persistence, preview summary/persist→reload
+coverage, D2 parity, and corpus hardening. Current red D2 test inventory is
+isolated in `tests/d2-parity.test.ts`.
 
 **Spec 061 merged (2026-07-17).** `feat/061-preview-grid-regression` merged
 cleanly into the primary `main` worktree at `7317feb`; the feature worktree is

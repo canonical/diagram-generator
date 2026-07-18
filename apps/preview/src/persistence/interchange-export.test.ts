@@ -118,12 +118,42 @@ test("preview import writes a new canonical YAML diagram and refuses overwrite",
     );
     assert.equal(result.ok, true);
     assert.equal(result.slug, "imported-sample");
+    assert.deepEqual(result.summary, {
+      preserved: 3,
+      downgraded: [],
+      blocked: [],
+    });
     const yaml = readFileSync(path.join(framesDir, "imported-sample.yaml"), "utf8");
     assert.match(yaml, /engine: v3/);
     assert.match(yaml, /id: source/);
     assert.throws(
       () => importInterchangeForSlug("imported-sample", "d2", "source: Source", deps),
       /already exists/,
+    );
+  } finally {
+    rmSync(framesDir, { recursive: true, force: true });
+  }
+});
+
+test("preview import blocks structural Mermaid loss before writing canonical YAML", () => {
+  const framesDir = makeTempFramesDir();
+  try {
+    const deps: FramePreviewDocumentDeps = { framesDir };
+    assert.throws(
+      () => importInterchangeForSlug(
+        "inline-edge-loss",
+        "mermaid",
+        [
+          "flowchart TB",
+          "power_on@{ animate: true } --> load_spl",
+        ].join("\n"),
+        deps,
+      ),
+      /Mermaid edge id\/animation could not be imported/,
+    );
+    assert.equal(
+      existsSync(path.join(framesDir, "inline-edge-loss.yaml")),
+      false,
     );
   } finally {
     rmSync(framesDir, { recursive: true, force: true });

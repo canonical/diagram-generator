@@ -60,6 +60,22 @@ describe('diagram interchange import CLIs', () => {
     expect(existsSync(result.outputPath)).toBe(false);
   }, 15_000);
 
+  it('surfaces Mermaid structural-loss categories, exits nonzero, and writes nothing', () => {
+    const result = runImport(
+      'import-mermaid.mjs',
+      [
+        'flowchart TB',
+        'power_on@{ animate: true } --> load_spl',
+      ].join('\n'),
+      'mmd',
+    );
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('[structural]');
+    expect(result.stderr).toContain('[IMPORT_MERMAID_UNSUPPORTED_EDGE]');
+    expect(existsSync(result.outputPath)).toBe(false);
+  }, 15_000);
+
   it('writes only Mermaid YAML that recompiles cleanly', () => {
     const result = runImport('import-mermaid.mjs', 'flowchart TD\nA --> B --> C\n', 'mmd');
 

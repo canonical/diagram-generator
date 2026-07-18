@@ -1,9 +1,11 @@
 export type DiagnosticLevel = 'error' | 'warning';
+export type DiagnosticCategory = 'structural' | 'visual' | 'type' | 'invalid';
 
 export interface Diagnostic {
   code: string;
   message: string;
   level: DiagnosticLevel;
+  category?: DiagnosticCategory;
   path?: string;
   line?: number;
   column?: number;
