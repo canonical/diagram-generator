@@ -1,0 +1,238 @@
+engine: v3
+title: VCF Ubuntu support flow (Broadcom / Canonical)
+meta:
+  diagram_type: process_and_workflow
+  abstraction_level: container
+  layout_engine: v3
+  elk:
+    elk.direction: DOWN
+    elk.spacing.nodeNode: 24
+    elk.spacing.edgeNode: 3
+    elk.separateConnectedComponents: true
+    elk.aspectRatio: 1
+    elk.mrtree.compaction: false
+    elk.mrtree.weighting: MODEL_ORDER
+    elk.mrtree.searchOrder: BFS
+    elk.mrtree.edgeRoutingMode: MIDDLE_TO_MIDDLE
+    elk.mrtree.edgeEndTextureLength: 16
+  elk_nodes:
+    elk-layered:
+      elk.direction: ''
+      elk.layered.spacing.nodeNodeBetweenLayers: 24
+      elk.spacing.nodeNode: 24
+      elk.spacing.edgeNode: 24
+      elk.spacing.edgeEdge: 24
+      elk.layered.spacing.edgeEdgeBetweenLayers: 24
+      elk.layered.unnecessaryBendpoints: true
+      elk.layered.nodePlacement.favorStraightEdges: true
+      elk.layered.layering.strategy: NETWORK_SIMPLEX
+      elk.layered.crossingMinimization.strategy: LAYER_SWEEP
+      elk.layered.nodePlacement.strategy: BRANDES_KOEPF
+      elk.hierarchyHandling: INCLUDE_CHILDREN
+    elk-force:
+      elk.spacing.nodeNode: 72
+      elk.force.model: FRUCHTERMAN_REINGOLD
+      elk.force.iterations: 300
+      elk.aspectRatio: 1.6
+      elk.separateConnectedComponents: false
+      elk.randomSeed: 0
+      elk.force.temperature: 0.001
+    elk-stress:
+      elk.stress.dimension: XY
+      elk.stress.epsilon: 0.001
+      elk.stress.iterationLimit: 2147483647
+      elk.stress.desiredEdgeLength: 100
+      elk.edgeLabels.inline: true
+    elk-mrtree:
+      elk.direction: DOWN
+      elk.spacing.nodeNode: 24
+      elk.spacing.edgeNode: 3
+      elk.separateConnectedComponents: true
+      elk.aspectRatio: 1
+      elk.mrtree.compaction: false
+      elk.mrtree.weighting: MODEL_ORDER
+      elk.mrtree.searchOrder: BFS
+      elk.mrtree.edgeRoutingMode: MIDDLE_TO_MIDDLE
+      elk.mrtree.edgeEndTextureLength: 16
+grid:
+  cols: 1
+  row_gap: 48
+arrows:
+- source: issue_start
+  target: user_opens_case
+- source: user_opens_case
+  target: triage_broadcom
+- source: triage_broadcom
+  target: decision_embedded
+- source: decision_embedded
+  target: out_of_scope
+  label: no
+- source: decision_embedded
+  target: troubleshooting_broadcom
+  label: yes
+- source: troubleshooting_broadcom
+  target: decision_solved
+- source: decision_solved
+  target: close_case_top
+  label: yes
+- source: decision_solved
+  target: decision_reproducible
+  label: no
+- source: decision_reproducible
+  target: advise_purchase
+  label: no
+- source: decision_reproducible
+  target: escalated_canonical
+  label: yes
+- source: escalated_canonical
+  target: decision_l3
+- source: decision_l3
+  target: case_sent_back
+  label: no
+- source: decision_l3
+  target: canonical_l3
+  label: yes
+- source: case_sent_back
+  target: advise_purchase
+- source: canonical_l3
+  target: close_case_final
+root:
+  id: page
+  direction: vertical
+  sizing_h: hug
+  gap: 32
+  children:
+  - id: issue_start
+    level: 3
+    heading: Start
+    label:
+    - Issue with VCF-optimized Ubuntu OS /
+    - chiseled Ubuntu containers
+    - (non Ubuntu Pro + Support customer)
+    sizing_w: fill
+    width: 240
+    sizing_h: hug
+  - id: user_opens_case
+    label:
+    - User opens case
+    - with Broadcom*
+    sizing_w: fill
+    width: 200
+    sizing_h: hug
+  - id: triage_broadcom
+    fill: grey
+    label:
+    - 'Triage: Broadcom'
+    - (L1 & L2)*
+    sizing_w: fill
+    width: 200
+    sizing_h: hug
+  - id: decision_embedded
+    fill: grey
+    label:
+    - Is case on Canonical
+    - embedded products?
+    sizing_w: fill
+    width: 220
+    sizing_h: hug
+  - id: out_of_scope
+    variant: annotation
+    label:
+    - Out of partnership scope.
+    - End user must purchase
+    - Ubuntu Pro+Support
+    sizing_w: fill
+    width: 220
+    sizing_h: hug
+  - id: troubleshooting_broadcom
+    fill: grey
+    label:
+    - Troubleshooting by
+    - Broadcom Support
+    - (GSS L1 & L2 Support)
+    sizing_w: fill
+    width: 240
+    sizing_h: hug
+  - id: decision_solved
+    fill: grey
+    label:
+    - Problem solved?
+    sizing_w: fill
+    width: 180
+    sizing_h: hug
+  - id: close_case_top
+    fill: grey
+    label:
+    - Close case
+    - with customer
+    sizing_w: fill
+    width: 200
+    sizing_h: hug
+  - id: canonical_section
+    level: 2
+    heading: Expanded in next slide
+    border: dashed
+    direction: vertical
+    gap: 24
+    padding: 24
+    sizing_w: fill
+    sizing_h: hug
+    children:
+    - id: decision_reproducible
+      fill: grey
+      label:
+      - Is it a reproducible bug
+      - or complex failure*?
+      sizing_w: fixed
+      width: 240
+      sizing_h: hug
+    - id: advise_purchase
+      variant: annotation
+      label:
+      - Broadcom advises end user to
+      - purchase Ubuntu Pro + Support
+      - from Canonical for break-fix
+      - assistance.
+      sizing_w: fixed
+      width: 280
+      sizing_h: hug
+    - id: escalated_canonical
+      label:
+      - Escalated to Canonical Support
+      - with concise reproduction
+      - example (Support portal ticket)
+      sizing_w: fixed
+      width: 280
+      sizing_h: hug
+    - id: decision_l3
+      fill: grey
+      label:
+      - Meets criteria
+      - for L3 support?
+      sizing_w: fixed
+      width: 200
+      sizing_h: hug
+    - id: case_sent_back
+      label:
+      - Case sent back to
+      - Broadcom Support
+      sizing_w: fixed
+      width: 220
+      sizing_h: hug
+    - id: canonical_l3
+      label:
+      - 'Canonical L3: Patch provided'
+      - or performance degradation
+      - analysis complete
+      sizing_w: fixed
+      width: 280
+      sizing_h: hug
+    - id: close_case_final
+      fill: grey
+      label:
+      - Close case
+      - with customer
+      sizing_w: fixed
+      width: 200
+      sizing_h: hug
+  sizing_w: fill
