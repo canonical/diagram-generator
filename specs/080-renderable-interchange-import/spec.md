@@ -6,7 +6,7 @@
 
 **Created**: 2026-07-18
 
-**Status**: Draft (authored during Opus adversarial review; no product code implemented)
+**Status**: Implemented — adversarial re-review requested
 
 **Depends on**: spec **028** (Mermaid & D2 interchange, merged), spec **022** (diagram authoring AST), the ELK layered engine in `packages/graph-layout-elk/`, and the preview folder-workspace import route from spec **075**.
 

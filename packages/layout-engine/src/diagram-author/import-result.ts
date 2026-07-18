@@ -62,6 +62,9 @@ export function makeImportedDocument(
     ...(metadata.direction === 'horizontal' || metadata.direction === 'vertical'
       ? { direction: metadata.direction }
       : {}),
+    ...(['TB', 'LR', 'BT', 'RL'].includes(String(metadata.flow_direction))
+      ? { flowDirection: metadata.flow_direction as NonNullable<AuthorFrameNode['flowDirection']> }
+      : {}),
   };
   const indexed = buildFrameIndex(root);
   return {
@@ -74,6 +77,9 @@ export function makeImportedDocument(
       source: {
         engine: 'v3',
         title: metadata.title,
+        ...(typeof metadata.layout_engine === 'string'
+          ? { meta: { layout_engine: metadata.layout_engine } }
+          : {}),
       },
     },
     diagnostics: indexed.diagnostics,

@@ -12,16 +12,16 @@ spec catalog/status → [`docs/specs.md`](docs/specs.md) · human notes →
 [`INBOX.md`](INBOX.md) · durable per-spec detail → `specs/<id>-<slug>/` ·
 adversarial reviews → `docs/spec-reviews/`.
 
-**Spec 080 implementation active (2026-07-18).** Phase gate A and Mermaid
-lowering are green on `feat/080-renderable-interchange-import`: all imports use
-the bounded tokenizer → typed IR → lowering path; inline/chained/fan-out edges,
-local LR/TB directions, markdown downgrades, topology batteries, shared
-structural blocking, preview-server no-write, and CLI category reporting are
-covered (43 focused tests green). The branch now includes the spec-075 folder
-workspace dependency. Next: prove local-folder no-mirror, then complete reverse
-directions, capability-driven engine persistence, preview summary/persist→reload
-coverage, D2 parity, and corpus hardening. Current red D2 test inventory is
-isolated in `tests/d2-parity.test.ts`.
+**Spec 080 implementation complete; adversarial re-review pending (2026-07-18).**
+`feat/080-renderable-interchange-import` includes the spec-075 folder-workspace
+dependency. Mermaid and D2 imports share a blocking structural-loss gate; the
+bounded tokenizer → typed IR → lowering path preserves compound topology,
+reverse/local direction, supported styles, and selects/persists v3 or ELK from
+engine capabilities. Preview server-root and local-folder import paths have
+no-write-on-block plus persist→reload regressions. Focused evidence is 94/94;
+the full preview suite is 190 pass, 1 expected Windows symlink skip. Durable
+evidence and the requested Opus review instructions live in the spec package and
+`docs/spec-reviews/`.
 
 **Spec 061 merged (2026-07-17).** `feat/061-preview-grid-regression` merged
 cleanly into the primary `main` worktree at `7317feb`; the feature worktree is

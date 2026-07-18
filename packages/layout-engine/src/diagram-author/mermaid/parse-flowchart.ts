@@ -5,6 +5,7 @@ import type {
   IrEdge,
   IrFlowchart,
   IrNode,
+  IrStyleStatement,
   MermaidFlowDirection,
   MermaidNodeShape,
 } from './flowchart-ir.js';
@@ -25,6 +26,13 @@ export interface MermaidParseIssue {
 export interface MermaidFlowchartParseResult {
   readonly flowchart: IrFlowchart | null;
   readonly issues: MermaidParseIssue[];
+}
+
+export interface MermaidFlowchartParseOptions extends MermaidTokenizeOptions {
+  readonly maxLines?: number;
+  readonly maxNodes?: number;
+  readonly maxEdges?: number;
+  readonly maxContainerDepth?: number;
 }
 
 interface Statement {
@@ -73,6 +81,7 @@ function decodeLabel(value: string): string {
     .replace(/^`([\s\S]*)`$/, '$1')
     .replace(/#quot;/g, '"')
     .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]*>/g, '')
     .trim();
 }
 
@@ -132,12 +141,13 @@ function endpointLabel(
   source: string,
   open: MermaidToken,
   close: MermaidToken,
-): { label: string; markdown: boolean } {
+): { label: string; markdown: boolean; html: boolean } {
   const raw = source.slice(open.end, close.start).trim();
   const decoded = decodeLabel(raw);
   return {
     label: decoded,
     markdown: /^["']?`/.test(raw),
+    html: /<[^>]*>/.test(raw.replace(/<br\s*\/?>/gi, '')),
   };
 }
 
@@ -155,6 +165,7 @@ function parseEndpoint(
   let label: string | undefined;
   let shape: MermaidNodeShape | undefined;
   let markdown = false;
+  let html = false;
 
   const open = tokens[cursor];
   if (open?.kind === 'delimiter' && OPEN_TO_CLOSE[open.value]) {
@@ -172,7 +183,7 @@ function parseEndpoint(
     }
     const close = tokens[closeIndex];
     if (!close || close.kind !== 'delimiter' || close.value !== expectedClose) return null;
-    ({ label, markdown } = endpointLabel(source, open, close));
+    ({ label, markdown, html } = endpointLabel(source, open, close));
     shape = SHAPE_FOR_OPEN[open.value];
     cursor = closeIndex + 1;
   } else if (
@@ -184,6 +195,8 @@ function parseEndpoint(
     const closeIndex = tokens.findIndex((token, index) =>
       index > cursor + 1 && token.kind === 'delimiter' && token.value === '}');
     if (closeIndex < 0) return null;
+    const body = source.slice(tokens[cursor + 1]!.end, tokens[closeIndex]!.start);
+    if (!/\bshape\s*:/.test(body)) return null;
     shape = 'attribute';
     label = id;
     cursor = closeIndex + 1;
@@ -204,10 +217,58 @@ function parseEndpoint(
       containerPath: [...containerPath],
       explicit: explicit || label !== undefined || shape !== undefined || classes.length > 0,
       ...(markdown ? { markdown: true } : {}),
+      ...(html ? { html: true } : {}),
       line: idToken.line,
     },
     next: cursor,
   };
+}
+
+function parseStyleProperties(value: string): Readonly<Record<string, string>> {
+  return Object.fromEntries(value
+    .split(',')
+    .map(entry => entry.trim())
+    .filter(Boolean)
+    .map(entry => {
+      const separator = entry.indexOf(':');
+      return separator < 0
+        ? [entry.toLowerCase(), '']
+        : [entry.slice(0, separator).trim().toLowerCase(), entry.slice(separator + 1).trim()];
+    }));
+}
+
+function parseStyleStatement(statement: Statement): IrStyleStatement | null {
+  const classDef = statement.raw.match(/^classDef\s+([A-Za-z_][\w-]*)\s+(.+)$/i);
+  if (classDef) {
+    return {
+      kind: 'classDef',
+      names: [classDef[1]!],
+      properties: parseStyleProperties(classDef[2]!),
+      line: statement.line,
+    };
+  }
+  const classAssignment = statement.raw.match(
+    /^class\s+([A-Za-z_][\w.-]*(?:\s*,\s*[A-Za-z_][\w.-]*)*)\s+([A-Za-z_][\w-]*)$/i,
+  );
+  if (classAssignment) {
+    return {
+      kind: 'class',
+      names: classAssignment[1]!.split(/\s*,\s*/),
+      className: classAssignment[2]!,
+      properties: {},
+      line: statement.line,
+    };
+  }
+  const direct = statement.raw.match(/^style\s+([A-Za-z_][\w.-]*)\s+(.+)$/i);
+  if (direct) {
+    return {
+      kind: 'style',
+      names: [direct[1]!],
+      properties: parseStyleProperties(direct[2]!),
+      line: statement.line,
+    };
+  }
+  return null;
 }
 
 function parseEndpointGroup(
@@ -302,11 +363,27 @@ function parseEdgeStatement(
 
 export function parseMermaidFlowchart(
   source: string,
-  tokenizeOptions: MermaidTokenizeOptions = {},
+  options: MermaidFlowchartParseOptions = {},
 ): MermaidFlowchartParseResult {
+  const maxLines = options.maxLines ?? 50_000;
+  const maxNodes = options.maxNodes ?? 50_000;
+  const maxEdges = options.maxEdges ?? 100_000;
+  const maxContainerDepth = options.maxContainerDepth ?? 128;
+  const lineCount = (source.match(/\n/g) ?? []).length + 1;
+  if (lineCount > maxLines) {
+    return {
+      flowchart: null,
+      issues: [{
+        code: 'IMPORT_MERMAID_TOO_MANY_LINES',
+        message: `Mermaid source exceeds the ${maxLines}-line import limit.`,
+        category: 'invalid',
+        line: maxLines + 1,
+      }],
+    };
+  }
   let tokenized;
   try {
-    tokenized = tokenizeMermaidFlowchart(source, tokenizeOptions);
+    tokenized = tokenizeMermaidFlowchart(source, options);
   } catch (error) {
     if (error instanceof MermaidTokenizeError) {
       return {
@@ -331,6 +408,7 @@ export function parseMermaidFlowchart(
   const roots: IrContainer[] = [];
   const containers: IrContainer[] = [];
   const unsupported: IrFlowchart['unsupported'] = [];
+  const styles: IrStyleStatement[] = [];
   let sawHeader = false;
 
   for (const statement of statements) {
@@ -377,6 +455,15 @@ export function parseMermaidFlowchart(
     }
 
     if (keyword === 'subgraph') {
+      if (containers.length >= maxContainerDepth) {
+        issues.push({
+          code: 'IMPORT_MERMAID_NESTING_TOO_DEEP',
+          message: `Mermaid subgraph nesting exceeds the ${maxContainerDepth}-level import limit.`,
+          category: 'invalid',
+          line: statement.line,
+        });
+        return { flowchart: null, issues };
+      }
       const endpoint = parseEndpoint(
         source,
         statement.tokens,
@@ -432,12 +519,14 @@ export function parseMermaidFlowchart(
       }
       continue;
     }
-    if (['classdef', 'class', 'style', 'linkstyle', 'click'].includes(keyword)) {
-      unsupported.push({ raw: statement.raw, line: statement.line, kind: 'style' });
+    if (['classdef', 'class', 'style'].includes(keyword)) {
+      const style = parseStyleStatement(statement);
+      if (style) styles.push(style);
+      else unsupported.push({ raw: statement.raw, line: statement.line, kind: 'style' });
       continue;
     }
-    if (statement.raw.includes('@')) {
-      unsupported.push({ raw: statement.raw, line: statement.line, kind: 'edge-id' });
+    if (['linkstyle', 'click'].includes(keyword)) {
+      unsupported.push({ raw: statement.raw, line: statement.line, kind: 'style' });
       continue;
     }
 
@@ -451,6 +540,10 @@ export function parseMermaidFlowchart(
     const node = parseEndpoint(source, statement.tokens, 0, containerPath, true);
     if (node && node.next === statement.tokens.length) {
       nodes.push(node.node);
+      continue;
+    }
+    if (statement.raw.includes('@')) {
+      unsupported.push({ raw: statement.raw, line: statement.line, kind: 'edge-id' });
       continue;
     }
     unsupported.push({ raw: statement.raw, line: statement.line, kind: 'syntax' });
@@ -473,6 +566,20 @@ export function parseMermaidFlowchart(
       line: containers[containers.length - 1]!.line,
     });
   }
+  if (nodes.length > maxNodes || edges.length > maxEdges) {
+    const tooManyNodes = nodes.length > maxNodes;
+    issues.push({
+      code: tooManyNodes
+        ? 'IMPORT_MERMAID_TOO_MANY_NODES'
+        : 'IMPORT_MERMAID_TOO_MANY_EDGES',
+      message: tooManyNodes
+        ? `Mermaid source exceeds the ${maxNodes}-node import limit.`
+        : `Mermaid source exceeds the ${maxEdges}-edge import limit.`,
+      category: 'invalid',
+      line: 1,
+    });
+    return { flowchart: null, issues };
+  }
 
   return {
     flowchart: {
@@ -481,6 +588,7 @@ export function parseMermaidFlowchart(
       nodes,
       roots,
       edges,
+      styles,
       unsupported,
     },
     issues,

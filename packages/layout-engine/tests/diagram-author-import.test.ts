@@ -39,6 +39,13 @@ describe('diagram interchange imports', () => {
       IMPORT_MERMAID_UNSUPPORTED_EDGE_DIRECTION: 'visual',
       IMPORT_MERMAID_UNSUPPORTED_DIAGRAM_TYPE: 'type',
       IMPORT_MERMAID_UNSUPPORTED_FRONTMATTER: 'invalid',
+      IMPORT_MERMAID_SOURCE_TOO_LARGE: 'invalid',
+      IMPORT_MERMAID_TOO_MANY_TOKENS: 'invalid',
+      IMPORT_MERMAID_NESTING_TOO_DEEP: 'invalid',
+      IMPORT_MERMAID_UNTERMINATED_STRING: 'invalid',
+      IMPORT_MERMAID_TOO_MANY_LINES: 'invalid',
+      IMPORT_MERMAID_TOO_MANY_NODES: 'invalid',
+      IMPORT_MERMAID_TOO_MANY_EDGES: 'invalid',
     });
 
     expect(importMermaid('flowchart TB\na(round)\n').warnings[0]).toMatchObject({
@@ -379,6 +386,33 @@ describe('diagram interchange imports', () => {
     expect(compileDiagramYaml(serializeDiagramYaml(result.ast)).errors).toEqual([]);
   });
 
+  it('imports Mermaid attribute shapes and maps faithful fill/border style properties', () => {
+    const result = importMermaid([
+      'flowchart LR',
+      '  a@{ shape: cyl } --> b@{ shape: rect }',
+      '  classDef stored fill:#fff,stroke-dasharray: 5 5',
+      '  class a stored',
+      '  style b fill:#000,stroke:none',
+    ].join('\n'));
+
+    expect(result.errors).toEqual([]);
+    expect(result.ast.root?.children).toMatchObject([
+      { id: 'a', fill: 'white', border: 'dashed' },
+      { id: 'b', fill: 'black', border: 'none' },
+    ]);
+    expect(result.ast.arrows).toMatchObject([{ source: 'a', target: 'b' }]);
+    expect(result.warnings.filter(entry =>
+      entry.code === 'IMPORT_MERMAID_UNSUPPORTED_SHAPE')).toHaveLength(2);
+    expect(result.warnings.filter(entry =>
+      entry.code === 'IMPORT_MERMAID_UNSUPPORTED_STYLE')).toEqual([]);
+    const reloaded = compileDiagramYaml(serializeDiagramYaml(result.ast));
+    expect(reloaded.errors).toEqual([]);
+    expect(reloaded.ast.root?.children).toMatchObject([
+      { id: 'a', fill: 'white', border: 'dashed' },
+      { id: 'b', fill: 'black', border: 'none' },
+    ]);
+  });
+
   it('rejects non-flowchart Mermaid types with one clear error and no phantom frames', () => {
     for (const token of ['sequenceDiagram', 'pie', 'sankey-beta', 'futureDiagram']) {
       const result = importMermaid(`${token}\n  ignored content\n`);
@@ -451,8 +485,13 @@ describe('diagram interchange imports', () => {
       }],
     }]);
     expect(result.ast.arrows).toMatchObject([{ source: 'api', target: 'worker' }]);
+    expect(result.ast.frameIndex.api).toBeDefined();
+    expect(result.ast.root?.children[0]?.children[0]?.children).toMatchObject([
+      { id: 'api', fill: 'white' },
+      { id: 'worker', fill: 'black' },
+    ]);
     expect(result.warnings.filter(entry =>
-      entry.code === 'IMPORT_MERMAID_UNSUPPORTED_STYLE')).toHaveLength(6);
+      entry.code === 'IMPORT_MERMAID_UNSUPPORTED_STYLE')).toHaveLength(2);
     expect(compileDiagramYaml(serializeDiagramYaml(result.ast)).errors).toEqual([]);
   });
 

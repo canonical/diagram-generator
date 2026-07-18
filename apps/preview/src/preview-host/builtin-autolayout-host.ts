@@ -32,6 +32,7 @@ import {
 import {
   frameDiagramExists,
   importInterchangeForSlug,
+  InterchangeImportBlockedError,
   resolveFramePreviewViewerContext,
 } from "./frame-documents.js";
 import { AUTOLAYOUT_HOST_LANE } from "./lanes.js";
@@ -178,6 +179,14 @@ function createPreviewInterchangeImportHostApiRoute(
         const workspaceRevision = deps.resolveFrameDir?.(rawSlug)?.revision ?? null;
         context.sendJson(201, { ...result, workspaceRevision });
       } catch (error) {
+        if (error instanceof InterchangeImportBlockedError) {
+          context.sendJson(422, {
+            error: error.message,
+            summary: error.summary,
+            warnings: error.warnings,
+          });
+          return;
+        }
         context.sendText(400, error instanceof Error ? error.message : String(error));
       }
     },

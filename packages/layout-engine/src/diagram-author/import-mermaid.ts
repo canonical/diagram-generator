@@ -10,6 +10,7 @@ import {
   parseMermaidFlowchart,
   type MermaidParseIssue,
 } from './mermaid/parse-flowchart.js';
+import { selectImportEngine } from './select-import-engine.js';
 
 export const MERMAID_DIAGNOSTIC_CATEGORIES = {
   IMPORT_MERMAID_UNSUPPORTED_EDGE: 'structural',
@@ -23,6 +24,13 @@ export const MERMAID_DIAGNOSTIC_CATEGORIES = {
   IMPORT_MERMAID_UNSUPPORTED_EDGE_DIRECTION: 'visual',
   IMPORT_MERMAID_UNSUPPORTED_DIAGRAM_TYPE: 'type',
   IMPORT_MERMAID_UNSUPPORTED_FRONTMATTER: 'invalid',
+  IMPORT_MERMAID_SOURCE_TOO_LARGE: 'invalid',
+  IMPORT_MERMAID_TOO_MANY_TOKENS: 'invalid',
+  IMPORT_MERMAID_NESTING_TOO_DEEP: 'invalid',
+  IMPORT_MERMAID_UNTERMINATED_STRING: 'invalid',
+  IMPORT_MERMAID_TOO_MANY_LINES: 'invalid',
+  IMPORT_MERMAID_TOO_MANY_NODES: 'invalid',
+  IMPORT_MERMAID_TOO_MANY_EDGES: 'invalid',
 } as const satisfies Record<string, NonNullable<Diagnostic['category']>>;
 
 export interface MermaidImportOptions {
@@ -72,6 +80,12 @@ export function importMermaid(
     lowered.metadata,
   );
   diagnostics.push(...imported.diagnostics);
+  const selection = selectImportEngine(imported.ast);
+  diagnostics.push(...selection.diagnostics);
+  if (selection.engineId) {
+    imported.ast.metadata.layout_engine = selection.engineId;
+    imported.ast.source.meta = { layout_engine: selection.engineId };
+  }
   return finishImport(
     imported.ast,
     diagnostics,

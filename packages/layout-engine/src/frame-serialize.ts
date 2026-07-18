@@ -24,6 +24,7 @@ export function serializeFrame(frame: Frame): Record<string, unknown> {
   return {
     id: frame.id,
     direction: frame.direction,
+    flowDirection: frame.flowDirection,
     gap: frame.gap,
     gapDelta: frame.gapDelta,
     padding: frame.padding,
@@ -119,6 +120,7 @@ export function deserializeFrameWire(json: Record<string, unknown>): Frame {
   const frame = new Frame({
     id: String(json.id ?? ''),
     direction: (json.direction as Frame['direction']) ?? 'VERTICAL',
+    flowDirection: json.flowDirection as Frame['flowDirection'],
     gap: json.gap != null ? Number(json.gap) : 24,
     gapDelta: json.gapDelta != null ? Number(json.gapDelta) : undefined,
     padding: json.padding != null ? Number(json.padding) : 8,

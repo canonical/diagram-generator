@@ -4,6 +4,7 @@ export {
   Fill,
   Border,
   Direction,
+  type FlowDirection,
   Sizing,
   Align,
   Justify,

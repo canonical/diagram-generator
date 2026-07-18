@@ -1,5 +1,11 @@
 # Interchange fidelity matrix
 
+> Historical spec-028 contract. Import breadth and diagnostic severity are now
+> governed by the
+> [spec-080 capability matrix](../../080-renderable-interchange-import/contracts/import-capability-matrix.md).
+> Where this document describes a narrower importer or warning-only structural
+> loss, spec 080 supersedes it.
+
 Normative reference for spec **028**. Status column reflects **v1 today** (022 export only); target column is **028 complete**.
 
 Legend:
@@ -77,20 +83,10 @@ Legend:
 | `IMPORT_MERMAID_UNSUPPORTED_*` | Import skip |
 | `IMPORT_D2_UNSUPPORTED_*` | Import skip |
 
-## Known import limitations
+## Import authority
 
-The Mermaid importer intentionally supports the corpus-facing hand-authored
-subset in FR-004, not every production in Mermaid's flowchart grammar. Constructs
-outside that table are diagnosed and cannot be written as empty/invalid YAML by
-the CLI.
-
-| Construct | Behaviour | Diagnostic |
-|-----------|-----------|------------|
-| Inline node declarations on an edge (`A[foo] --> B{bar}`), `&` multi-target links, edge ids/animation | Not in the FR-004 corpus-facing subset; statement is skipped. Declare nodes separately and use one chain to recover connectivity. | `IMPORT_MERMAID_UNSUPPORTED_EDGE` |
-| Markdown strings, semicolon-separated statements, subgraph-local `direction`, newer `@{ shape: ... }` syntax | Not in the FR-004 corpus-facing subset; statement is skipped. | `IMPORT_MERMAID_UNSUPPORTED_SYNTAX` or `IMPORT_MERMAID_UNSUPPORTED_DIRECTION` |
-| D2 shape whose block holds only styling (e.g. `x: label { class: leaf }`) | Imports as a heading container with empty children rather than a labelled leaf. The label text is preserved as `heading`; only the frame role differs, matching D2's container block semantics. | `IMPORT_D2_UNSUPPORTED_CLASS` |
-| D2 chained connections (`a -> b -> c`) | Hand-authored D2 grammar expansion is deferred; the connection is diagnosed rather than partially imported. | `IMPORT_D2_MISSING_FRAME_REF` |
-
-Accepted lossy Mermaid constructs listed in the lowering table remain warnings
-under `--strict`; strict mode still fails for unsupported syntax, malformed
-frontmatter/subgraphs/directions, unresolved references, and structural errors.
+The former exporter-shaped limitations table was removed because inline
+declarations, `&` expansion, semicolon statements, local/reverse directions,
+attribute-shape syntax, and D2 chained connections are implemented by spec 080.
+See the spec-080 matrix for current supported, downgraded, blocked, and
+out-of-scope classifications.

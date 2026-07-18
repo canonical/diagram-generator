@@ -5,6 +5,9 @@ import {
   type PreviewLocalFolderHandleRecord,
   type PreviewLocalFolderHandleStore,
 } from '../src/preview-shell/local-folder-workspace.js';
+import { compileDiagramYaml } from '../src/diagram-author/compile.js';
+import { importMermaid } from '../src/diagram-author/import-mermaid.js';
+import { serializeDiagramYaml } from '../src/diagram-author/serialize-yaml.js';
 
 interface FakeFileHandle extends FileSystemFileHandle {
   content: string;
@@ -130,6 +133,124 @@ function jsonResponse(payload: unknown): Response {
 }
 
 describe('preview local-folder workspace', () => {
+  it('does not mirror a structurally blocked import into the opened folder', async () => {
+    const alpha = fakeFileHandle('alpha.yaml', 'alpha: original\n');
+    const directory = fakeDirectory('Alpha', [alpha]);
+    const { document } = fakeDocument();
+    const yamlReads: string[] = [];
+    const windowObject = {
+      __DG_CONFIG: { slug: 'local-alpha:alpha' },
+      location: { assign() {} },
+      showDirectoryPicker: async () => directory,
+    } as unknown as Window & {
+      __DG_CONFIG: { slug: string };
+      __DG_workspaceFetch?: typeof fetch;
+    };
+    const controller = createPreviewLocalFolderWorkspace({
+      windowObject,
+      document,
+      fetchFn: (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url === '/api/workspaces/open') {
+          const body = JSON.parse(String(init?.body)) as { sourceId: string };
+          return jsonResponse({ sourceId: body.sourceId, label: 'Alpha', slugs: ['alpha'] });
+        }
+        if (url.startsWith('/api/workspaces/yaml/')) {
+          yamlReads.push(url);
+          return new Response('alpha: falsified\n', { status: 200 });
+        }
+        if (url.startsWith('/api/import/mermaid')) {
+          return new Response(JSON.stringify({
+            summary: {
+              preserved: 0,
+              downgraded: [],
+              blocked: [{ message: 'An edge would be dropped.' }],
+            },
+          }), {
+            status: 422,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+        return jsonResponse({});
+      }) as typeof fetch,
+      handleStore: memoryStore().store,
+      createSourceId: () => 'local-alpha',
+    });
+
+    await controller.openFolder();
+    const response = await windowObject.__DG_workspaceFetch?.(
+      '/api/import/mermaid?slug=local-alpha%3Aalpha',
+      { method: 'POST' },
+    );
+
+    expect(response?.status).toBe(422);
+    expect(yamlReads).toEqual([]);
+    expect(alpha.content).toBe('alpha: original\n');
+  });
+
+  it('mirrors a successful compound import and reloads topology, direction, and engine', async () => {
+    const alpha = fakeFileHandle('alpha.yaml', 'engine: v3\nroot:\n  id: alpha\n');
+    const directory = fakeDirectory('Alpha', [alpha]);
+    const { document } = fakeDocument();
+    const imported = importMermaid([
+      'flowchart TB',
+      'subgraph left["Left"]',
+      '  direction RL',
+      '  a["A"]',
+      'end',
+      'subgraph right["Right"]',
+      '  b["B"]',
+      'end',
+      'a --> b',
+    ].join('\n'));
+    const savedYaml = serializeDiagramYaml(imported.ast);
+    const windowObject = {
+      __DG_CONFIG: { slug: 'local-alpha:alpha' },
+      location: { href: 'http://127.0.0.1/', assign() {} },
+      showDirectoryPicker: async () => directory,
+    } as unknown as Window & {
+      __DG_CONFIG: { slug: string };
+      __DG_workspaceFetch?: typeof fetch;
+    };
+    const controller = createPreviewLocalFolderWorkspace({
+      windowObject,
+      document,
+      fetchFn: (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url === '/api/workspaces/open') {
+          const body = JSON.parse(String(init?.body)) as { sourceId: string };
+          return jsonResponse({ sourceId: body.sourceId, label: 'Alpha', slugs: ['alpha'] });
+        }
+        if (url === '/api/workspaces/yaml/local-alpha%3Acompound') {
+          return new Response(savedYaml, { status: 200 });
+        }
+        if (url.startsWith('/api/import/mermaid')) {
+          return jsonResponse({ ok: true, slug: 'compound', summary: imported.summary });
+        }
+        return jsonResponse({});
+      }) as typeof fetch,
+      handleStore: memoryStore().store,
+      createSourceId: () => 'local-alpha',
+    });
+
+    await controller.openFolder();
+    const response = await windowObject.__DG_workspaceFetch?.(
+      '/api/import/mermaid?slug=local-alpha%3Acompound',
+      { method: 'POST' },
+    );
+
+    expect(response?.ok).toBe(true);
+    const compound = await directory.getFileHandle('compound.yaml');
+    const mirrored = await (await compound.getFile()).text();
+    expect(mirrored).toBe(savedYaml);
+    const reloaded = compileDiagramYaml(mirrored);
+    expect(reloaded.errors).toEqual([]);
+    expect(reloaded.ast.frameIndex.a?.parentId).toBe('left');
+    expect(reloaded.ast.frameIndex.b?.parentId).toBe('right');
+    expect(reloaded.ast.root?.children[0]?.flowDirection).toBe('RL');
+    expect(reloaded.frameDiagram?.layoutEngine).toBe('elk-layered');
+  });
+
   it('keeps multiple folders connected and routes each save to its own handle', async () => {
     const alpha = fakeFileHandle('alpha.yaml', 'alpha: original\n');
     const beta = fakeFileHandle('beta.yaml', 'beta: original\n');

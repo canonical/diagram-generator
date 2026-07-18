@@ -67,6 +67,9 @@ export enum Direction {
   VERTICAL = 'VERTICAL',
 }
 
+/** Directed flow hint used by graph engines; axis-only autolayout reads `direction`. */
+export type FlowDirection = 'TB' | 'LR' | 'BT' | 'RL';
+
 export enum Sizing {
   HUG = 'HUG',
   FILL = 'FILL',
@@ -186,6 +189,7 @@ export interface FrameInit {
 
   // Layout properties
   direction?: Direction;
+  flowDirection?: FlowDirection;
   gap?: number;
   gapDelta?: number;
   gapIsAuthored?: boolean;
@@ -270,6 +274,7 @@ export class Frame {
 
   // Layout properties
   direction: Direction;
+  flowDirection: FlowDirection | undefined;
   gap: number;
   gapDelta: number | undefined;
   gapIsAuthored: boolean;
@@ -340,6 +345,7 @@ export class Frame {
     this.id = init?.id ?? '';
 
     this.direction = init?.direction ?? Direction.VERTICAL;
+    this.flowDirection = init?.flowDirection;
     this.gap = init?.gap ?? 24;
     this.gapDelta = init?.gapDelta;
     this.gapIsAuthored = init?.gapIsAuthored ?? false;

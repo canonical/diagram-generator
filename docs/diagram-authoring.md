@@ -106,11 +106,11 @@ From repo root after `npm --prefix packages/layout-engine run build`:
 # Mermaid flowchart export (stderr = warnings)
 node packages/layout-engine/scripts/export-mermaid.mjs --slug tiered-network-architecture
 
-# Import Mermaid as canonical engine-v3 YAML
+# Import Mermaid as canonical YAML (layout engine selected by graph capability)
 node packages/layout-engine/scripts/import-mermaid.mjs \
   --in /tmp/tiered-network.mmd --out /tmp/tiered-network.yaml
 
-# Import D2 as canonical engine-v3 YAML
+# Import D2 as canonical YAML (layout engine selected by graph capability)
 node packages/layout-engine/scripts/import-d2.mjs \
   --in /tmp/juju-process.d2 --out /tmp/juju-process.yaml
 
@@ -135,13 +135,18 @@ node packages/layout-engine/scripts/migrate-diagram-yaml.mjs \
 - Lossy: padding, sizing, alignment, icons, anchor-qualified arrow refs, waypoints, arrow labels
 - Invalid edges are skipped defensively when refs are missing or point at the root canvas
 - Emits `MERMAID_UNSUPPORTED_*`, `MERMAID_MISSING_FRAME_REF`, and `MERMAID_ROOT_ENDPOINT_UNSUPPORTED` warnings
-- Import accepts the hand-authored flowchart subset used by the Mermaid corpus:
-  implicit edge endpoints, chained and labelled edges, bidirectional/open/thick/
-  dotted edge downgrades, standard node-shape declarations, nested labelled
-  subgraphs, comments, and large YAML frontmatter (preserving `title`)
-- Non-rectangular nodes retain their id and label as rectangular frames; class,
-  style, link-style, and click directives are diagnosed and dropped without
-  dropping supported neighbours
+- Import uses a bounded tokenizer → typed flowchart IR → canonical lowering path.
+  It accepts inline and chained declarations, fan-out/fan-in with `&`,
+  semicolon-separated statements, nested labelled subgraphs, cross-container
+  edges, local and reverse directions, newer `@{ shape: ... }` nodes, comments,
+  and title frontmatter.
+- Import chooses `v3` for compatible acyclic graphs and capability-declared
+  `elk-layered` for reverse directions, cycles, fan-in, or cross-container
+  compounds. The choice is persisted as `meta.layout_engine`.
+- Non-rectangular nodes retain id/label as rectangular frames. Faithfully
+  mappable fill/border properties are preserved; remaining class/style,
+  link-style, click, markdown, and HTML presentation is named as a visual
+  downgrade.
 - Non-flowchart Mermaid types fail once with
   `IMPORT_MERMAID_UNSUPPORTED_DIAGRAM_TYPE`; Sankey, pie, sequence, and the other
   Mermaid grammars are not converted to phantom frame diagrams
@@ -163,20 +168,21 @@ node packages/layout-engine/scripts/export-d2.mjs --slug juju-bootstrap-machines
 - Lossy: padding, sizing, alignment, icons, anchor-qualified arrow refs, waypoints
 - Invalid edges are skipped defensively when refs are missing or point at the root canvas
 - Emits `D2_UNSUPPORTED_*`, `D2_MISSING_FRAME_REF`, and `D2_ROOT_ENDPOINT_UNSUPPORTED` warnings
-- Import supports nested shape blocks, quoted/multiline labels, and dot-path connections; styles/classes/vars are diagnosed and skipped
-- D2 edge attribute blocks are skipped after recovering the connection and label; singular `class:` assignments never become frame nodes
-- Broader hand-authored D2 grammar support is deferred; the existing
-  exporter-round-trip subset remains available and shares the empty/invalid YAML
-  write guard
+- Import supports nested shape blocks, quoted/multiline labels, dot-path and
+  chained connections, and `right`/`down`/`left`/`up` directions. Direct
+  fill/border properties map when canonical fields preserve them.
+- D2 edge attribute blocks recover the connection/label and emit a visual
+  downgrade. Missing endpoints and malformed edge-shaped statements are
+  structural errors and block every write path.
 - The real D2 compiler golden is opt-in: a normal green suite does not prove D2
   syntax unless `D2_BIN` points to a D2 executable (for example,
   `D2_BIN="C:\Program Files\D2\d2.exe"`)
 
-See [`specs/028-diagram-interchange-mermaid-d2/`](../specs/028-diagram-interchange-mermaid-d2/spec.md) for import parsers and round-trip fidelity matrix.
-Use `--strict` on export/import CLIs to make unsupported syntax and structural
-diagnostics fail the process. Mermaid's documented lossy downgrades (shapes,
-styles, and edge direction/style) remain visible warnings because those
-constructs are accepted by the import contract.
+The normative import authority is the
+[spec-080 capability matrix](../specs/080-renderable-interchange-import/contracts/import-capability-matrix.md).
+Structural/type/invalid diagnostics always block, independently of `--strict`;
+visual downgrades remain named warnings. `--strict` additionally blocks visual
+downgrades that are not explicitly accepted by the importer contract.
 
 ## Reference material
 

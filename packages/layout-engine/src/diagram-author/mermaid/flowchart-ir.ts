@@ -20,6 +20,7 @@ export interface IrNode {
   readonly containerPath: readonly string[];
   readonly explicit: boolean;
   readonly markdown?: boolean;
+  readonly html?: boolean;
   readonly line: number;
 }
 
@@ -40,6 +41,14 @@ export interface IrContainer {
   readonly children: IrContainer[];
 }
 
+export interface IrStyleStatement {
+  readonly kind: 'classDef' | 'class' | 'style';
+  readonly names: readonly string[];
+  readonly className?: string;
+  readonly properties: Readonly<Record<string, string>>;
+  readonly line: number;
+}
+
 export interface IrUnsupportedStatement {
   readonly raw: string;
   readonly line: number;
@@ -52,5 +61,6 @@ export interface IrFlowchart {
   readonly nodes: IrNode[];
   readonly roots: IrContainer[];
   readonly edges: IrEdge[];
+  readonly styles: IrStyleStatement[];
   readonly unsupported: IrUnsupportedStatement[];
 }

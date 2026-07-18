@@ -1,10 +1,10 @@
 # Validation: renderable interchange import
 
 **Spec**: 080-renderable-interchange-import
-**Status**: Implementation active — Gate A green.
+**Status**: Implementation complete — adversarial re-review pending.
 
-This file records the evidence each phase must produce. It is empty of results
-until implementation runs; the review pass only defines the required proofs.
+Evidence below was recorded on Windows in
+`feat/080-renderable-interchange-import` on 2026-07-18.
 
 ## Verification commands
 
@@ -17,12 +17,14 @@ npm --prefix packages/layout-engine test -- select-import-engine app-save-client
 # preview persistence
 npm --prefix apps/preview test
 
-# full suites + repo gates (before Gate B / closeout)
+# full suites + repo gates
 npm --prefix packages/layout-engine test
+npm --prefix packages/layout-engine run build:browser
+npm --prefix apps/preview test
 npm run clean:src-artifacts
 node scripts/check-browser-bundle-fresh.mjs
 node scripts/check_no_new_python.mjs
-npm --prefix packages/layout-engine run build:browser   # if browser surface changed
+git diff --check
 ```
 
 ## Required evidence by phase
@@ -31,9 +33,9 @@ npm --prefix packages/layout-engine run build:browser   # if browser surface cha
 - [x] `finishImport` blocks `structural`/`invalid`/`type` in non-strict mode (unit).
 - [x] The screenshot input first proved the blocking gate, then Phase 2 converted
   it to a faithful two-frame/one-arrow import with visual class downgrades.
-- [ ] Preview server route writes nothing on structural loss and the Mermaid CLI
-  exits non-zero. Local-folder proof awaits the spec-075 dependency rebase; the
-  D2 CLI proof awaits T050.
+- [x] Preview server route writes nothing on structural loss; Mermaid and D2 CLIs
+  exit non-zero and write nothing; local-folder import does not mirror a blocked
+  response.
 
 ### Phase 1 + Gate A
 - [x] Tokenizer/parser tests green for every token kind and malformed/oversized input.
@@ -48,31 +50,53 @@ npm --prefix packages/layout-engine run build:browser   # if browser surface cha
 - [x] Self-loop, parallel edges, cycle, and disconnected-component tests assert exact topology and parent containment.
 
 ### Phase 3 — reverse direction + engine selection
-- [ ] Before T030: `RL`/`BT` (top-level and subgraph-local) **block** (no silent collapse).
-- [ ] After T030/T031: reverse directions import; `lower-to-frame` + ELK builder map to `LEFT`/`UP`.
-- [ ] Engine selection decision table proven: flat→v3, cross-container→ELK layered, unrenderable→block; reads `engine-capabilities.ts`, not hard-coded ids.
-- [ ] Emitted YAML persists `meta.layout_engine`; reload resolves the same engine.
+- [x] The transitional guard required `RL`/`BT` to block until the canonical
+  `flowDirection` model landed; final regressions now prove preservation instead
+  of retaining the superseded block.
+- [x] Top-level and subgraph-local reverse directions import; the ELK graph
+  builder maps `RL`/`BT` to `LEFT`/`UP`.
+- [x] Engine selection is capability-driven: compatible flat DAG→v3;
+  reverse/cross-container/cyclic/fan-in→ELK layered; missing required
+  capabilities→structural block.
+- [x] Emitted YAML persists `meta.layout_engine`; reload resolves the same engine.
 
 ### Phase 4 + Gate B
-- [ ] Import UI shows preserved/downgraded/blocked; blocked import shows failure, no `ok` status, no navigation.
-- [ ] Server-root `import → persist → reload → render` regression: topology, nesting, direction, engine asserted.
-- [ ] Local-folder `import → persist → reload → render` regression: same assertions.
-- [ ] **Gate B**: no preview import path writes a structurally lossy diagram; full layout-engine + preview suites green. Record here.
+- [x] Import UI shows preserved/downgraded/blocked; blocked import shows failure,
+  no `ok` status, no navigation; downgrade success names bounded reasons.
+- [x] Server-root `import → persist → reload` regression asserts topology,
+  nesting, local reverse direction, and selected engine.
+- [x] Local-folder `import → persist → reload` regression asserts the same and
+  proves blocked imports are not mirrored.
+- [x] **Gate B**: no preview import path writes a structurally lossy diagram.
+  Full evidence: layout-engine `179 files / 1118 tests passed`; preview
+  `190 passed / 1 expected Windows symlink skip / 0 failed`.
 
 ### Phase 5 — D2 parity
-- [ ] D2 structural loss blocks through the shared gate.
-- [ ] D2-06 chained connections, D2-07 direction, D2-08/09 fill/border mapping proven by matrix-row tests.
+- [x] D2 structural loss blocks through the shared gate.
+- [x] D2-06 chained connections, D2-07 four-way direction, and D2-08/09
+  direct/class fill and border mapping are proven by matrix-row tests.
 
 ### Phase 6 — hardening
-- [ ] Bounded-input ceiling documented and enforced; NFR-003 time budget: import of the largest corpus fixture completes under **[set concrete ms budget during implementation]**.
-- [ ] Malformed input fails gracefully; adversarial HTML label does not inject (checked against `scripts/preview_html_allowlist.txt`).
-- [ ] Corpus fixtures load in preview and compile clean.
-- [ ] Every capability-matrix `S`/`P`/`V`/`B`/`M` row cites a passing test by id.
+- [x] Source, token, delimiter, line, node, edge, and subgraph-depth ceilings are
+  enforced; the 1,000-edge corpus regression has a concrete two-second budget.
+- [x] Malformed input fails gracefully; adversarial HTML is reduced to inert text
+  with a named visual downgrade.
+- [x] Three representative imported corpus fixtures retain source path and SHA-256
+  provenance, compile cleanly, and select ELK layered.
+- [x] Every capability-matrix `S`/`P`/`V`/`B`/`M` row cites passing-test evidence.
+
+## Recorded suite evidence
+
+- Focused interchange, parser, lowering, engine, CLI, preview-client, and
+  local-folder coverage: `12 files / 94 tests passed`.
+- Full layout engine: `179 files / 1118 tests passed` in 5.11 seconds.
+- Full preview: `190 passed / 1 expected Windows symlink skip / 0 failed`.
+- Browser rebuild/freshness, no-new-Python ratchet, source-artifact cleanup, and
+  `git diff --check`: green.
 
 ## Closeout gate
 
-Per `AGENTS.md`, this spec touches the preview import/write path, so it **cannot**
-claim Closeout Ready without the repo-owned `import → persist → reload` regressions
-for both server-root and local-folder sources (T041, T042) green, plus the full
-layout-engine and preview suites, browser-bundle freshness, and no-new-Python
-checks green.
+Per `AGENTS.md`, the preview import/write closeout requires repo-owned
+`import → persist → reload` regressions for both server-root and local-folder
+sources. T041/T042 and the full suites are green. Final status remains Review
+until the requested Opus adversarial pass is written to disk.

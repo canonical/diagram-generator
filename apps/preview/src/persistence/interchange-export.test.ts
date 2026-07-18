@@ -14,11 +14,13 @@ import {
 import {
   renderD2ForSlug,
   importInterchangeForSlug,
+  InterchangeImportBlockedError,
   renderMermaidForSlug,
   type FramePreviewDocumentDeps,
   type FramePreviewRenderDeps,
 } from "../preview-host/frame-documents.js";
 import { resolvePreviewHostApiRoute } from "../preview-host/api-routes.js";
+import { compileDiagramYaml } from "@diagram-generator/layout-engine";
 
 function makeYaml(sourceLabel: string): string {
   return `engine: v3
@@ -149,12 +151,59 @@ test("preview import blocks structural Mermaid loss before writing canonical YAM
         ].join("\n"),
         deps,
       ),
-      /Mermaid edge id\/animation could not be imported/,
+      (error: unknown) => {
+        assert.ok(error instanceof InterchangeImportBlockedError);
+        assert.match(error.message, /Mermaid edge id\/animation could not be imported/);
+        assert.equal(error.summary.preserved, 0);
+        assert.equal(error.summary.blocked.length, 1);
+        return true;
+      },
     );
     assert.equal(
       existsSync(path.join(framesDir, "inline-edge-loss.yaml")),
       false,
     );
+  } finally {
+    rmSync(framesDir, { recursive: true, force: true });
+  }
+});
+
+test("preview import persists and reloads nested topology, local direction, and selected engine", () => {
+  const framesDir = makeTempFramesDir();
+  try {
+    const result = importInterchangeForSlug(
+      "compound-import",
+      "mermaid",
+      [
+        "flowchart TB",
+        "subgraph left[\"Left\"]",
+        "  direction RL",
+        "  a[\"A\"]",
+        "end",
+        "subgraph right[\"Right\"]",
+        "  b[\"B\"]",
+        "end",
+        "a --> b",
+      ].join("\n"),
+      { framesDir },
+    );
+
+    assert.deepEqual(result.summary, {
+      preserved: 5,
+      downgraded: [],
+      blocked: [],
+    });
+    const yaml = readFileSync(path.join(framesDir, "compound-import.yaml"), "utf8");
+    assert.match(yaml, /layout_engine: elk-layered/);
+    assert.match(yaml, /flow_direction: RL/);
+    const reloaded = compileDiagramYaml(yaml);
+    assert.deepEqual(reloaded.errors, []);
+    assert.equal(reloaded.ast.frameIndex.a?.parentId, "left");
+    assert.equal(reloaded.ast.frameIndex.b?.parentId, "right");
+    assert.deepEqual(reloaded.ast.arrows.map(({ source, target }) => [source, target]), [["a", "b"]]);
+    assert.equal(reloaded.ast.root?.children[0]?.direction, "horizontal");
+    assert.equal(reloaded.ast.root?.children[0]?.flowDirection, "RL");
+    assert.equal(reloaded.frameDiagram?.layoutEngine, "elk-layered");
   } finally {
     rmSync(framesDir, { recursive: true, force: true });
   }

@@ -16,20 +16,14 @@ export interface LoweredMermaidFlowchart {
 
 function axisForDirection(
   direction: MermaidFlowDirection,
-  line: number,
-  diagnostics: Diagnostic[],
-): 'vertical' | 'horizontal' | undefined {
-  if (direction === 'TB' || direction === 'TD') return 'vertical';
-  if (direction === 'LR') return 'horizontal';
-  diagnostics.push(diagnostic(
-    'IMPORT_MERMAID_UNSUPPORTED_DIRECTION',
-    `Mermaid reverse direction '${direction}' cannot be represented by the current canonical frame model.`,
-    `mermaid.line[${line}]`,
-    line,
-    'warning',
-    'structural',
-  ));
-  return undefined;
+): 'vertical' | 'horizontal' {
+  return direction === 'LR' || direction === 'RL' ? 'horizontal' : 'vertical';
+}
+
+function canonicalFlowDirection(
+  direction: MermaidFlowDirection,
+): NonNullable<AuthorFrameNode['flowDirection']> {
+  return direction === 'TD' ? 'TB' : direction;
 }
 
 function containerKey(path: readonly string[]): string {
@@ -56,26 +50,19 @@ function buildContainers(
   return containers.map(container => {
     const path = [...parentPath, container.id];
     const direction = container.direction
-      ? axisForDirection(container.direction, container.line, diagnostics)
+      ? axisForDirection(container.direction)
       : undefined;
     const node: AuthorFrameNode = {
       id: container.id,
       children: buildContainers(container.children, path, diagnostics, index, sourceLines),
       ...(container.heading ? { heading: { text: container.heading } } : {}),
       ...(direction ? { direction } : {}),
+      ...(container.direction
+        ? { flowDirection: canonicalFlowDirection(container.direction) }
+        : {}),
     };
     sourceLines.set(node, container.line);
     index.set(containerKey(path), node);
-    for (const className of container.classes) {
-      diagnostics.push(diagnostic(
-        'IMPORT_MERMAID_UNSUPPORTED_STYLE',
-        `Mermaid class styling was ignored: :::${className}`,
-        `mermaid.line[${container.line}]`,
-        container.line,
-        'warning',
-        'visual',
-      ));
-    }
     return node;
   });
 }
@@ -121,8 +108,9 @@ function attachSelectedNodes(
   containerIndex: ReadonlyMap<string, AuthorFrameNode>,
   diagnostics: Diagnostic[],
   sourceLines: Map<AuthorFrameNode, number>,
-): void {
+): Map<string, AuthorFrameNode> {
   const containerIds = new Set<string>();
+  const attached = new Map<string, AuthorFrameNode>();
   for (const container of containerIndex.values()) containerIds.add(container.id);
 
   for (const sourceNode of selected.values()) {
@@ -162,20 +150,11 @@ function attachSelectedNodes(
       continue;
     }
     (parent?.children ?? roots).push(node);
+    attached.set(sourceNode.id, node);
     if (sourceNode.shape && sourceNode.shape !== 'rectangle') {
       diagnostics.push(diagnostic(
         'IMPORT_MERMAID_UNSUPPORTED_SHAPE',
         `Mermaid ${sourceNode.shape} node '${sourceNode.id}' was imported as a rectangular frame.`,
-        `mermaid.line[${sourceNode.line}]`,
-        sourceNode.line,
-        'warning',
-        'visual',
-      ));
-    }
-    for (const className of sourceNode.classes) {
-      diagnostics.push(diagnostic(
-        'IMPORT_MERMAID_UNSUPPORTED_STYLE',
-        `Mermaid class styling was ignored: :::${className}`,
         `mermaid.line[${sourceNode.line}]`,
         sourceNode.line,
         'warning',
@@ -192,6 +171,140 @@ function attachSelectedNodes(
         'visual',
       ));
     }
+    if (sourceNode.html) {
+      diagnostics.push(diagnostic(
+        'IMPORT_MERMAID_UNSUPPORTED_STYLE',
+        `Mermaid HTML styling on node '${sourceNode.id}' was reduced to plain text.`,
+        `mermaid.line[${sourceNode.line}]`,
+        sourceNode.line,
+        'warning',
+        'visual',
+      ));
+    }
+  }
+  return attached;
+}
+
+function canonicalFill(value: string): AuthorFrameNode['fill'] | undefined {
+  const normalized = value.trim().replace(/^["']|["']$/g, '').toLowerCase();
+  if (['white', '#fff', '#ffffff'].includes(normalized)) return 'white';
+  if (['black', '#000', '#000000'].includes(normalized)) return 'black';
+  if (['grey', 'gray', '#f3f3f3'].includes(normalized)) return 'grey';
+  return undefined;
+}
+
+function applyStyleProperties(
+  node: AuthorFrameNode,
+  properties: Readonly<Record<string, string>>,
+  line: number,
+  diagnostics: Diagnostic[],
+): void {
+  for (const [property, value] of Object.entries(properties)) {
+    if (property === 'fill') {
+      const fill = canonicalFill(value);
+      if (fill) {
+        node.fill = fill;
+        continue;
+      }
+    } else if (property === 'stroke-dasharray') {
+      node.border = 'dashed';
+      continue;
+    } else if (property === 'stroke' && ['none', 'transparent'].includes(value.toLowerCase())) {
+      node.border = 'none';
+      continue;
+    } else if (property === 'stroke') {
+      node.border = 'solid';
+    }
+    diagnostics.push(diagnostic(
+      'IMPORT_MERMAID_UNSUPPORTED_STYLE',
+      `Mermaid style property '${property}: ${value}' has no faithful canonical mapping.`,
+      `mermaid.line[${line}]`,
+      line,
+      'warning',
+      'visual',
+    ));
+  }
+}
+
+function applyStyles(
+  flowchart: IrFlowchart,
+  selected: ReadonlyMap<string, IrNode>,
+  attached: ReadonlyMap<string, AuthorFrameNode>,
+  containerIndex: ReadonlyMap<string, AuthorFrameNode>,
+  diagnostics: Diagnostic[],
+): void {
+  const targets = new Map(attached);
+  for (const container of containerIndex.values()) targets.set(container.id, container);
+  const definitions = new Map(flowchart.styles
+    .filter(style => style.kind === 'classDef')
+    .map(style => [style.names[0]!, style] as const));
+  const classUses = new Map<string, Set<string>>();
+  for (const [id, sourceNode] of selected) {
+    classUses.set(id, new Set(sourceNode.classes));
+  }
+  const collectContainerClasses = (containers: readonly IrContainer[]): void => {
+    for (const container of containers) {
+      classUses.set(container.id, new Set(container.classes));
+      collectContainerClasses(container.children);
+    }
+  };
+  collectContainerClasses(flowchart.roots);
+  for (const style of flowchart.styles) {
+    if (style.kind !== 'class' || !style.className) continue;
+    for (const name of style.names) {
+      const uses = classUses.get(name) ?? new Set<string>();
+      uses.add(style.className);
+      classUses.set(name, uses);
+    }
+  }
+
+  const usedDefinitions = new Set<string>();
+  for (const [id, classes] of classUses) {
+    const target = targets.get(id);
+    for (const className of classes) {
+      const definition = definitions.get(className);
+      if (target && definition) {
+        usedDefinitions.add(className);
+        applyStyleProperties(target, definition.properties, definition.line, diagnostics);
+      } else {
+        diagnostics.push(diagnostic(
+          'IMPORT_MERMAID_UNSUPPORTED_STYLE',
+          `Mermaid class styling could not be mapped: ${id}:::${className}`,
+          `mermaid.line[${selected.get(id)?.line ?? definition?.line ?? 1}]`,
+          selected.get(id)?.line ?? definition?.line ?? 1,
+          'warning',
+          'visual',
+        ));
+      }
+    }
+  }
+  for (const style of flowchart.styles) {
+    if (style.kind === 'style') {
+      for (const name of style.names) {
+        const target = targets.get(name);
+        if (target) applyStyleProperties(target, style.properties, style.line, diagnostics);
+        else diagnostics.push(diagnostic(
+          'IMPORT_MERMAID_UNSUPPORTED_STYLE',
+          `Mermaid style target '${name}' was not imported.`,
+          `mermaid.line[${style.line}]`,
+          style.line,
+          'warning',
+          'visual',
+        ));
+      }
+    }
+  }
+  for (const [name, definition] of definitions) {
+    if (!usedDefinitions.has(name)) {
+      diagnostics.push(diagnostic(
+        'IMPORT_MERMAID_UNSUPPORTED_STYLE',
+        `Mermaid class definition '${name}' was unused and not persisted.`,
+        `mermaid.line[${definition.line}]`,
+        definition.line,
+        'warning',
+        'visual',
+      ));
+    }
   }
 }
 
@@ -201,7 +314,8 @@ export function lowerMermaidFlowchart(flowchart: IrFlowchart): LoweredMermaidFlo
   const sourceLines = new Map<AuthorFrameNode, number>();
   const nodes = buildContainers(flowchart.roots, [], diagnostics, containerIndex, sourceLines);
   const selected = collectNodes(flowchart, diagnostics);
-  attachSelectedNodes(selected, nodes, containerIndex, diagnostics, sourceLines);
+  const attached = attachSelectedNodes(selected, nodes, containerIndex, diagnostics, sourceLines);
+  applyStyles(flowchart, selected, attached, containerIndex, diagnostics);
   const sortBySourceOrder = (siblings: AuthorFrameNode[]): void => {
     siblings.sort((left, right) =>
       (sourceLines.get(left) ?? Number.MAX_SAFE_INTEGER)
@@ -280,13 +394,14 @@ export function lowerMermaidFlowchart(flowchart: IrFlowchart): LoweredMermaidFlo
     }
   }
 
-  const direction = axisForDirection(flowchart.direction, 1, diagnostics);
+  const direction = axisForDirection(flowchart.direction);
   return {
     nodes,
     arrows,
     metadata: {
       ...(flowchart.title ? { title: flowchart.title } : {}),
-      ...(direction ? { direction } : {}),
+      direction,
+      flow_direction: canonicalFlowDirection(flowchart.direction),
     },
     diagnostics,
   };

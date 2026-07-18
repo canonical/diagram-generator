@@ -167,6 +167,58 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' ? value as Record<string, unknown> : {};
 }
 
+interface PreviewImportDiagnostic {
+  message?: string;
+}
+
+interface PreviewImportSummary {
+  preserved: number;
+  downgraded: PreviewImportDiagnostic[];
+  blocked: PreviewImportDiagnostic[];
+}
+
+function normalizeImportDiagnostics(value: unknown): PreviewImportDiagnostic[] {
+  if (!Array.isArray(value)) return [];
+  return value.map(entry => {
+    const record = asRecord(entry);
+    return typeof record.message === 'string' ? { message: record.message } : {};
+  });
+}
+
+function normalizeImportSummary(
+  value: unknown,
+  fallbackWarnings: PreviewImportDiagnostic[],
+): PreviewImportSummary {
+  const record = asRecord(value);
+  const preserved = typeof record.preserved === 'number' && Number.isFinite(record.preserved)
+    ? Math.max(0, Math.floor(record.preserved))
+    : 0;
+  return {
+    preserved,
+    downgraded: Array.isArray(record.downgraded)
+      ? normalizeImportDiagnostics(record.downgraded)
+      : fallbackWarnings,
+    blocked: normalizeImportDiagnostics(record.blocked),
+  };
+}
+
+function importSummaryText(summary: PreviewImportSummary): string {
+  return `${summary.preserved} preserved, ${summary.downgraded.length} downgraded, ${summary.blocked.length} blocked`;
+}
+
+function importDiagnosticDetails(
+  label: 'Downgraded' | 'Blocked',
+  diagnostics: readonly PreviewImportDiagnostic[],
+): string {
+  const messages = diagnostics
+    .map(diagnostic => diagnostic.message)
+    .filter((message): message is string => typeof message === 'string' && message.length > 0);
+  if (messages.length === 0) return '';
+  const visible = messages.slice(0, 3);
+  const remaining = messages.length - visible.length;
+  return `\n${label}:\n${visible.join('\n')}${remaining > 0 ? `\n…and ${remaining} more.` : ''}`;
+}
+
 export function resolvePreviewSaveButtonState(
   options: PreviewSaveButtonStateOptions,
 ): PreviewButtonState {
@@ -470,19 +522,38 @@ export function createPreviewSaveClientRuntime(
             'The target YAML changed on disk. Review or reload it, then import again to overwrite it.',
           );
         }
+        try {
+          const failure = asRecord(JSON.parse(message));
+          if ('summary' in failure) {
+            const failureWarnings = normalizeImportDiagnostics(failure.warnings);
+            const summary = normalizeImportSummary(failure.summary, failureWarnings);
+            if (summary.blocked.length > 0) {
+              const status = `Import blocked: ${importSummaryText(summary)}`;
+              alertFn(`${status}${importDiagnosticDetails('Blocked', summary.blocked)}`);
+              runtimeDeps.setStatus?.(status, 'error');
+              return;
+            }
+          }
+        } catch {
+          // Plain-text and legacy import failures fall through to the generic error.
+        }
         throw new Error(message || response.statusText || 'Unknown import error');
       }
-      const result = await response.json() as { slug?: string; warnings?: Array<{ message?: string }> };
+      const result = asRecord(await response.json());
       const importedSlug = typeof result.slug === 'string' && result.slug.length > 0 ? result.slug : slug;
-      const warnings = Array.isArray(result.warnings) ? result.warnings : [];
-      if (warnings.length > 0) {
-        const messages = warnings
-          .map((warning) => warning?.message)
-          .filter((message): message is string => typeof message === 'string' && message.length > 0)
-          .slice(0, 3);
-        alertFn(`Imported with ${warnings.length} warning(s).${messages.length > 0 ? `\n${messages.join('\n')}` : ''}`);
+      const warnings = normalizeImportDiagnostics(result.warnings);
+      const summary = normalizeImportSummary(result.summary, warnings);
+      const summaryText = importSummaryText(summary);
+      if (summary.blocked.length > 0) {
+        const status = `Import blocked: ${summaryText}`;
+        alertFn(`${status}${importDiagnosticDetails('Blocked', summary.blocked)}`);
+        runtimeDeps.setStatus?.(status, 'error');
+        return;
       }
-      runtimeDeps.setStatus?.('Imported', 'ok');
+      if (summary.downgraded.length > 0) {
+        alertFn(`Imported: ${summaryText}${importDiagnosticDetails('Downgraded', summary.downgraded)}`);
+      }
+      runtimeDeps.setStatus?.(`Imported: ${summaryText}`, 'ok');
       options.previewWindow.location?.assign?.(`/view/v3:${importedSlug}`);
     } catch (error) {
       alertFn(`Import failed: ${String(error)}`);

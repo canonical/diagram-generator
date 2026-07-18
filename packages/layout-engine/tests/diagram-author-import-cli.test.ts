@@ -91,4 +91,17 @@ describe('diagram interchange import CLIs', () => {
     expect(result.stderr).toContain('No diagram nodes could be imported');
     expect(existsSync(result.outputPath)).toBe(false);
   }, 15_000);
+
+  it('surfaces D2 structural-loss categories, exits nonzero, and writes nothing', () => {
+    const result = runImport(
+      'import-d2.mjs',
+      'source: "Source"\nsource -> missing\n',
+      'd2',
+    );
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('[structural]');
+    expect(result.stderr).toContain('[IMPORT_D2_MISSING_FRAME_REF]');
+    expect(existsSync(result.outputPath)).toBe(false);
+  }, 15_000);
 });

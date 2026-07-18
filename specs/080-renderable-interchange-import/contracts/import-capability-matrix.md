@@ -26,7 +26,7 @@ The renderable chain each **S**/**P** row must satisfy:
 |---|-----------|---------|-------|----------------------|------------|
 | MF-01 | Header + vertical direction | `flowchart TB`, `graph TD` | S | root `direction: vertical` | — |
 | MF-02 | Header + horizontal direction | `graph LR` | S | root `direction: horizontal` | — |
-| MF-03 | Header + reverse direction | `graph RL`, `graph BT` | **M** | needs canonical reverse/orientation field (FR-009); ELK layered has `LEFT`/`UP` but frame model + lowering cannot express it | blocks until model task; then reclassify S |
+| MF-03 | Header + reverse direction | `graph RL`, `graph BT` | S | canonical `flow_direction`; ELK layered `LEFT`/`UP` | — |
 | MF-04 | Explicit node + label | `api["API service"]` | S | frame + label | — |
 | MF-05 | Multiline label `<br/>` | `api["A<br/>B"]` | S | `label[]` array | — |
 | MF-06 | Non-rectangular shapes | `a(...)`, `b{...}`, `c((...))`, etc. | V | frame + label; geometry dropped | `IMPORT_MERMAID_UNSUPPORTED_SHAPE` |
@@ -39,20 +39,20 @@ The renderable chain each **S**/**P** row must satisfy:
 | MF-13 | Subgraph (id only) | `subgraph core ... end` | S | container frame | — |
 | MF-14 | Subgraph with label | `subgraph core["Core"] ... end` | S | container + `heading` | — |
 | MF-15 | Nested subgraphs | subgraph in subgraph | S | nested containers; verify ELK compounds | — |
-| MF-16 | **Inline node decl on edge** | `a["A"] --> b["B"]` | **P** | both frames + arrow; parser rebuild (FR-004, FR-012) | — |
-| MF-17 | **Inline decl + class suffix** | `a["A"]:::x --> b["B"]:::y` | **P** (+V) | topology imported; class suffix downgraded | `IMPORT_MERMAID_UNSUPPORTED_STYLE` per suffix |
-| MF-18 | **Chained inline declarations** | `a[A] --> b[B] --> c[C]` | **P** | expand + create each node (FR-004) | — |
-| MF-19 | Later declaration refining implicit node | edge first, `a["Label"]` later | **P** | merge label into existing node (FR-004) | — |
-| MF-20 | **Subgraph-local direction** | `direction LR` inside subgraph | **P** (LR/TB) / **M** (RL/BT) | container `direction`; LR/TB representable now, RL/BT needs MF-03 model | — / blocks until model |
+| MF-16 | **Inline node decl on edge** | `a["A"] --> b["B"]` | S | tokenizer/IR creates both frames + arrow | — |
+| MF-17 | **Inline decl + class suffix** | `a["A"]:::x --> b["B"]:::y` | S (+V) | topology imported; unmapped class downgraded | `IMPORT_MERMAID_UNSUPPORTED_STYLE` per unmapped suffix |
+| MF-18 | **Chained inline declarations** | `a[A] --> b[B] --> c[C]` | S | expand + create each node | — |
+| MF-19 | Later declaration refining implicit node | edge first, `a["Label"]` later | S | merge label into existing node | — |
+| MF-20 | **Subgraph-local direction** | `direction LR` inside subgraph | S | axis + canonical `flow_direction`; reverse selects ELK | — |
 | MF-21 | `:::class` on standalone node | `api["API"]:::leaf` | V | node imported; class dropped | `IMPORT_MERMAID_UNSUPPORTED_STYLE` |
-| MF-22 | `classDef`/`class`/`style` with colour props | `style a fill:#f00` | V (map fill/border if faithful, else drop; FR-006) | node imported; mappable props applied, rest downgraded | `IMPORT_MERMAID_UNSUPPORTED_STYLE` for unmapped |
+| MF-22 | `classDef`/`class`/`style` with colour props | `style a fill:#f00` | S + V | canonical white/grey/black fill and border style map; remaining props downgrade | `IMPORT_MERMAID_UNSUPPORTED_STYLE` for unmapped |
 | MF-23 | `linkStyle`, `click` | `click a "url"` | V | dropped | `IMPORT_MERMAID_UNSUPPORTED_STYLE` |
 | MF-24 | Comments | `%% ...` | S | ignored | — |
 | MF-25 | Frontmatter (title only) | `--- title: X ---` | S | title extracted | — |
-| MF-26 | **Multi-target fan-out** | `a --> b & c`, `a & b --> c` | **P** | expand to full arrow set (FR-007) | — |
-| MF-27 | Semicolon-separated statements | `a-->b; c-->d` | **P** | split then parse per statement (FR-012 IR) | — |
+| MF-26 | **Multi-target fan-out** | `a --> b & c`, `a & b --> c` | S | expands to full arrow set | — |
+| MF-27 | Semicolon-separated statements | `a-->b; c-->d` | S | tokenizer splits then parses each statement | — |
 | MF-28 | Edge ids / animation | `e1@{ ... }`, `a e1@--> b` | B | no faithful arrow representation for id/animation semantics | `IMPORT_MERMAID_UNSUPPORTED_EDGE` (blocking) |
-| MF-29 | New `@{ shape: ... }` node syntax | `a@{ shape: cyl }` | P (shape→V) | parse new syntax, import as frame, shape downgraded | `IMPORT_MERMAID_UNSUPPORTED_SHAPE` |
+| MF-29 | New `@{ shape: ... }` node syntax | `a@{ shape: cyl }` | V | imported as a frame; geometry downgraded | `IMPORT_MERMAID_UNSUPPORTED_SHAPE` |
 | MF-30 | Markdown string node body | `` a["`**md**`"] `` | V | strip markdown to text | `IMPORT_MERMAID_UNSUPPORTED_STYLE` |
 | MF-31 | Self-loop | `a --> a` | S | arrow with equal endpoints; verify renderer | — |
 | MF-32 | Parallel edges | `a --> b` twice | S | both arrows preserved (verify no dedupe) | — |
@@ -62,14 +62,9 @@ The renderable chain each **S**/**P** row must satisfy:
 
 ### Behavioural change from spec 028
 
-Rows **MF-16, MF-17, MF-18, MF-19, MF-20, MF-26, MF-27** are currently dropped by
-spec 028 as `IMPORT_MERMAID_UNSUPPORTED_EDGE` / `_SYNTAX` warnings (structural
-loss surfaced as warnings). Under spec 080 they either become supported (P) or
-block (B/M) - none may remain silent warning-only drops.
-
-Row **MF-03 / MF-20(RL,BT)**: spec 028 silently collapses `RL`/`BT` to
-`LR`/`TB`. Under spec 080 this is structural loss and blocks until the model task
-lands.
+Rows **MF-16–20, MF-26, MF-27, and MF-29** are implemented by the tokenizer/IR
+path. Reverse directions use the canonical `flow_direction` field and select
+ELK layered; they are no longer collapsed.
 
 ## D2 constructs (phased parity)
 
@@ -80,8 +75,8 @@ lands.
 | D2-03 | Connection | `a -> b` | S | directed arrow |
 | D2-04 | Labelled connection | `a -> b: "x"` | S | arrow + label |
 | D2-05 | Dot-path endpoints | `a.b -> c.d` | S | resolve to nested frames |
-| D2-06 | Chained connections | `a -> b -> c` | **P** | currently deferred (`IMPORT_D2_MISSING_FRAME_REF`); expand to arrows |
-| D2-07 | `direction` | `direction: right` | **P**(LR/TB) / **M**(reverse) | mirror MF-20 semantics; currently dropped as style |
+| D2-06 | Chained connections | `a -> b -> c` | S | expands to one arrow per segment |
+| D2-07 | `direction` | `direction: right` | S | right/down/left/up map to axis + `flow_direction` |
 | D2-08 | class/style with colour | `a.style.fill: red` | V | map fill/border if faithful (FR-006); else downgrade |
 | D2-09 | `classes` block | `classes: { ... }` | V | resolve then apply/downgrade |
 | D2-10 | icons | `a.icon: ...` | V | dropped |
@@ -93,6 +88,20 @@ after import, a container relationship that would be dropped) MUST block through
 the same shared gate as Mermaid (FR-002), not emit `IMPORT_D2_MISSING_FRAME_REF`
 as a non-blocking warning.
 
+## Passing-test index
+
+| Matrix rows | Passing proof |
+|-------------|---------------|
+| MF-01–15, MF-21–25, MF-28–30, MF-35 | `diagram-author-import.test.ts` |
+| MF-16–20, MF-26–27 | `mermaid-parse.test.ts`, `mermaid-lower.test.ts` |
+| MF-03, MF-20 reverse + engine persistence | `select-import-engine.test.ts` |
+| MF-22, MF-29 | `diagram-author-import.test.ts` style/attribute-shape regression |
+| MF-31–34 | `mermaid-topology.test.ts` |
+| Bounded/malformed/HTML contract | `mermaid-tokenize.test.ts`, `mermaid-robustness.test.ts` |
+| D2-01–12 and structural gate | `diagram-author-import.test.ts`, `d2-parity.test.ts` |
+| Server-root and local-folder persisted reload | `interchange-export.test.ts`, `local-folder-workspace.test.ts` |
+| Representative corpus imports | `imported-corpus-fixtures.test.ts` |
+
 ## Engine-selection decision table (FR-010)
 
 | Graph property | v3 autolayout | ELK layered | Decision |
@@ -100,7 +109,7 @@ as a non-blocking warning.
 | Flat / tree, default vertical or horizontal | faithful | faithful | v3 |
 | Nested containers, edges only within a container | faithful | faithful | v3 |
 | Nested containers, cross-container edges | not faithful | faithful (compounds + common-ancestor) | ELK layered |
-| Reverse direction (RL/BT) | no | `LEFT`/`UP` (needs model, MF-03) | ELK layered after MF-03 model lands; block before |
+| Reverse direction (RL/BT) | no | `LEFT`/`UP` | ELK layered |
 | Cycle / high fan-in / dense graph | limited | faithful | ELK layered |
 | Neither can render faithfully | — | — | block (B) |
 
