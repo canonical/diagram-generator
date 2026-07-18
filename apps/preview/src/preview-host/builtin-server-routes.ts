@@ -407,6 +407,7 @@ export function createPreviewHostWorkspaceRoutes(
       );
       let sourceId = requestedId;
       let openedWorkspace = opened.get(sourceId);
+      let registered = false;
       if (!openedWorkspace) {
         let suffix = 2;
         while (true) {
@@ -421,6 +422,7 @@ export function createPreviewHostWorkspaceRoutes(
             deps.registerWorkspaceSource(source);
             openedWorkspace = { source, dir };
             opened.set(sourceId, openedWorkspace);
+            registered = true;
             break;
           } catch (error) {
             rmSync(dir, { recursive: true, force: true });
@@ -439,7 +441,7 @@ export function createPreviewHostWorkspaceRoutes(
         writeFileSync(path.join(openedWorkspace.dir, `${slug}.yaml`), content, "utf8");
       }
       slugs.sort((a, b) => a.localeCompare(b));
-      context.sendJson(200, { ok: true, sourceId, label, slugs });
+      context.sendJson(200, { ok: true, sourceId, label, slugs, registered });
     },
     dispose() {
       for (const sourceId of [...opened.keys()]) forgetOpenedWorkspace(sourceId);

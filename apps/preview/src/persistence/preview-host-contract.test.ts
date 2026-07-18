@@ -1939,7 +1939,13 @@ test("workspace folder route adds YAML diagrams without removing the Force lane"
     assert.ok(registeredSource);
     assert.equal(registeredSource!.kind, "local-folder");
     assert.deepEqual(registeredSource!.list().map((entry) => entry.slug), ["alpha"]);
-    assert.deepEqual(responses, [{ ok: true, sourceId: "My-folder", label: "My folder", slugs: ["alpha"] }]);
+    assert.deepEqual(responses, [{
+      ok: true,
+      sourceId: "My-folder",
+      label: "My folder",
+      slugs: ["alpha"],
+      registered: true,
+    }]);
 
     let yaml = "";
     const yamlRoute = routes.find((route) => route.key === "workspace-yaml");
@@ -2127,18 +2133,22 @@ test("builtin preview host install preserves frame-yaml document ownership acros
   const forceSpecPath = path.join(forceDefinitionsDir, "force-stakeholders.yaml");
   const framesDir = path.join(tempDir, "frames");
   const otherFramesDir = path.join(tempDir, "other-frames");
+  const localFramesDir = path.join(tempDir, "local-frames");
   const bundledFramesDir = path.join(tempDir, "bundled-frames");
   const sourceFramePath = path.join(REPO_ROOT, "diagrams", "1.input", "complex-routing-usecase.yaml");
   const tempFramePath = path.join(framesDir, "complex-routing-usecase.yaml");
   const otherFramePath = path.join(otherFramesDir, "complex-routing-usecase.yaml");
+  const localFramePath = path.join(localFramesDir, "complex-routing-usecase.yaml");
   const bundledFramePath = path.join(bundledFramesDir, "complex-routing-usecase.yaml");
   const sequenceFramePath = path.join(framesDir, "service-handshake-sequence.yaml");
   mkdirSync(framesDir, { recursive: true });
   mkdirSync(otherFramesDir, { recursive: true });
+  mkdirSync(localFramesDir, { recursive: true });
   mkdirSync(bundledFramesDir, { recursive: true });
   mkdirSync(forceDefinitionsDir, { recursive: true });
   copyFileSync(sourceFramePath, tempFramePath);
   copyFileSync(sourceFramePath, otherFramePath);
+  copyFileSync(sourceFramePath, localFramePath);
   copyFileSync(sourceFramePath, bundledFramePath);
   writeFileSync(forceSpecPath, "nodes:\n  - id: alpha\nlinks: []\n", "utf8");
   writeFileSync(
@@ -2204,6 +2214,12 @@ test("builtin preview host install preserves frame-yaml document ownership acros
       createServerRootSource({ id: "default", label: "Diagrams", dir: framesDir }),
       createServerRootSource({ id: "other", label: "Other", dir: otherFramesDir }),
       createServerRootSource({
+        id: "local",
+        label: "My folder",
+        dir: localFramesDir,
+        kind: "local-folder",
+      }),
+      createServerRootSource({
         id: "examples",
         label: "Bundled examples",
         dir: bundledFramesDir,
@@ -2217,8 +2233,17 @@ test("builtin preview host install preserves frame-yaml document ownership acros
     const browseKeys = browseSections.map((section) => section.key);
     assert.ok(browseKeys.includes("autolayout-default"));
     assert.ok(browseKeys.includes("autolayout-other"));
+    assert.ok(browseKeys.includes("autolayout-local"));
     assert.ok(browseKeys.includes("autolayout-examples"));
     assert.ok(browseKeys.includes("force"));
+    assert.ok(
+      browseKeys.indexOf("autolayout-local") < browseKeys.indexOf("autolayout-default"),
+      "opened local folders should be listed before server roots",
+    );
+    assert.ok(
+      browseKeys.indexOf("autolayout-default") < browseKeys.indexOf("autolayout-examples"),
+      "bundled examples should be listed after writable workspace sources",
+    );
     assert.equal(
       browseSections
         .find((section) => section.key === "autolayout-examples")

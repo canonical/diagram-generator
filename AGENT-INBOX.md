@@ -21,6 +21,13 @@ real-filesystem-handle journey. Full layout-engine (1,062) and preview (188 pass
 no-new-Python, diff check, and the production Chromium journey are green. Native
 OS chooser/regrant evidence remains unavailable because the in-app browser is
 unavailable; final Opus findings are requested under `docs/spec-reviews/`.
+The 2026-07-18 open-folder follow-up now lists local folders before the large
+bundled corpus and refreshes navigation once when persisted handles recreate
+server-side registrations. Focused contracts, builds, bundle freshness, and the
+production Chromium real-handle journey are green. The broad preview contract
+has one unrelated failure because the user's uncommitted
+`request-to-hardware-stack.yaml` now selects ELK instead of the fixture's
+historical v3 expectation; preserve that YAML.
 
 **Spec 061 merged (2026-07-17).** `feat/061-preview-grid-regression` merged
 cleanly into the primary `main` worktree at `7317feb`; the feature worktree is

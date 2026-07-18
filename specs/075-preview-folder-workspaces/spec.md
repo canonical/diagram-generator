@@ -154,7 +154,14 @@ eval-style execution of file content.
 ### FR-010 Empty state and discoverability
 
 With no user folders opened, the editor shows the bundled examples plus a
-prominent "Open a folder of your diagrams" call to action.
+prominent "Open a folder of your diagrams" call to action. Once a user folder is
+open, its browse group appears before server roots and bundled examples so the
+large example corpus does not make a successful open look like a no-op.
+
+When persisted browser handles recreate server-side workspace registrations
+after a preview-server restart, the already-rendered navigation refreshes once.
+It must not require a second manual reload, and it must not enter a reload loop
+when the registrations already exist.
 
 ### FR-011 Bounded, unambiguous folder ingest
 
@@ -186,6 +193,9 @@ a partial source.
 - SC-008: A denied handle write, dropped permission, or external-change refusal
   leaves the editor dirty and never presents the ephemeral server cache as a
   successful disk save.
+- SC-009: Opening a folder makes its group immediately visible before bundled
+  examples; restoring a missing server registration refreshes navigation exactly
+  once, while an already-registered folder does not trigger another refresh.
 
 ## Constraints
 

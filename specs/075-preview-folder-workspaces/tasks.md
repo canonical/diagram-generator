@@ -153,6 +153,15 @@ predecessor's tests are green.
 - [x] T047 Add the complete read-only "Save a copy to…" workflow, including
       target-folder selection, unsaved override transfer, persist→reload, and
       accessible pre-save affordances.
+- [x] T048 Put opened `local-folder` browse groups before server roots and the
+      bundled corpus while preserving the default source's bare-link identity.
+      Regression: typed browse-section assembly asserts local → server → bundled
+      order.
+- [x] T049 Return whether `/api/workspaces/open` created a missing ephemeral
+      registration and refresh the rendered navigation exactly once when handle
+      restore recreates one. Regression: two restore passes with
+      `registered: true` then `false` call `location.reload()` once, and the
+      production Chromium real-handle journey remains green.
 
 ## Task dependency notes
 

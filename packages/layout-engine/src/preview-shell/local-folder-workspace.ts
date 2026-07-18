@@ -10,6 +10,7 @@ export interface PreviewLocalFolderOpenResult {
   readonly sourceId: string;
   readonly label: string;
   readonly slugs: readonly string[];
+  readonly registered?: boolean;
 }
 
 export interface PreviewLocalFolderHandleRecord {
@@ -598,13 +599,15 @@ export function createPreviewLocalFolderWorkspace(
         for (const record of storedRecords) knownLocalSourceIds.add(record.sourceId);
         deniedRecords = [];
         let restored = 0;
+        let registered = false;
         for (const record of storedRecords) {
           try {
             if (await directoryPermission(record.handle, false) !== 'granted') {
               deniedRecords.push(record);
               continue;
             }
-            await openDirectory(record.handle, record, false);
+            const result = await openDirectory(record.handle, record, false);
+            registered ||= result.registered === true;
             restored += 1;
           } catch (error) {
             console.warn(`Could not restore folder '${record.label}'`, error);
@@ -620,6 +623,9 @@ export function createPreviewLocalFolderWorkspace(
           );
         } else if (restored > 0) {
           setStatus(document, `${restored} folder${restored === 1 ? '' : 's'} reconnected.`);
+        }
+        if (registered) {
+          windowObject.location.reload();
         }
       })();
       restoreInFlight = operation;

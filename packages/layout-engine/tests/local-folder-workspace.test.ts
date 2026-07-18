@@ -319,6 +319,43 @@ describe('preview local-folder workspace', () => {
     expect(uploads).toEqual(['local-alpha']);
   });
 
+  it('reloads once when restore recreates a server-side workspace registration', async () => {
+    const file = fakeFileHandle('alpha.yaml', 'alpha: original\n');
+    const handle = fakeDirectory('Alpha', [file]);
+    const persisted = memoryStore([{ sourceId: 'local-alpha', label: 'Alpha', handle }]);
+    const { document } = fakeDocument();
+    const reload = vi.fn();
+    const windowObject = {
+      __DG_CONFIG: { slug: '' },
+      location: { assign() {}, reload },
+      confirm: () => true,
+    } as unknown as Window;
+    let registered = true;
+    const controller = createPreviewLocalFolderWorkspace({
+      windowObject,
+      document,
+      fetchFn: (async (input: RequestInfo | URL) => {
+        if (String(input) === '/api/workspaces/open') {
+          const response = jsonResponse({
+            sourceId: 'local-alpha',
+            label: 'Alpha',
+            slugs: ['alpha'],
+            registered,
+          });
+          registered = false;
+          return response;
+        }
+        return jsonResponse({});
+      }) as typeof fetch,
+      handleStore: persisted.store,
+    });
+
+    await controller.restoreFolders();
+    await controller.restoreFolders();
+
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
   it('saves unsaved read-only edits as a new YAML file in a chosen folder', async () => {
     const targetDirectory = fakeDirectory('My diagrams', []);
     const assigned: string[] = [];

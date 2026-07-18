@@ -200,8 +200,20 @@ export function createBuiltinPreviewHostInstallDeps(
     return source.writable && !(source.kind === "bundled-examples" && hasWritableUserSource);
   };
 
-  const listWorkspaceBrowseSections = () =>
-    workspaceRegistry.list().flatMap((source, index) => {
+  const listWorkspaceBrowseSections = () => {
+    const sources = workspaceRegistry
+      .list()
+      .map((source, index) => ({ source, index }))
+      .sort((left, right) => {
+        const browseRank = (kind: DiagramWorkspaceSource["kind"]): number => {
+          if (kind === "local-folder") return 0;
+          if (kind === "bundled-examples") return 2;
+          return 1;
+        };
+        return browseRank(left.source.kind) - browseRank(right.source.kind);
+      });
+
+    return sources.flatMap(({ source, index }) => {
       const writable = sourceIsWritable(source);
       const links = source.list().map((entry) => {
         const address = index === 0 ? entry.slug : entry.qualifiedId;
@@ -219,6 +231,7 @@ export function createBuiltinPreviewHostInstallDeps(
           }]
         : [];
     });
+  };
 
   const resolveFrameDir = (slug: string): {
     framesDir: string;
