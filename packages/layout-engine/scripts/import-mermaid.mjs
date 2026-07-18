@@ -10,7 +10,10 @@ const { compileDiagramYaml, importMermaid, serializeDiagramYaml } = await distIm
 function formatDiagnostics(diagnostics, sourcePath) {
   const prefix = sourcePath ? `${sourcePath}: ` : '';
   return diagnostics
-    .map(entry => `${prefix}${entry.path ?? 'document'}: [${entry.code}] ${entry.message}`)
+    .map(entry => {
+      const category = entry.category ? `[${entry.category}] ` : '';
+      return `${prefix}${entry.path ?? 'document'}: ${category}[${entry.code}] ${entry.message}`;
+    })
     .join('\n');
 }
 
@@ -25,7 +28,12 @@ const outputPath = outIndex >= 0 && process.argv[outIndex + 1]
   ? resolve(process.argv[outIndex + 1])
   : null;
 const strict = process.argv.includes('--strict');
-const result = importMermaid(readFileSync(inputPath, 'utf8'), { strict });
+const source = readFileSync(inputPath, 'utf8');
+if (source.trim().length === 0) {
+  console.error(`${inputPath}: No diagram nodes could be imported.`);
+  process.exit(1);
+}
+const result = importMermaid(source, { strict });
 
 if (result.errors.length > 0) {
   console.error(formatDiagnostics(result.errors, inputPath));

@@ -1,7 +1,13 @@
 import {
   existsSync,
+  mkdtempSync,
   readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
 } from "node:fs";
+import { Buffer } from "node:buffer";
+import os from "node:os";
 import path from "node:path";
 
 import {
@@ -16,6 +22,8 @@ import {
 } from "./builtin-host-deps.js";
 import type { PreviewHostModuleDescriptor, PreviewHostModuleInstallDeps } from "./modules.js";
 import type { PreviewHostApiRouteDescriptor } from "./types.js";
+import { isBareSlug, parseQualifiedSlug } from "./workspace/diagram-workspace-source.js";
+import { createServerRootSource } from "./workspace/server-root-source.js";
 
 export interface BuiltinPreviewHostServerModuleDeps
   extends BuiltinPreviewHostServerRouteDeps {}
@@ -303,6 +311,221 @@ export function createPreviewHostReferenceImageRoute(
   };
 }
 
+function workspaceSourceId(label: string): string {
+  return label.replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "folder";
+}
+
+function workspaceSlugFromFilename(name: string): string | null {
+  const basename = path.posix.basename(name);
+  if (!basename.toLowerCase().endsWith(".yaml")) return null;
+  const slug = basename.slice(0, -".yaml".length);
+  return isBareSlug(slug) ? slug : null;
+}
+
+const MAX_WORKSPACE_FILE_COUNT = 500;
+const MAX_WORKSPACE_FILE_BYTES = 2 * 1024 * 1024;
+const MAX_WORKSPACE_TOTAL_BYTES = 25 * 1024 * 1024;
+
+export function createPreviewHostWorkspaceRoutes(
+  deps: BuiltinPreviewHostServerModuleDeps,
+): readonly PreviewHostApiRouteDescriptor[] {
+  const opened = new Map<string, { source: ReturnType<typeof createServerRootSource>; dir: string }>();
+  const forgetOpenedWorkspace = (sourceId: string): boolean => {
+    const workspace = opened.get(sourceId);
+    if (!workspace) return false;
+    opened.delete(sourceId);
+    deps.unregisterWorkspaceSource?.(sourceId);
+    rmSync(workspace.dir, { recursive: true, force: true });
+    return true;
+  };
+
+  const openRoute: PreviewHostApiRouteDescriptor = {
+    key: "workspace-open",
+    method: "POST",
+    matchMode: "exact",
+    routePrefixes: ["/api/workspaces/open"],
+    async handle(_match, context) {
+      if (typeof deps.registerWorkspaceSource !== "function") {
+        context.sendText(501, "Workspace folder opening is unavailable in this preview host");
+        return;
+      }
+      const body = await context.readJsonBody(context.req);
+      if (!body || typeof body !== "object" || Array.isArray(body)) {
+        context.sendText(400, "Expected a workspace folder payload");
+        return;
+      }
+      const labelValue = Reflect.get(body, "label");
+      const label = typeof labelValue === "string" && labelValue.trim() ? labelValue.trim() : "Opened folder";
+      const rawFiles = Reflect.get(body, "files");
+      const allowEmpty = Reflect.get(body, "allowEmpty") === true;
+      if (!Array.isArray(rawFiles) || (rawFiles.length === 0 && !allowEmpty)) {
+        context.sendText(400, "The selected folder contains no YAML diagrams");
+        return;
+      }
+      if (rawFiles.length > MAX_WORKSPACE_FILE_COUNT) {
+        context.sendText(413, `A folder can contain at most ${MAX_WORKSPACE_FILE_COUNT} YAML diagrams`);
+        return;
+      }
+
+      const validFiles = new Map<string, string>();
+      const normalizedSlugs = new Set<string>();
+      let totalBytes = 0;
+      for (const file of rawFiles as unknown[]) {
+        if (!file || typeof file !== "object") continue;
+        const name = Reflect.get(file, "name");
+        const content = Reflect.get(file, "content");
+        const slug = typeof name === "string" && typeof content === "string"
+          ? workspaceSlugFromFilename(name)
+          : null;
+        if (!slug) continue;
+        const normalizedSlug = slug.toLocaleLowerCase("en-US");
+        if (normalizedSlugs.has(normalizedSlug)) {
+          context.sendText(400, `Duplicate diagram filename: ${slug}.yaml`);
+          return;
+        }
+        const bytes = Buffer.byteLength(content as string, "utf8");
+        if (bytes > MAX_WORKSPACE_FILE_BYTES) {
+          context.sendText(413, `${slug}.yaml exceeds the 2 MiB diagram limit`);
+          return;
+        }
+        totalBytes += bytes;
+        if (totalBytes > MAX_WORKSPACE_TOTAL_BYTES) {
+          context.sendText(413, "The selected folder exceeds the 25 MiB workspace limit");
+          return;
+        }
+        normalizedSlugs.add(normalizedSlug);
+        validFiles.set(slug, content as string);
+      }
+      if (validFiles.size === 0 && !allowEmpty) {
+        context.sendText(400, "The selected folder contains no valid root-level YAML diagrams");
+        return;
+      }
+
+      const requestedIdValue = Reflect.get(body, "sourceId");
+      const requestedId = workspaceSourceId(
+        typeof requestedIdValue === "string" && requestedIdValue.trim() ? requestedIdValue : label,
+      );
+      let sourceId = requestedId;
+      let openedWorkspace = opened.get(sourceId);
+      let registered = false;
+      if (!openedWorkspace) {
+        let suffix = 2;
+        while (true) {
+          const dir = mkdtempSync(path.join(os.tmpdir(), "dg-open-folder-"));
+          try {
+            const source = createServerRootSource({
+              id: sourceId,
+              label,
+              dir,
+              kind: "local-folder",
+            });
+            deps.registerWorkspaceSource(source);
+            openedWorkspace = { source, dir };
+            opened.set(sourceId, openedWorkspace);
+            registered = true;
+            break;
+          } catch (error) {
+            rmSync(dir, { recursive: true, force: true });
+            if (!(error instanceof Error) || !/already registered/.test(error.message)) throw error;
+            sourceId = `${requestedId}-${suffix}`;
+            suffix += 1;
+          }
+        }
+      }
+
+      for (const entry of readdirSync(openedWorkspace.dir)) {
+        if (entry.toLowerCase().endsWith(".yaml")) rmSync(path.join(openedWorkspace.dir, entry), { force: true });
+      }
+      const slugs = [...validFiles.keys()];
+      for (const [slug, content] of validFiles) {
+        writeFileSync(path.join(openedWorkspace.dir, `${slug}.yaml`), content, "utf8");
+      }
+      slugs.sort((a, b) => a.localeCompare(b));
+      context.sendJson(200, { ok: true, sourceId, label, slugs, registered });
+    },
+    dispose() {
+      for (const sourceId of [...opened.keys()]) forgetOpenedWorkspace(sourceId);
+    },
+  };
+
+  const closeRoute: PreviewHostApiRouteDescriptor = {
+    key: "workspace-close",
+    method: "POST",
+    matchMode: "exact",
+    routePrefixes: ["/api/workspaces/close"],
+    async handle(_match, context) {
+      const body = await context.readJsonBody(context.req);
+      const sourceId = body && typeof body === "object" && !Array.isArray(body)
+        ? Reflect.get(body, "sourceId")
+        : null;
+      if (typeof sourceId !== "string" || !sourceId.startsWith("local-")) {
+        context.sendText(400, "Expected a local workspace source id");
+        return;
+      }
+      if (!forgetOpenedWorkspace(sourceId)) {
+        context.sendText(404, `Workspace source '${sourceId}' is not open`);
+        return;
+      }
+      context.sendJson(200, { ok: true, sourceId });
+    },
+  };
+
+  const copyRoute: PreviewHostApiRouteDescriptor = {
+    key: "workspace-copy",
+    method: "POST",
+    matchMode: "exact",
+    routePrefixes: ["/api/workspaces/copy"],
+    async handle(_match, context) {
+      if (typeof deps.copyWorkspaceDocument !== "function") {
+        context.sendText(501, "Workspace copying is unavailable in this preview host");
+        return;
+      }
+      const body = await context.readJsonBody(context.req);
+      const sourceAddress = body && typeof body === "object" && !Array.isArray(body)
+        ? Reflect.get(body, "sourceAddress")
+        : null;
+      const targetSourceId = body && typeof body === "object" && !Array.isArray(body)
+        ? Reflect.get(body, "targetSourceId")
+        : null;
+      const targetSlug = body && typeof body === "object" && !Array.isArray(body)
+        ? Reflect.get(body, "targetSlug")
+        : null;
+      if (
+        typeof sourceAddress !== "string"
+        || typeof targetSourceId !== "string"
+        || typeof targetSlug !== "string"
+        || !isBareSlug(targetSlug)
+      ) {
+        context.sendText(400, "Expected valid sourceAddress, targetSourceId, and targetSlug values");
+        return;
+      }
+      try {
+        context.sendJson(200, deps.copyWorkspaceDocument(sourceAddress, targetSourceId, targetSlug));
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        context.sendText(/already exists/.test(message) ? 409 : 400, message);
+      }
+    },
+  };
+
+  const yamlRoute: PreviewHostApiRouteDescriptor = {
+    key: "workspace-yaml",
+    method: "GET",
+    routePrefixes: ["/api/workspaces/yaml/"],
+    handle(match, context) {
+      const qualified = match.slug ? parseQualifiedSlug(match.slug) : null;
+      const openedWorkspace = qualified ? opened.get(qualified.sourceId) : null;
+      if (!qualified || !openedWorkspace || !openedWorkspace.source.has(qualified.slug)) {
+        context.sendText(404, "Workspace YAML not found");
+        return;
+      }
+      context.sendText(200, openedWorkspace.source.read(qualified.slug));
+    },
+  };
+
+  return [openRoute, closeRoute, copyRoute, yamlRoute];
+}
+
 export function createBuiltinPreviewHostServerRoutes(
   deps: BuiltinPreviewHostServerModuleDeps,
 ): readonly PreviewHostApiRouteDescriptor[] {
@@ -318,6 +541,7 @@ export function createBuiltinPreviewHostServerRoutes(
     createPreviewHostStaticAssetRoute(deps),
     createPreviewHostIconRoute(deps),
     createPreviewHostReferenceImageRoute(deps),
+    ...createPreviewHostWorkspaceRoutes(deps),
     createRetiredForcePreviewHostApiRoute(),
   ] as const;
 }

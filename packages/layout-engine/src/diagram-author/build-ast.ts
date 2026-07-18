@@ -21,6 +21,13 @@ function readDirection(record: Record<string, unknown>): AuthorFrameNode['direct
   return value === 'vertical' || value === 'horizontal' ? value : undefined;
 }
 
+function readFlowDirection(record: Record<string, unknown>): AuthorFrameNode['flowDirection'] {
+  const value = readString(record, 'flowDirection', 'flow_direction')?.toUpperCase();
+  return value === 'TB' || value === 'LR' || value === 'BT' || value === 'RL'
+    ? value
+    : undefined;
+}
+
 function readPosition(record: Record<string, unknown>): AuthorFrameNode['position'] {
   const value = readString(record, 'position');
   if (!value) {
@@ -37,6 +44,8 @@ function normalizeFrameFields(record: Record<string, unknown>): Omit<AuthorFrame
 
   const direction = readDirection(record);
   if (direction) node.direction = direction;
+  const flowDirection = readFlowDirection(record);
+  if (flowDirection) node.flowDirection = flowDirection;
 
   const gap = readNumber(record, 'gap', 'gap');
   if (gap !== undefined) node.gap = gap;
@@ -167,6 +176,7 @@ const FRAME_TEMPLATE_KEYS: (keyof FrameTemplate)[] = [
   'heading',
   'helper',
   'direction',
+  'flowDirection',
   'gap',
   'gapDelta',
   'padding',

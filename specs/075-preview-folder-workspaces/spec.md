@@ -1,9 +1,11 @@
 # Spec 075: Preview folder workspaces
 
 **Feature Branch**: `feat/075-preview-folder-workspaces`
-**Status**: Draft
+**Status**: In progress — implementation and real-handle Chromium coverage are
+complete; native OS-picker/regrant evidence and final adversarial review remain
 **Created**: 2026-07-06
-**Support files**: [`plan.md`](./plan.md), [`tasks.md`](./tasks.md)
+**Support files**: [`plan.md`](./plan.md), [`tasks.md`](./tasks.md),
+[`workspace-flow.md`](./workspace-flow.md), [`validation.md`](./validation.md)
 
 ## Problem
 
@@ -75,8 +77,10 @@ Two adapters implement it in this spec:
 1. `bundled-examples` / `server-root` – the disk-backed directory model, extended
    from one dir to an ordered list of labelled roots.
 2. `local-folder` – a browser File System Access API directory handle, opened from
-   an "Open folder" button, persisted in IndexedDB, writable directly from the
-   client.
+   an "Open folder" button, persisted in IndexedDB, and authoritative for writes.
+   The localhost preview process may keep an ephemeral render cache because the
+   existing canonical YAML save logic is server-owned, but it never treats that
+   cache as a successful user save until the browser writes the granted handle.
 
 Slug identity becomes qualified (`sourceId:slug`) so folders containing the same
 filename do not collide. The side nav groups slugs by source. Read-only sources
@@ -113,21 +117,26 @@ never a silent overwrite or a swallowed error.
 ### FR-005 Browser open-folder source
 
 A visible "Open folder…" action uses `window.showDirectoryPicker()` to add a
-`local-folder` source. The directory handle is persisted in IndexedDB and
+`local-folder` source. Multiple directory handles are persisted in IndexedDB and
 re-offered on return with a one-click permission re-grant when the browser has
-dropped access. Feature-detected; hidden on browsers without write support.
+dropped access. Same-named folders receive distinct stable source ids.
+Feature-detected; the action is hidden on browsers without write support and
+server-root guidance is shown instead.
 
-### FR-006 Client-side save for local folders
+### FR-006 Authoritative browser-handle save for local folders
 
-Edits to a `local-folder` source are written back to the picked directory through
-a client-side save adapter using the browser bundle's existing YAML persistence,
-without routing through the server file writer.
+Edits to a `local-folder` source are canonicalized in the localhost preview's
+ephemeral source cache, then committed to the picked directory by the browser
+through the granted file handle. A save response must not be reported as
+successful, clear dirty state, or reload the editor until the handle write
+succeeds. Every mutating workflow that can change YAML, including interchange
+import, uses this commit gate.
 
 ### FR-007 External-change and conflict handling
 
 When a file changes underneath the editor (cloud sync, external edit), detect it
-(mtime/hash for server roots; the FS Access change signal or re-read compare for
-local folders) and offer reload / keep-mine rather than silently overwriting.
+(mtime/hash for server roots; re-read compare for local folders) and require an
+explicit overwrite or keep-external choice rather than silently overwriting.
 
 ### FR-008 Path safety
 
@@ -145,7 +154,21 @@ eval-style execution of file content.
 ### FR-010 Empty state and discoverability
 
 With no user folders opened, the editor shows the bundled examples plus a
-prominent "Open a folder of your diagrams" call to action.
+prominent "Open a folder of your diagrams" call to action. Once a user folder is
+open, its browse group appears before server roots and bundled examples so the
+large example corpus does not make a successful open look like a no-op.
+
+When persisted browser handles recreate server-side workspace registrations
+after a preview-server restart, the already-rendered navigation refreshes once.
+It must not require a second manual reload, and it must not enter a reload loop
+when the registrations already exist.
+
+### FR-011 Bounded, unambiguous folder ingest
+
+Folder ingest rejects case-insensitive duplicate YAML filenames and applies
+explicit file-count, per-file, and total-size limits in both the browser and the
+localhost server. A malformed or oversized folder is rejected before registering
+a partial source.
 
 ## Success criteria
 
@@ -157,15 +180,22 @@ prominent "Open a folder of your diagrams" call to action.
 - SC-003: The bundled examples are non-writable when a writable root is present;
   attempting to save offers "save a copy" and writes to the chosen writable
   source.
-- SC-004: In a supported browser, "Open folder" adds a folder, lists its diagrams,
-  edits one, saves it back to the OS folder, and re-opens the same folder on
-  reload via the persisted handle.
+- SC-004: In a supported browser, "Open folder" adds multiple folders (including
+  same-named folders), lists their diagrams in distinct source groups, edits one,
+  saves it back to the correct OS folder, and reconnects each folder on reload via
+  its persisted handle.
 - SC-005: A traversal attempt (`../` slug, symlink escape) against a server root
   is rejected with no read/write outside the root.
 - SC-006: An external change to an open file surfaces a reload/keep-mine prompt
   rather than a silent overwrite.
 - SC-007: `check_no_new_python` passes and no new behaviour-heavy JS is added under
   `scripts/preview/`.
+- SC-008: A denied handle write, dropped permission, or external-change refusal
+  leaves the editor dirty and never presents the ephemeral server cache as a
+  successful disk save.
+- SC-009: Opening a folder makes its group immediately visible before bundled
+  examples; restoring a missing server registration refreshes navigation exactly
+  once, while an already-registered folder does not trigger another refresh.
 
 ## Constraints
 
@@ -181,9 +211,8 @@ prominent "Open a folder of your diagrams" call to action.
 
 1. Is the browser open-folder path against `localhost` enough that most end users
    never touch a terminal, or is a packaged desktop shell needed later?
-2. Should local-folder saves always be client-side (FR-006), or should the server
-   remain the single writer for consistency with existing persistence regression
-   tests? (Default assumed: client-side for local folders, server for server
-   roots, both proven by SC-002.)
+2. Resolved: the browser handle is the user's disk writer. The localhost server
+   may canonicalize into an ephemeral render cache, but the client gates success
+   on the handle commit (FR-006, SC-008).
 3. How much git awareness, if any, ships here versus a follow-up spec? (Default:
    none in 075.)

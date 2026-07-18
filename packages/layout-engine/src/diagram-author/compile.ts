@@ -15,11 +15,15 @@ import type {
 } from './types.js';
 
 function buildMetadata(source: Record<string, unknown>): Record<string, unknown> {
+  const meta = source.meta && typeof source.meta === 'object' && !Array.isArray(source.meta)
+    ? source.meta as Record<string, unknown>
+    : {};
   return Object.fromEntries(
     Object.entries({
       schema: source.schema,
       title: source.title,
       engine: source.engine,
+      layout_engine: meta.layout_engine,
     }).filter(([, value]) => value !== undefined),
   );
 }

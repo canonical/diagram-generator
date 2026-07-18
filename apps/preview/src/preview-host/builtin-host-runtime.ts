@@ -17,6 +17,13 @@ import type {
 } from "./builtin-host-deps.js";
 import { buildIndexPageHtml } from "./pages.js";
 import { buildRegisteredPreviewBrowseSections } from "./registry.js";
+import { AUTOLAYOUT_HOST_LANE } from "./lanes.js";
+import { createServerRootSource } from "./workspace/server-root-source.js";
+import { WorkspaceRegistry } from "./workspace/workspace-registry.js";
+import {
+  formatQualifiedSlug,
+  type DiagramWorkspaceSource,
+} from "./workspace/diagram-workspace-source.js";
 import type { FramePreviewDocumentDeps, FramePreviewRenderDeps } from "./frame-documents.js";
 import type { ForcePreviewDocumentDeps } from "./force-documents.js";
 import type { PreviewHostModuleInstallDeps } from "./modules.js";
@@ -46,6 +53,13 @@ export interface CreateBuiltinPreviewHostInstallDepsOptions
   readonly framesDir: string;
   readonly corpusRefDir: string;
   readonly inputDirs: readonly string[];
+  /**
+   * Ordered workspace sources (spec 075). When provided, diagram listing and
+   * per-request folder resolution route through these instead of the single
+   * default frames directory. The first source is the default (bare-slug)
+   * source; additional sources emit qualified `sourceId:slug` entries.
+   */
+  readonly workspaceSources?: readonly DiagramWorkspaceSource[];
 }
 
 function isSafeSlug(slug: string): boolean {
@@ -154,6 +168,123 @@ export function createBuiltinPreviewHostInstallDeps(
       parseYaml: options.parseYaml,
     });
 
+  // Route diagram listing and per-request folder resolution through the typed
+  // workspace-source abstraction (spec 075). When no sources are configured,
+  // register a single default `server-root` over the historical frames
+  // directory so behaviour is unchanged.
+  const workspaceRegistry = new WorkspaceRegistry(
+    options.workspaceSources && options.workspaceSources.length > 0
+      ? [...options.workspaceSources]
+      : [
+          createServerRootSource({
+            id: "default",
+            label: "Diagrams",
+            dir: options.framePreviewDocumentDeps.framesDir,
+          }),
+        ],
+  );
+
+  // The default (first) source keeps bare slugs for backward-compatible deep
+  // links; additional sources are addressed with qualified `sourceId:slug`.
+  const listWorkspaceDiagramSlugs = (): string[] =>
+    workspaceRegistry
+      .list()
+      .flatMap((source, index) =>
+        source.list().map((entry) => (index === 0 ? entry.slug : entry.qualifiedId)),
+      );
+
+  const sourceIsWritable = (source: DiagramWorkspaceSource): boolean => {
+    const hasWritableUserSource = workspaceRegistry
+      .list()
+      .some((candidate) => candidate.id !== source.id && candidate.writable);
+    return source.writable && !(source.kind === "bundled-examples" && hasWritableUserSource);
+  };
+
+  const listWorkspaceBrowseSections = () => {
+    const sources = workspaceRegistry
+      .list()
+      .map((source, index) => ({ source, index }))
+      .sort((left, right) => {
+        const browseRank = (kind: DiagramWorkspaceSource["kind"]): number => {
+          if (kind === "local-folder") return 0;
+          if (kind === "bundled-examples") return 2;
+          return 1;
+        };
+        return browseRank(left.source.kind) - browseRank(right.source.kind);
+      });
+
+    return sources.flatMap(({ source, index }) => {
+      const writable = sourceIsWritable(source);
+      const links = source.list().map((entry) => {
+        const address = index === 0 ? entry.slug : entry.qualifiedId;
+        return {
+          href: AUTOLAYOUT_HOST_LANE.buildViewerPath(address),
+          label: entry.title,
+          writable,
+        };
+      });
+      return links.length > 0
+        ? [{
+            key: `${AUTOLAYOUT_HOST_LANE.key}-${source.id}`,
+            label: source.label,
+            links,
+          }]
+        : [];
+    });
+  };
+
+  const resolveFrameDir = (slug: string): {
+    framesDir: string;
+    slug: string;
+    sourceId: string;
+    writable: boolean;
+    revision: string | null;
+  } | null => {
+    const resolved = workspaceRegistry.resolveFrameDir(slug);
+    return resolved
+      ? {
+          framesDir: resolved.framesDir,
+          slug: resolved.slug,
+          sourceId: resolved.source.id,
+          writable: sourceIsWritable(resolved.source),
+          revision: resolved.source.kind === "server-root" && resolved.source.has(resolved.slug)
+            ? resolved.source.revision?.(resolved.slug) ?? null
+            : null,
+        }
+      : null;
+  };
+
+  const registerWorkspaceSource = (source: DiagramWorkspaceSource): void => {
+    workspaceRegistry.register(source);
+  };
+  const unregisterWorkspaceSource = (sourceId: string): boolean =>
+    workspaceRegistry.unregister(sourceId) !== null;
+  const copyWorkspaceDocument = (
+    sourceAddress: string,
+    targetSourceId: string,
+    targetSlug: string,
+  ): { address: string; workspaceRevision: string | null } => {
+    const source = workspaceRegistry.resolve(sourceAddress);
+    const target = workspaceRegistry.get(targetSourceId);
+    if (!source || !source.source.has(source.slug)) {
+      throw new Error(`Unknown source diagram: ${sourceAddress}`);
+    }
+    if (!target) throw new Error(`Unknown target workspace: ${targetSourceId}`);
+    if (!sourceIsWritable(target)) {
+      throw new Error(`Workspace source '${targetSourceId}' is read-only`);
+    }
+    if (target.has(targetSlug)) {
+      throw new Error(`${targetSlug}.yaml already exists in ${target.label}`);
+    }
+    target.write(targetSlug, source.source.read(source.slug));
+    return {
+      address: formatQualifiedSlug(target.id, targetSlug),
+      workspaceRevision: target.kind === "server-root"
+        ? target.revision?.(targetSlug) ?? null
+        : null,
+    };
+  };
+
   const moduleContexts = new Map<string, unknown>([
     [
       AUTOLAYOUT_MODULE_KEY,
@@ -162,10 +293,12 @@ export function createBuiltinPreviewHostInstallDeps(
         framePreviewDocumentDeps: options.framePreviewDocumentDeps,
         framePreviewRenderDeps: options.framePreviewRenderDeps,
         listAutolayoutDiagrams(): string[] {
-          return listYamlSlugs(options.framePreviewDocumentDeps.framesDir);
+          return listWorkspaceDiagramSlugs();
         },
+        listAutolayoutBrowseSections: listWorkspaceBrowseSections,
         findReferenceImage: referenceImageResolver,
         normalizeLayoutEngine,
+        resolveFrameDir,
       } satisfies BuiltinAutolayoutPreviewHostModuleDeps,
     ],
     [
@@ -197,6 +330,9 @@ export function createBuiltinPreviewHostInstallDeps(
         readReloadState: options.readReloadState,
         addSseClient: options.addSseClient,
         removeSseClient: options.removeSseClient,
+        registerWorkspaceSource,
+        unregisterWorkspaceSource,
+        copyWorkspaceDocument,
       } satisfies BuiltinPreviewHostServerRouteDeps,
     ],
   ]);

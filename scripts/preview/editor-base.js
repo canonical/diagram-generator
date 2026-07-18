@@ -101,6 +101,10 @@ function getPreviewShellBootstrapContract() {
   return window.LayoutEngine?.previewShell?.bootstrap ?? null;
 }
 
+function getPreviewShellWorkspaceContract() {
+  return window.LayoutEngine?.previewShell?.workspace ?? null;
+}
+
 window.__DG_getPreviewBridgeRelayoutContract = getPreviewBridgeRelayoutContract;
 window.__DG_getPreviewBridgeBundleRenderContract = getPreviewBridgeBundleRenderContract;
 window.__DG_getPreviewBridgeRenderContract = getPreviewBridgeRenderContract;
@@ -326,6 +330,7 @@ function initNavTabs() {
 
 function initPreviewShell() {
   bindShellResize();
+  getPreviewShellWorkspaceContract()?.initPreviewLocalFolderWorkspace?.();
   initDiagramPicker();
   initNavTabs();
 }

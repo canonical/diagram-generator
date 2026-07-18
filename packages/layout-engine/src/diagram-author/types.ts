@@ -1,9 +1,11 @@
 export type DiagnosticLevel = 'error' | 'warning';
+export type DiagnosticCategory = 'structural' | 'visual' | 'type' | 'invalid';
 
 export interface Diagnostic {
   code: string;
   message: string;
   level: DiagnosticLevel;
+  category?: DiagnosticCategory;
   path?: string;
   line?: number;
   column?: number;
@@ -49,6 +51,7 @@ export interface FrameTemplate {
   role?: string;
   heading?: LineSpec;
   direction?: 'vertical' | 'horizontal';
+  flowDirection?: 'TB' | 'LR' | 'BT' | 'RL';
   gap?: number;
   gapDelta?: number;
   padding?: number;
@@ -57,6 +60,7 @@ export interface FrameTemplate {
 export interface AuthorFrameNode {
   id: string;
   direction?: 'vertical' | 'horizontal';
+  flowDirection?: 'TB' | 'LR' | 'BT' | 'RL';
   gap?: number;
   gapDelta?: number;
   padding?: number;

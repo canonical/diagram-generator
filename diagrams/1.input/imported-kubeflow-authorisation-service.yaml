@@ -1,0 +1,75 @@
+# Imported from mermaid/examples/gallery/flowchart/kubeflow-authorisation-service.mmd
+# Source SHA-256: FB0BA224E5BCD91EC4ADCFF0627F0871AC7BA5CCD74D8637A03CC44F6699DF29
+engine: v3
+title: Kubeflow authorisation-service flow
+meta:
+  layout_engine: elk-layered
+root:
+  id: page
+  direction: horizontal
+  flow_direction: LR
+  children:
+    - id: user
+      level: 1
+      fill: white
+      border: solid
+      label:
+        - User
+      children: []
+    - id: gateway
+      level: 1
+      fill: grey
+      border: solid
+      label:
+        - Istio Gateway
+        - Enforces authentication
+      children: []
+    - id: service
+      level: 1
+      fill: grey
+      border: solid
+      label:
+        - Authorisation Service
+        - (oidc-gatekeeper)
+      children: []
+    - id: identity
+      level: 1
+      fill: white
+      border: solid
+      label:
+        - Identity Provider
+        - (Dex, GitHub, LDAP, etc.)
+      children: []
+    - id: component
+      level: 1
+      fill: white
+      border: solid
+      label:
+        - component-a
+        - web app
+      children: []
+arrows:
+  - source: user
+    target: gateway
+    label:
+      - 1. GET dashboard.io/component-a
+  - source: gateway
+    target: service
+    label:
+      - 2. Initiate authentication flow
+  - source: service
+    target: identity
+    label:
+      - 3. Authenticate this user
+  - source: identity
+    target: service
+    label:
+      - 4. User is authenticated
+  - source: service
+    target: gateway
+    label:
+      - 5. Attach userID header to original request
+  - source: gateway
+    target: component
+    label:
+      - 6. GET dashboard.io/component-a with userID

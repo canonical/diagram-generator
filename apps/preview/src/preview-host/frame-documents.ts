@@ -26,6 +26,7 @@ import {
   type PreviewEngineContext,
   type PreviewDocumentKind,
   type PreviewRenderableDocument,
+  type DiagramImportResult,
   type TextMeasureAdapter,
 } from "@diagram-generator/layout-engine";
 import {
@@ -416,12 +417,29 @@ export function renderD2ForSlug(slug: string, deps: FramePreviewDocumentDeps): s
   return renderInterchangeExportForSlug(slug, deps, "d2");
 }
 
+export class InterchangeImportBlockedError extends Error {
+  readonly summary: DiagramImportResult["summary"];
+  readonly warnings: DiagramImportResult["warnings"];
+
+  constructor(result: DiagramImportResult) {
+    super(result.errors.map((diagnostic) => diagnostic.message).join("\n"));
+    this.name = "InterchangeImportBlockedError";
+    this.summary = result.summary;
+    this.warnings = result.warnings;
+  }
+}
+
 export function importInterchangeForSlug(
   slug: string,
   format: InterchangeImportFormat,
   source: string,
   deps: FramePreviewDocumentDeps,
-): { ok: true; slug: string; warnings: unknown[] } {
+): {
+  ok: true;
+  slug: string;
+  warnings: unknown[];
+  summary: DiagramImportResult["summary"];
+} {
   const framePath = path.join(deps.framesDir, `${slug}.yaml`);
   if (existsSync(framePath)) {
     throw new Error(`A diagram named '${slug}' already exists`);
@@ -430,7 +448,7 @@ export function importInterchangeForSlug(
     ? importMermaid(source)
     : importD2(source);
   if (imported.errors.length > 0) {
-    throw new Error(imported.errors.map((diagnostic) => diagnostic.message).join("\n"));
+    throw new InterchangeImportBlockedError(imported);
   }
   if (!imported.ast.root || imported.ast.root.children.length === 0) {
     throw new Error(`No diagram nodes could be imported from ${format}`);
@@ -441,7 +459,12 @@ export function importInterchangeForSlug(
     throw new Error(compiled.errors.map((diagnostic) => diagnostic.message).join("\n"));
   }
   writeFileSync(framePath, yaml, "utf8");
-  return { ok: true, slug, warnings: imported.warnings };
+  return {
+    ok: true,
+    slug,
+    warnings: imported.warnings,
+    summary: imported.summary,
+  };
 }
 
 function resolveFramePreviewEngineResolutionForDocument(

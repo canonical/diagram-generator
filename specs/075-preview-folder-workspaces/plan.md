@@ -12,7 +12,10 @@ source adapters, not two parallel implementations.
 
 The end-user flagship is the browser "Open folder" flow (local-first, cloud-synced
 folders work for free). The developer/CI path is multiple server roots. Both share
-the same abstraction, side nav, and qualified-slug identity.
+the same source registry, grouped side nav, and qualified-slug identity. Browser
+folders additionally bridge an authoritative File System Access handle to an
+ephemeral localhost render cache; the cache is never itself considered a
+successful user save.
 
 Scope discipline: same-source editing only in this release. No cross-source move,
 no reparenting, no git UX, no cloud API. A central store is explicitly out.
@@ -35,7 +38,7 @@ The abstraction must wrap the existing seams, not duplicate them:
   `apps/preview/src/server.ts` (`FRAMES_DIR`, `WATCH_PATHS`, install deps),
   `apps/preview/src/preview-host/builtin-host-runtime.ts`
   (`createBuiltinPreviewHostInstallDeps`).
-- Browser bundle entry (for the client-side local-folder adapter and save):
+- Browser bundle entry (for the local-folder controller and handle commit gate):
   `packages/layout-engine/src/browser-entry.ts`, existing YAML persistence in the
   layout-engine package.
 - Side nav rendering:
@@ -54,9 +57,9 @@ The abstraction must wrap the existing seams, not duplicate them:
   `apps/preview/src/server.ts` (extend), plus a small parser module.
 - Grouped nav model + rendering:
   extend the browse-section builder consumed by `builtin-host-runtime.ts`.
-- Browser local-folder adapter (FS Access, IndexedDB handle store, permission
-  re-grant, client-side save):
-  `packages/layout-engine/src/preview-shell/workspace/` (new; typed owner, not
+- Browser local-folder controller (FS Access, multi-handle IndexedDB store,
+  permission re-grant, conflict-aware handle commit):
+  `packages/layout-engine/src/preview-shell/local-folder-workspace.ts` (typed owner, not
   `editor.js` / `layout-bridge.js`).
 - Open-folder UI affordance + empty state:
   preview-shell panel/registration seam (typed), not new `scripts/preview/*.js`.
@@ -68,7 +71,8 @@ The abstraction must wrap the existing seams, not duplicate them:
 - Phase 0: introduce the abstraction and make the current single dir a
   `server-root` source with identical behaviour (no user-visible change).
 - Phase 1: multiple server roots + grouped, qualified nav + read-only examples.
-- Phase 2: browser open-folder source + client-side save + persistence handle.
+- Phase 2: browser open-folder source + authoritative handle-gated save +
+  persisted multi-handle reconnect.
 - Phase 3: external-change/conflict handling + empty state + polish.
 
 Each phase is independently shippable and independently testable.
@@ -86,6 +90,13 @@ Each phase is independently shippable and independently testable.
 - **Untrusted YAML** → safe-mode parse, no eval-style rendering (FR-009).
 - **Cloud-sync races** → external-change detection with reload/keep-mine (FR-007,
   SC-006).
+- **False save success** → hold the server response behind the browser-handle
+  commit; convert handle/permission/conflict failures into non-2xx responses so
+  the existing save client retains dirty state (FR-006, SC-008).
+- **Same-named folders and case-folding collisions** → generated stable local
+  source ids plus case-insensitive duplicate rejection before registration.
+- **Unbounded upload to localhost** → matching count/per-file/total-byte gates in
+  browser enumeration and server ingest (FR-011).
 - **Bundle staleness** → after any browser-surface export change, rebuild
   `dist/` via `build:browser`; do not commit `dist/`.
 
@@ -112,3 +123,5 @@ npm --prefix apps/preview test -- persist            # per-source save round-tri
 - No new Python; no new behaviour-heavy `scripts/preview/*.js`.
 - `dist/` not committed; browser bundle rebuilds cleanly.
 - Full validation suite green.
+- A real supported-browser picker/save/reload journey is recorded; mocked handle
+  tests alone cannot close SC-004.

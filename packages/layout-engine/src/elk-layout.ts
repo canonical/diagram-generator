@@ -86,7 +86,13 @@ export interface ElkLayoutDebugData {
 }
 
 function elkGraphDirectionFromRoot(root: Frame): LayoutDirection {
-  return root.direction === Direction.HORIZONTAL ? 'LR' : 'TB';
+  return root.flowDirection
+    ?? (root.direction === Direction.HORIZONTAL ? 'LR' : 'TB');
+}
+
+function graphDirectionForFrame(frame: Frame): LayoutDirection {
+  return frame.flowDirection
+    ?? (frame.direction === Direction.HORIZONTAL ? 'LR' : 'TB');
 }
 
 function findFrame(root: Frame, id: string): Frame | null {
@@ -458,7 +464,7 @@ function frameToGraphNode(
     ),
     ...(graphNodeKind ? { kind: graphNodeKind } : {}),
     ...(shouldPreserveLocalDirection(frame, childNodes, nativeCompoundIds)
-      ? { direction: frame.direction === Direction.HORIZONTAL ? 'LR' : 'TB' }
+      ? { direction: graphDirectionForFrame(frame) }
       : {}),
     ...(childNodes.length > 0 && contentAlignment
       ? { contentAlignment }

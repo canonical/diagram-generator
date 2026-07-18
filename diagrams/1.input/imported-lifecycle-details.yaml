@@ -1,0 +1,251 @@
+# Imported from mermaid/examples/audit-corpus/707a041175dc9abe-lifecycle-details.mmd
+# Source SHA-256: 43FDD86F2E8936D79999FD83CA090C33878887E9FE33B1824AAA5C98B0026F13
+engine: v3
+title: Lifecycle details — build step flow
+meta:
+  layout_engine: elk-layered
+root:
+  id: page
+  direction: vertical
+  flow_direction: TB
+  children:
+    - id: start
+      level: 3
+      fill: black
+      border: solid
+      label:
+        - start
+      children: []
+    - id: validate_schema
+      level: 3
+      fill: white
+      border: solid
+      label:
+        - validate schema
+      children: []
+    - id: install_build_packages
+      level: 3
+      fill: white
+      border: solid
+      label:
+        - install build packages
+      children: []
+    - id: for_each_part
+      level: 3
+      fill: white
+      border: solid
+      heading: for each part
+      children:
+        - id: step_already_ran
+          level: 1
+          fill: white
+          border: solid
+          label:
+            - step already ran?
+          children: []
+        - id: explicit_request
+          level: 1
+          fill: white
+          border: solid
+          label:
+            - explicit request?
+          children: []
+        - id: is_dirty
+          level: 1
+          fill: white
+          border: solid
+          label:
+            - is dirty?
+          children: []
+        - id: is_outdated
+          level: 1
+          fill: white
+          border: solid
+          label:
+            - is outdated?
+          children: []
+        - id: skip_step
+          level: 1
+          fill: white
+          border: solid
+          label:
+            - skip step
+          children: []
+    - id: step_gte_stage
+      level: 3
+      fill: white
+      border: solid
+      label:
+        - step >= STAGE?
+      children: []
+    - id: rerun_step
+      level: 3
+      fill: white
+      border: solid
+      heading: rerun step
+      children:
+        - id: clean_step
+          level: 2
+          fill: grey
+          border: solid
+          label:
+            - clean step
+          children: []
+        - id: get_dependencies
+          level: 2
+          fill: grey
+          border: solid
+          label:
+            - get dependencies
+          children: []
+        - id: run_lifecycle_deps
+          level: 2
+          fill: grey
+          border: solid
+          label:
+            - run lifecycle for each dep
+          children: []
+        - id: run_step
+          level: 2
+          fill: grey
+          border: solid
+          heading: run step
+          children:
+            - id: run_pull
+              level: 1
+              fill: white
+              border: solid
+              label:
+                - run pull
+              children: []
+            - id: run_overlay
+              level: 1
+              fill: white
+              border: solid
+              label:
+                - run overlay
+              children: []
+            - id: run_build
+              level: 1
+              fill: white
+              border: solid
+              label:
+                - run build
+              children: []
+            - id: run_stage
+              level: 1
+              fill: white
+              border: solid
+              label:
+                - run stage
+              children: []
+            - id: run_prime
+              level: 1
+              fill: white
+              border: solid
+              label:
+                - run prime
+              children: []
+    - id: update_step
+      level: 3
+      fill: white
+      border: solid
+      heading: update step
+      children:
+        - id: update_pull
+          level: 1
+          fill: white
+          border: solid
+          label:
+            - update pull
+          children: []
+        - id: update_overlays
+          level: 1
+          fill: white
+          border: solid
+          label:
+            - update overlays
+          children: []
+        - id: update_build
+          level: 1
+          fill: white
+          border: solid
+          label:
+            - update build
+          children: []
+    - id: end_node
+      level: 3
+      fill: black
+      border: solid
+      label:
+        - end
+      children: []
+arrows:
+  - source: start
+    target: validate_schema
+  - source: validate_schema
+    target: install_build_packages
+  - source: install_build_packages
+    target: step_already_ran
+  - source: step_already_ran
+    target: explicit_request
+    label:
+      - Y
+  - source: step_already_ran
+    target: get_dependencies
+    label:
+      - N
+  - source: explicit_request
+    target: clean_step
+    label:
+      - Y
+  - source: explicit_request
+    target: is_dirty
+    label:
+      - N
+  - source: is_dirty
+    target: clean_step
+    label:
+      - Y
+  - source: is_dirty
+    target: is_outdated
+    label:
+      - N
+  - source: is_outdated
+    target: step_gte_stage
+    label:
+      - Y
+  - source: is_outdated
+    target: skip_step
+    label:
+      - N
+  - source: skip_step
+    target: end_node
+  - source: clean_step
+    target: get_dependencies
+  - source: get_dependencies
+    target: run_lifecycle_deps
+  - source: run_lifecycle_deps
+    target: run_pull
+  - source: run_lifecycle_deps
+    target: run_overlay
+  - source: run_lifecycle_deps
+    target: run_build
+  - source: run_lifecycle_deps
+    target: run_stage
+  - source: run_lifecycle_deps
+    target: run_prime
+  - source: step_gte_stage
+    target: update_pull
+    label:
+      - Y
+  - source: step_gte_stage
+    target: clean_step
+    label:
+      - N
+  - source: update_pull
+    target: end_node
+  - source: update_overlays
+    target: end_node
+  - source: update_build
+    target: end_node

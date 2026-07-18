@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { EventEmitter } from "node:events";
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
@@ -35,7 +35,11 @@ import {
   type BuiltinPreviewHostServerRouteDeps,
 } from "../preview-host/builtin-host-deps.js";
 import { createBuiltinPreviewHostInstallDeps } from "../preview-host/builtin-host-runtime.js";
-import { createBuiltinPreviewHostServerRoutes } from "../preview-host/builtin-server-routes.js";
+import {
+  createBuiltinPreviewHostServerRoutes,
+  createPreviewHostWorkspaceRoutes,
+} from "../preview-host/builtin-server-routes.js";
+import { createServerRootSource } from "../preview-host/workspace/server-root-source.js";
 import { createPreviewHostDocumentGetJsonRoute } from "../preview-host/document-api-routes.js";
 import { routeRegisteredPreviewHostRequest } from "../preview-host/request-router.js";
 import {
@@ -1910,17 +1914,242 @@ test("builtin preview host server routes install through typed descriptors", asy
   }
 });
 
+test("workspace folder route adds YAML diagrams without removing the Force lane", async () => {
+  let registeredSource: ReturnType<typeof createServerRootSource> | null = null;
+  const routes = createPreviewHostWorkspaceRoutes({
+    registerWorkspaceSource: (source) => {
+      registeredSource = source as ReturnType<typeof createServerRootSource>;
+    },
+  } as never);
+  const responses: unknown[] = [];
+  await routes[0]!.handle({} as never, {
+    req: {} as never,
+    res: {} as never,
+    pathname: "/api/workspaces/open",
+    sendJson: (_statusCode, payload) => responses.push(payload),
+    sendText: (_statusCode, text) => responses.push(text),
+    sendBytes: () => {},
+    readJsonBody: async () => ({
+      label: "My folder",
+      files: [{ name: "alpha.yaml", content: "engine: v3\nroot:\n  id: page\n  children: []\n" }],
+    }),
+  });
+
+  try {
+    assert.ok(registeredSource);
+    assert.equal(registeredSource!.kind, "local-folder");
+    assert.deepEqual(registeredSource!.list().map((entry) => entry.slug), ["alpha"]);
+    assert.deepEqual(responses, [{
+      ok: true,
+      sourceId: "My-folder",
+      label: "My folder",
+      slugs: ["alpha"],
+      registered: true,
+    }]);
+
+    let yaml = "";
+    const yamlRoute = routes.find((route) => route.key === "workspace-yaml");
+    assert.ok(yamlRoute);
+    await yamlRoute!.handle({ slug: "My-folder:alpha" } as never, {
+      req: {} as never,
+      res: {} as never,
+      pathname: "/api/workspaces/yaml/My-folder%3Aalpha",
+      sendJson: () => {},
+      sendText: (_statusCode, text) => {
+        yaml = text;
+      },
+      sendBytes: () => {},
+      readJsonBody: async () => ({}),
+    });
+    assert.match(yaml, /engine: v3/);
+  } finally {
+    const directory = registeredSource?.directory;
+    if (directory) rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("workspace folder route rejects ambiguous and oversized uploads before registration", async () => {
+  let registrations = 0;
+  const routes = createPreviewHostWorkspaceRoutes({
+    registerWorkspaceSource: () => {
+      registrations += 1;
+    },
+  } as never);
+
+  for (const [files, expectedStatus] of [
+    [
+      [
+        { name: "Alpha.yaml", content: "root: {}\n" },
+        { name: "alpha.yaml", content: "root: {}\n" },
+      ],
+      400,
+    ],
+    [
+      [{ name: "large.yaml", content: "x".repeat(2 * 1024 * 1024 + 1) }],
+      413,
+    ],
+  ] as const) {
+    let status = 0;
+    await routes[0]!.handle({} as never, {
+      req: {} as never,
+      res: {} as never,
+      pathname: "/api/workspaces/open",
+      sendJson: () => {
+        throw new Error("did not expect invalid workspace upload to send json");
+      },
+      sendText: (statusCode) => {
+        status = statusCode;
+      },
+      sendBytes: () => {},
+      readJsonBody: async () => ({ label: "Unsafe folder", files }),
+    });
+    assert.equal(status, expectedStatus);
+  }
+  assert.equal(registrations, 0);
+});
+
+test("workspace routes copy into writable folders and dispose caches when forgotten", async () => {
+  const sources = new Map<string, ReturnType<typeof createServerRootSource>>();
+  const removed: string[] = [];
+  const sourceDir = mkdtempSync(path.join(os.tmpdir(), "dg-workspace-copy-source-"));
+  writeFileSync(
+    path.join(sourceDir, "example.yaml"),
+    "engine: v3\nroot:\n  id: page\n  children: []\n",
+    "utf8",
+  );
+  const source = createServerRootSource({
+    id: "examples",
+    label: "Examples",
+    dir: sourceDir,
+    kind: "bundled-examples",
+    writable: false,
+  });
+  sources.set(source.id, source);
+  const routes = createPreviewHostWorkspaceRoutes({
+    registerWorkspaceSource: (registered) => {
+      sources.set(registered.id, registered as ReturnType<typeof createServerRootSource>);
+    },
+    unregisterWorkspaceSource: (sourceId) => {
+      removed.push(sourceId);
+      return sources.delete(sourceId);
+    },
+    copyWorkspaceDocument: (sourceAddress, targetSourceId, targetSlug) => {
+      const target = sources.get(targetSourceId)!;
+      target.write(targetSlug, sources.get("examples")!.read(sourceAddress.split(":").at(-1)!));
+      return {
+        address: `${targetSourceId}:${targetSlug}`,
+        workspaceRevision: target.revision?.(targetSlug) ?? null,
+      };
+    },
+  } as never);
+  const openRoute = routes.find((route) => route.key === "workspace-open")!;
+  let openedPayload: { sourceId?: string } = {};
+  await openRoute.handle({} as never, {
+    req: {} as never,
+    res: {} as never,
+    pathname: "/api/workspaces/open",
+    sendJson: (_status, payload) => {
+      openedPayload = payload as { sourceId?: string };
+    },
+    sendText: (_status, message) => {
+      throw new Error(message);
+    },
+    sendBytes: () => {},
+    readJsonBody: async () => ({
+      label: "Empty target",
+      sourceId: "local-target",
+      allowEmpty: true,
+      files: [],
+    }),
+  });
+  const target = sources.get(openedPayload.sourceId!);
+  assert.ok(target?.directory && existsSync(target.directory));
+
+  const copyRoute = routes.find((route) => route.key === "workspace-copy")!;
+  let copiedPayload: unknown = null;
+  await copyRoute.handle({} as never, {
+    req: {} as never,
+    res: {} as never,
+    pathname: "/api/workspaces/copy",
+    sendJson: (_status, payload) => {
+      copiedPayload = payload;
+    },
+    sendText: (_status, message) => {
+      throw new Error(message);
+    },
+    sendBytes: () => {},
+    readJsonBody: async () => ({
+      sourceAddress: "examples:example",
+      targetSourceId: openedPayload.sourceId,
+      targetSlug: "example",
+    }),
+  });
+  assert.equal((copiedPayload as { address: string }).address, "local-target:example");
+  assert.match(target!.read("example"), /id: page/);
+
+  const cacheDir = target!.directory!;
+  openRoute.dispose?.();
+  assert.equal(existsSync(cacheDir), false);
+  assert.deepEqual(removed, ["local-target"]);
+  rmSync(sourceDir, { recursive: true, force: true });
+});
+
+test("grouped workspace navigation renders the maximum supported corpus within its budget", () => {
+  const sections = Array.from({ length: 5 }, (_, sourceIndex) => ({
+    key: `source-${sourceIndex}`,
+    label: `Source ${sourceIndex}`,
+    links: Array.from({ length: 100 }, (_, diagramIndex) => ({
+      href: `/view/v3:source-${sourceIndex}:diagram-${diagramIndex}`,
+      label: `Diagram ${diagramIndex}`,
+      writable: sourceIndex > 0,
+    })),
+  }));
+  const started = performance.now();
+  const html = buildViewerPageHtml({
+    title: "Large workspace",
+    mode: "grid",
+    currentPath: "/view/v3:source-4:diagram-99",
+    templateHtml: "%TITLE%%NAV_OPTIONS%%BROWSE_NAV%%MODE_SCRIPTS%%CONFIG_SCRIPT%",
+    browseSections: sections,
+    inspectorEmptyText: "",
+    modeScriptsHtml: "",
+    configScript: "",
+    visibleTemplateSections: [],
+    sectionVisibilityPlaceholders: [],
+    baselineStylesHtml: "",
+  });
+  const elapsedMs = performance.now() - started;
+
+  assert.ok(elapsedMs < 1_000, `500-diagram navigation took ${elapsedMs.toFixed(1)}ms`);
+  assert.equal((html.match(/<option /g) ?? []).length, 500);
+  assert.equal((html.match(/<optgroup /g) ?? []).length, 5);
+  assert.match(html, /Source 4/);
+  assert.match(html, /diagram-99" selected/);
+});
+
 test("builtin preview host install preserves frame-yaml document ownership across preview and save routes", async () => {
   const tempDir = mkdtempSync(path.join(os.tmpdir(), "dg-preview-host-api-"));
   const forceDefinitionsDir = path.join(tempDir, "force");
   const forceSpecPath = path.join(forceDefinitionsDir, "force-stakeholders.yaml");
   const framesDir = path.join(tempDir, "frames");
+  const otherFramesDir = path.join(tempDir, "other-frames");
+  const localFramesDir = path.join(tempDir, "local-frames");
+  const bundledFramesDir = path.join(tempDir, "bundled-frames");
   const sourceFramePath = path.join(REPO_ROOT, "diagrams", "1.input", "complex-routing-usecase.yaml");
   const tempFramePath = path.join(framesDir, "complex-routing-usecase.yaml");
+  const otherFramePath = path.join(otherFramesDir, "complex-routing-usecase.yaml");
+  const localFramePath = path.join(localFramesDir, "complex-routing-usecase.yaml");
+  const bundledFramePath = path.join(bundledFramesDir, "complex-routing-usecase.yaml");
   const sequenceFramePath = path.join(framesDir, "service-handshake-sequence.yaml");
   mkdirSync(framesDir, { recursive: true });
+  mkdirSync(otherFramesDir, { recursive: true });
+  mkdirSync(localFramesDir, { recursive: true });
+  mkdirSync(bundledFramesDir, { recursive: true });
   mkdirSync(forceDefinitionsDir, { recursive: true });
   copyFileSync(sourceFramePath, tempFramePath);
+  copyFileSync(sourceFramePath, otherFramePath);
+  copyFileSync(sourceFramePath, localFramePath);
+  copyFileSync(sourceFramePath, bundledFramePath);
   writeFileSync(forceSpecPath, "nodes:\n  - id: alpha\nlinks: []\n", "utf8");
   writeFileSync(
     sequenceFramePath,
@@ -1981,9 +2210,46 @@ test("builtin preview host install preserves frame-yaml document ownership acros
     removeSseClient: () => {},
     corpusRefDir: path.join(tempDir, "corpus"),
     inputDirs: [path.join(tempDir, "input")],
+    workspaceSources: [
+      createServerRootSource({ id: "default", label: "Diagrams", dir: framesDir }),
+      createServerRootSource({ id: "other", label: "Other", dir: otherFramesDir }),
+      createServerRootSource({
+        id: "local",
+        label: "My folder",
+        dir: localFramesDir,
+        kind: "local-folder",
+      }),
+      createServerRootSource({
+        id: "examples",
+        label: "Bundled examples",
+        dir: bundledFramesDir,
+        kind: "bundled-examples",
+      }),
+    ],
   }));
 
   try {
+    const browseSections = buildRegisteredPreviewBrowseSections();
+    const browseKeys = browseSections.map((section) => section.key);
+    assert.ok(browseKeys.includes("autolayout-default"));
+    assert.ok(browseKeys.includes("autolayout-other"));
+    assert.ok(browseKeys.includes("autolayout-local"));
+    assert.ok(browseKeys.includes("autolayout-examples"));
+    assert.ok(browseKeys.includes("force"));
+    assert.ok(
+      browseKeys.indexOf("autolayout-local") < browseKeys.indexOf("autolayout-default"),
+      "opened local folders should be listed before server roots",
+    );
+    assert.ok(
+      browseKeys.indexOf("autolayout-default") < browseKeys.indexOf("autolayout-examples"),
+      "bundled examples should be listed after writable workspace sources",
+    );
+    assert.equal(
+      browseSections
+        .find((section) => section.key === "autolayout-examples")
+        ?.links.every((link) => link.writable === false),
+      true,
+    );
     for (const key of [
       "component-tree",
       "force-save",
@@ -2239,6 +2505,214 @@ test("builtin preview host install preserves frame-yaml document ownership acros
     assert.ok(frameOverridesPayload && typeof frameOverridesPayload === "object");
     assert.equal((frameOverridesPayload as Record<string, unknown>).ok, true);
 
+    // The registered request path must preserve a qualified address through
+    // save -> reload, including the URL-encoded colon used by browsers.
+    const qualifiedPreviewMatch = resolveRegisteredPreviewHostApiRoute(
+      "GET",
+      "/api/preview-document/other%3Acomplex-routing-usecase",
+      normalizePreviewSlug,
+    );
+    assert.ok(qualifiedPreviewMatch);
+    let qualifiedPreviewPayload: unknown = null;
+    await qualifiedPreviewMatch.route.handle(qualifiedPreviewMatch, {
+      req: {} as never,
+      res: {} as never,
+      pathname: qualifiedPreviewMatch.pathname,
+      sendJson: (_statusCode, payload) => {
+        qualifiedPreviewPayload = payload;
+      },
+      sendText: () => {
+        throw new Error("did not expect qualified preview route to send plain text");
+      },
+      sendBytes: () => {
+        throw new Error("did not expect qualified preview route to send bytes");
+      },
+      readJsonBody: async () => ({}),
+    });
+    assert.equal((qualifiedPreviewPayload as Record<string, unknown>).slug, "complex-routing-usecase");
+
+    const defaultBeforeQualifiedSave = readFileSync(tempFramePath, "utf8");
+    const otherBeforeQualifiedSave = readFileSync(otherFramePath, "utf8");
+    const qualifiedSaveMatch = resolveRegisteredPreviewHostApiRoute(
+      "POST",
+      "/api/overrides/other%3Acomplex-routing-usecase",
+      normalizePreviewSlug,
+    );
+    assert.ok(qualifiedSaveMatch);
+    let qualifiedSavePayload: unknown = null;
+    await qualifiedSaveMatch.route.handle(qualifiedSaveMatch, {
+      req: {} as never,
+      res: {} as never,
+      pathname: qualifiedSaveMatch.pathname,
+      sendJson: (_statusCode, payload) => {
+        qualifiedSavePayload = payload;
+      },
+      sendText: () => {
+        throw new Error("did not expect qualified save route to send plain text");
+      },
+      sendBytes: () => {
+        throw new Error("did not expect qualified save route to send bytes");
+      },
+      readJsonBody: async () => ({ grid_overrides: { outer_margin: 17 } }),
+    });
+    assert.equal((qualifiedSavePayload as Record<string, unknown>).ok, true);
+    assert.equal(readFileSync(tempFramePath, "utf8"), defaultBeforeQualifiedSave);
+    assert.notEqual(readFileSync(otherFramePath, "utf8"), otherBeforeQualifiedSave);
+
+    const openedRevision = (qualifiedSavePayload as Record<string, unknown>).workspaceRevision;
+    assert.equal(typeof openedRevision, "string");
+    writeFileSync(
+      otherFramePath,
+      `${readFileSync(otherFramePath, "utf8")}\n# external cloud-sync edit\n`,
+      "utf8",
+    );
+    let conflictStatus = 0;
+    let conflictPayload: unknown = null;
+    await qualifiedSaveMatch.route.handle(qualifiedSaveMatch, {
+      req: {} as never,
+      res: {} as never,
+      pathname: qualifiedSaveMatch.pathname,
+      sendJson: (statusCode, payload) => {
+        conflictStatus = statusCode;
+        conflictPayload = payload;
+      },
+      sendText: (_statusCode, message) => {
+        throw new Error(`expected structured conflict, received: ${message}`);
+      },
+      sendBytes: () => {},
+      readJsonBody: async () => ({
+        workspaceRevision: openedRevision,
+        grid_overrides: { outer_margin: 19 },
+      }),
+    });
+    assert.equal(conflictStatus, 409);
+    const externalRevision = (conflictPayload as Record<string, unknown>).workspaceRevision;
+    assert.equal(typeof externalRevision, "string");
+    assert.match(readFileSync(otherFramePath, "utf8"), /external cloud-sync edit/);
+
+    let overwriteStatus = 0;
+    await qualifiedSaveMatch.route.handle(qualifiedSaveMatch, {
+      req: {} as never,
+      res: {} as never,
+      pathname: qualifiedSaveMatch.pathname,
+      sendJson: (statusCode) => {
+        overwriteStatus = statusCode;
+      },
+      sendText: (_statusCode, message) => {
+        throw new Error(message);
+      },
+      sendBytes: () => {},
+      readJsonBody: async () => ({
+        workspaceRevision: externalRevision,
+        grid_overrides: { outer_margin: 19 },
+      }),
+    });
+    assert.equal(overwriteStatus, 200);
+
+    const bundledBeforeSave = readFileSync(bundledFramePath, "utf8");
+    const readOnlySaveMatch = resolveRegisteredPreviewHostApiRoute(
+      "POST",
+      "/api/overrides/examples%3Acomplex-routing-usecase",
+      normalizePreviewSlug,
+    );
+    assert.ok(readOnlySaveMatch);
+    let readOnlyStatus = 0;
+    let readOnlyMessage = "";
+    await readOnlySaveMatch.route.handle(readOnlySaveMatch, {
+      req: {} as never,
+      res: {} as never,
+      pathname: readOnlySaveMatch.pathname,
+      sendJson: () => {
+        throw new Error("did not expect a read-only workspace save to send json");
+      },
+      sendText: (statusCode, message) => {
+        readOnlyStatus = statusCode;
+        readOnlyMessage = message;
+      },
+      sendBytes: () => {},
+      readJsonBody: async () => ({ grid_overrides: { outer_margin: 17 } }),
+    });
+    assert.equal(readOnlyStatus, 403);
+    assert.match(readOnlyMessage, /read-only/);
+    assert.equal(readFileSync(bundledFramePath, "utf8"), bundledBeforeSave);
+
+    const qualifiedReloadMatch = resolveRegisteredPreviewHostApiRoute(
+      "GET",
+      "/api/preview-document/other%3Acomplex-routing-usecase",
+      normalizePreviewSlug,
+    );
+    assert.ok(qualifiedReloadMatch);
+    let qualifiedReloadPayload: unknown = null;
+    await qualifiedReloadMatch.route.handle(qualifiedReloadMatch, {
+      req: {} as never,
+      res: {} as never,
+      pathname: qualifiedReloadMatch.pathname,
+      sendJson: (_statusCode, payload) => {
+        qualifiedReloadPayload = payload;
+      },
+      sendText: () => {
+        throw new Error("did not expect qualified reload route to send plain text");
+      },
+      sendBytes: () => {
+        throw new Error("did not expect qualified reload route to send bytes");
+      },
+      readJsonBody: async () => ({}),
+    });
+    assert.equal((qualifiedReloadPayload as Record<string, unknown>).slug, "complex-routing-usecase");
+
+    for (const [pathname, expectedType] of [
+      ["/svg/other%3Acomplex-routing-usecase-onbrand-v3.svg", "svg"],
+      ["/drawio/other%3Acomplex-routing-usecase.drawio", "drawio"],
+    ] as const) {
+      const exportMatch = resolveRegisteredPreviewHostApiRoute("GET", pathname, normalizePreviewSlug);
+      assert.ok(exportMatch);
+      let exportPayload: Buffer | null = null;
+      let exportStatus = 0;
+      await exportMatch.route.handle(exportMatch, {
+        req: {} as never,
+        res: {} as never,
+        pathname: exportMatch.pathname,
+        sendJson: () => {
+          throw new Error(`did not expect ${expectedType} route to send json`);
+        },
+        sendText: (statusCode) => {
+          exportStatus = statusCode;
+        },
+        sendBytes: (statusCode, _contentType, bytes) => {
+          exportStatus = statusCode;
+          exportPayload = bytes;
+        },
+        readJsonBody: async () => ({}),
+      });
+      assert.equal(exportStatus, 200);
+      assert.ok(exportPayload && exportPayload.length > 0);
+    }
+
+    for (const format of ["mermaid", "d2"] as const) {
+      const pathname = `/api/export/${format}`;
+      const requestUrl = `${pathname}?slug=other%3Acomplex-routing-usecase`;
+      const exportMatch = resolveRegisteredPreviewHostApiRoute("GET", pathname, normalizePreviewSlug);
+      assert.ok(exportMatch);
+      let exportStatus = 0;
+      let exportPayload: Buffer | null = null;
+      await exportMatch.route.handle(exportMatch, {
+        req: { url: requestUrl } as never,
+        res: {} as never,
+        pathname: exportMatch.pathname,
+        sendJson: () => {},
+        sendText: (statusCode) => {
+          exportStatus = statusCode;
+        },
+        sendBytes: (statusCode, _contentType, bytes) => {
+          exportStatus = statusCode;
+          exportPayload = bytes;
+        },
+        readJsonBody: async () => ({}),
+      });
+      assert.equal(exportStatus, 200);
+      assert.ok(exportPayload && exportPayload.length > 0);
+    }
+
     const specMatch = resolveRegisteredPreviewHostApiRoute(
       "GET",
       "/api/force-spec/force-stakeholders",
@@ -2434,6 +2908,7 @@ test("preview index page HTML renders browse sections without server-local strin
   assert.match(html, /docs\/spec-archive\/045-preview-host-engine-modularity\//);
   assert.match(html, /href="\/view\/v3:alpha"/);
   assert.match(html, /href="\/force\/view\/beta"/);
+  assert.match(html, /id="dg-open-folder"/);
 });
 
 function normalizePreviewSlug(value: string): string | null {

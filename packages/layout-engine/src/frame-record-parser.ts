@@ -149,6 +149,11 @@ export function parseFrameRecord(data: Record<string, unknown>, isRoot = false):
   const frame = new Frame({
     id: String(data.id ?? ''),
     direction: DIRECTION[String(data.direction ?? 'vertical')] ?? Direction.VERTICAL,
+    flowDirection: ['TB', 'LR', 'BT', 'RL'].includes(
+      String(data.flow_direction ?? data.flowDirection ?? '').toUpperCase(),
+    )
+      ? String(data.flow_direction ?? data.flowDirection).toUpperCase() as Frame['flowDirection']
+      : undefined,
     gap: resolvedGap,
     gapDelta,
     gapIsAuthored: 'gap' in data || 'gap_delta' in data,

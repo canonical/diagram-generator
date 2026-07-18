@@ -2,7 +2,8 @@ import type { ServerResponse } from "node:http";
 
 import type { FramePreviewDocumentDeps, FramePreviewRenderDeps } from "./frame-documents.js";
 import type { ForcePreviewDocumentDeps } from "./force-documents.js";
-import type { PreviewHostViewerScriptResolver } from "./types.js";
+import type { PreviewHostBrowseSection, PreviewHostViewerScriptResolver } from "./types.js";
+import type { DiagramWorkspaceSource } from "./workspace/diagram-workspace-source.js";
 
 export const BUILTIN_PREVIEW_HOST_SERVER_MODULE_KEY = "builtin-server-routes";
 export const BUILTIN_FORCE_PREVIEW_HOST_MODULE_KEY = "builtin-force";
@@ -49,6 +50,13 @@ export interface BuiltinPreviewHostServerRouteDeps
   extends PreviewHostSharedServerDeps {
   readonly framesDir: string;
   readonly findReferenceImage: (slug: string) => string | null;
+  readonly registerWorkspaceSource?: (source: DiagramWorkspaceSource) => void;
+  readonly unregisterWorkspaceSource?: (sourceId: string) => boolean;
+  readonly copyWorkspaceDocument?: (
+    sourceAddress: string,
+    targetSourceId: string,
+    targetSlug: string,
+  ) => { address: string; workspaceRevision: string | null };
 }
 
 export interface BuiltinAutolayoutPreviewHostModuleDeps
@@ -56,8 +64,21 @@ export interface BuiltinAutolayoutPreviewHostModuleDeps
   readonly framePreviewDocumentDeps: FramePreviewDocumentDeps;
   readonly framePreviewRenderDeps: FramePreviewRenderDeps;
   readonly listAutolayoutDiagrams: () => string[];
+  readonly listAutolayoutBrowseSections?: () => readonly PreviewHostBrowseSection[];
   readonly findReferenceImage: (slug: string) => string | null;
   readonly normalizeLayoutEngine: (layoutEngine: string | undefined) => string;
+  /**
+   * Optional workspace-source resolver (spec 075): maps a possibly-qualified
+   * `sourceId:slug` address to the backing source directory + bare slug. When
+   * omitted, the host keeps the historical single-directory behaviour.
+   */
+  readonly resolveFrameDir?: (slug: string) => {
+    framesDir: string;
+    slug: string;
+    sourceId: string;
+    writable: boolean;
+    revision: string | null;
+  } | null;
 }
 
 export interface BuiltinForcePreviewHostModuleDeps

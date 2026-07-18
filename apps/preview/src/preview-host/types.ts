@@ -11,6 +11,7 @@ export type PreviewHostTemplateSectionKey = string;
 export interface PreviewHostLink {
   readonly href: string;
   readonly label: string;
+  readonly writable?: boolean;
 }
 
 export interface PreviewHostBrowseSection {
@@ -30,6 +31,7 @@ export interface PreviewHostViewerRouteDescriptor {
   readonly lane: PreviewHostLaneDescriptor;
   readonly routePrefixes: readonly string[];
   readonly listSlugs: () => readonly string[];
+  readonly listBrowseSections?: () => readonly PreviewHostBrowseSection[];
   readonly hasDocument: (slug: string) => boolean;
   readonly buildHtml: (slug: string) => string;
   readonly describeMissing: (slug: string) => string;
@@ -50,6 +52,19 @@ export interface PreviewHostApiRouteDescriptor {
   readonly routePrefixes: readonly string[];
   readonly matchMode?: PreviewHostApiRouteMatchMode;
   handle(match: PreviewHostApiRouteMatch, context: PreviewHostApiRouteHandlerContext): Promise<void> | void;
+  /** Release route-owned resources when its host module is uninstalled. */
+  dispose?(): void;
+}
+
+export class PreviewHostHttpError extends Error {
+  constructor(
+    message: string,
+    readonly statusCode: number,
+    readonly payload?: unknown,
+  ) {
+    super(message);
+    this.name = "PreviewHostHttpError";
+  }
 }
 
 export interface PreviewHostApiRouteMatch {

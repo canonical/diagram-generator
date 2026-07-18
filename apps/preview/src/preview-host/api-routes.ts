@@ -32,6 +32,7 @@ export function installPreviewHostApiRoutes(
   return () => {
     for (let index = unregisterRoutes.length - 1; index >= 0; index -= 1) {
       unregisterRoutes[index]?.();
+      routes[index]?.dispose?.();
     }
   };
 }

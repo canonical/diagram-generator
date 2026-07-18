@@ -1,0 +1,264 @@
+# Imported from mermaid/examples/gallery/flowchart/riscv-boot-flow.mmd
+# Source SHA-256: B72787EBA648CD2047D5E2EB3FA75504BECEC1C4A522222B94603A692B611C9C
+engine: v3
+title: RISC-V Boot Flow
+meta:
+  layout_engine: elk-layered
+root:
+  id: page
+  direction: vertical
+  flow_direction: TB
+  children:
+    - id: boot_rom
+      level: 2
+      direction: horizontal
+      flow_direction: LR
+      fill: grey
+      border: solid
+      heading: Boot ROM
+      children:
+        - id: power_on
+          level: 1
+          fill: black
+          border: solid
+          label:
+            - Power On
+          children: []
+        - id: load_spl
+          level: 1
+          fill: white
+          border: solid
+          label:
+            - Load SPL
+          children: []
+    - id: u_boot_spl
+      level: 2
+      direction: horizontal
+      flow_direction: LR
+      fill: grey
+      border: solid
+      heading: U-Boot SPL
+      children:
+        - id: init_ram_init_drivers_spl
+          level: 1
+          fill: white
+          border: solid
+          label:
+            - Init RAM /
+            - Init Drivers
+          children: []
+        - id: load_fit_image
+          level: 1
+          fill: white
+          border: solid
+          label:
+            - Load FIT Image
+          children: []
+        - id: opensbi_u_boot_dtb
+          level: 1
+          fill: white
+          border: solid
+          label:
+            - OpenSBI / U-Boot / DTB
+          children: []
+    - id: open_sbi
+      level: 2
+      direction: horizontal
+      flow_direction: LR
+      fill: grey
+      border: solid
+      heading: Open SBI
+      children:
+        - id: init_drivers_sbi
+          level: 1
+          fill: white
+          border: solid
+          label:
+            - Init Drivers
+          children: []
+        - id: start_u_boot
+          level: 1
+          fill: white
+          border: solid
+          label:
+            - Start U-Boot
+          children: []
+        - id: poweroff_device
+          level: 1
+          fill: white
+          border: solid
+          label:
+            - PowerOff Device
+          children: []
+        - id: power_off
+          level: 1
+          fill: black
+          border: solid
+          label:
+            - Power Off
+          children: []
+    - id: u_boot
+      level: 2
+      direction: horizontal
+      flow_direction: LR
+      fill: grey
+      border: solid
+      heading: U-Boot
+      children:
+        - id: init_drivers_uboot
+          level: 1
+          fill: white
+          border: solid
+          label:
+            - Init Drivers
+          children: []
+        - id: load_dtb_uboot
+          level: 1
+          fill: white
+          border: solid
+          label:
+            - Load DTB
+          children: []
+        - id: load_uefi_binary
+          level: 1
+          fill: white
+          border: solid
+          label:
+            - Load UEFI Binary
+          children: []
+        - id: fixup_dtb
+          level: 1
+          fill: white
+          border: solid
+          label:
+            - Fixup DTB
+          children: []
+        - id: dtb_on_esp
+          level: 1
+          fill: white
+          border: solid
+          label:
+            - DTB on ESP
+          children: []
+        - id: grub_on_esp
+          level: 1
+          fill: white
+          border: solid
+          label:
+            - GRUB on ESP
+          children: []
+        - id: poweroff_request_uboot
+          level: 1
+          fill: white
+          border: solid
+          label:
+            - PowerOff Request
+          children: []
+    - id: grub
+      level: 2
+      direction: horizontal
+      flow_direction: LR
+      fill: grey
+      border: solid
+      heading: GRUB
+      children:
+        - id: grub_cfg_dtb
+          level: 1
+          fill: white
+          border: solid
+          label:
+            - grub.cfg / DTB
+          children: []
+        - id: load_dtb_grub
+          level: 1
+          fill: white
+          border: solid
+          label:
+            - Load DTB
+          children: []
+        - id: start_kernel
+          level: 1
+          fill: white
+          border: solid
+          label:
+            - Start Kernel
+          children: []
+        - id: kernel_initrd
+          level: 1
+          fill: white
+          border: solid
+          label:
+            - Kernel / Initrd
+          children: []
+    - id: linux
+      level: 2
+      direction: horizontal
+      flow_direction: LR
+      fill: grey
+      border: solid
+      heading: Linux
+      children:
+        - id: init
+          level: 1
+          fill: white
+          border: solid
+          label:
+            - Init
+          children: []
+        - id: poweroff_request_linux
+          level: 1
+          fill: white
+          border: solid
+          label:
+            - PowerOff Request
+          children: []
+    - id: callout
+      level: 2
+      border: none
+      label:
+        - A devicetree command is added to grub.cfg when updating the initramfs.
+        - First boot uses the DTB from the ESP.
+      children: []
+arrows:
+  - source: power_on
+    target: load_spl
+  - source: init_ram_init_drivers_spl
+    target: load_fit_image
+  - source: opensbi_u_boot_dtb
+    target: load_fit_image
+  - source: init_drivers_sbi
+    target: start_u_boot
+  - source: poweroff_device
+    target: power_off
+  - source: init_drivers_uboot
+    target: load_dtb_uboot
+  - source: load_dtb_uboot
+    target: load_uefi_binary
+  - source: dtb_on_esp
+    target: load_dtb_uboot
+  - source: grub_on_esp
+    target: load_uefi_binary
+  - source: grub_cfg_dtb
+    target: load_dtb_grub
+  - source: kernel_initrd
+    target: start_kernel
+  - source: init
+    target: poweroff_request_linux
+  - source: load_spl
+    target: init_ram_init_drivers_spl
+  - source: load_fit_image
+    target: init_drivers_sbi
+  - source: start_u_boot
+    target: init_drivers_uboot
+  - source: load_uefi_binary
+    target: load_dtb_grub
+  - source: load_dtb_grub
+    target: fixup_dtb
+  - source: fixup_dtb
+    target: start_kernel
+  - source: start_kernel
+    target: init
+  - source: poweroff_request_linux
+    target: poweroff_request_uboot
+  - source: poweroff_request_uboot
+    target: poweroff_device

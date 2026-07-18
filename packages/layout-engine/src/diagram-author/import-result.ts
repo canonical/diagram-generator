@@ -10,6 +10,13 @@ export interface DiagramImportResult {
   diagnostics: Diagnostic[];
   errors: Diagnostic[];
   warnings: Diagnostic[];
+  summary: ImportSummary;
+}
+
+export interface ImportSummary {
+  preserved: number;
+  downgraded: Diagnostic[];
+  blocked: Diagnostic[];
 }
 
 export interface ImportedDocumentBuild {
@@ -55,6 +62,9 @@ export function makeImportedDocument(
     ...(metadata.direction === 'horizontal' || metadata.direction === 'vertical'
       ? { direction: metadata.direction }
       : {}),
+    ...(['TB', 'LR', 'BT', 'RL'].includes(String(metadata.flow_direction))
+      ? { flowDirection: metadata.flow_direction as NonNullable<AuthorFrameNode['flowDirection']> }
+      : {}),
   };
   const indexed = buildFrameIndex(root);
   return {
@@ -67,6 +77,9 @@ export function makeImportedDocument(
       source: {
         engine: 'v3',
         title: metadata.title,
+        ...(typeof metadata.layout_engine === 'string'
+          ? { meta: { layout_engine: metadata.layout_engine } }
+          : {}),
       },
     },
     diagnostics: indexed.diagnostics,
@@ -79,18 +92,35 @@ export function finishImport(
   strict: boolean,
   strictAcceptedWarnings: ReadonlySet<string> = new Set(),
 ): DiagramImportResult {
+  const blockingCategories = new Set<Diagnostic['category']>([
+    'structural',
+    'invalid',
+    'type',
+  ]);
   const normalized = diagnostics.map(diagnostic =>
-    strict &&
+    (blockingCategories.has(diagnostic.category) ||
+    (strict &&
     diagnostic.level === 'warning' &&
-    !strictAcceptedWarnings.has(diagnostic.code)
+    !strictAcceptedWarnings.has(diagnostic.code)))
       ? { ...diagnostic, level: 'error' as const }
       : diagnostic,
   );
+  const errors = normalized.filter(diagnostic => diagnostic.level === 'error');
+  const warnings = normalized.filter(diagnostic => diagnostic.level === 'warning');
+  const rootId = ast.root?.id;
+  const preservedFrames = Object.keys(ast.frameIndex)
+    .filter(id => id !== rootId)
+    .length;
   return {
     ast,
     diagnostics: normalized,
-    errors: normalized.filter(diagnostic => diagnostic.level === 'error'),
-    warnings: normalized.filter(diagnostic => diagnostic.level === 'warning'),
+    errors,
+    warnings,
+    summary: {
+      preserved: preservedFrames + ast.arrows.length,
+      downgraded: warnings,
+      blocked: errors,
+    },
   };
 }
 
@@ -104,11 +134,13 @@ export function diagnostic(
   path: string,
   line?: number,
   level: Diagnostic['level'] = 'warning',
+  category: NonNullable<Diagnostic['category']> = 'visual',
 ): Diagnostic {
   return {
     code,
     message,
     level,
+    category,
     path,
     ...(line === undefined ? {} : { line }),
   };

@@ -241,6 +241,122 @@ describe('preview save client runtime', () => {
     expect(saveButton.disabled).toBe(true);
   });
 
+  it('keeps editor changes after a server-root conflict and retries against the new revision', async () => {
+    const previewWindow = {
+      __DG_CONFIG: { workspace_revision: 'opened-revision' as string | null },
+    };
+    const requestRevisions: unknown[] = [];
+    const fetchFn = vi.fn(async (_input: string, init?: Record<string, unknown>) => {
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      requestRevisions.push(body.workspaceRevision);
+      if (requestRevisions.length === 1) {
+        return {
+          ok: false,
+          status: 409,
+          statusText: 'Conflict',
+          text: async () => JSON.stringify({
+            error: 'changed on disk',
+            workspaceRevision: 'external-revision',
+          }),
+          json: async () => ({}),
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        text: async () => '',
+        json: async () => ({ workspaceRevision: 'saved-revision' }),
+      };
+    });
+    const runtime = createPreviewSaveClientRuntime({
+      document: {
+        body: { appendChild() {} },
+        activeElement: null,
+        createElement: () => ({ click() {}, remove() {} }),
+        getElementById: () => null,
+        querySelector: () => null,
+      },
+      previewWindow,
+      fetchFn,
+      alertFn: vi.fn(),
+      confirmFn: () => false,
+    });
+    const reloadDiagram = vi.fn();
+    runtime.init({
+      slug: 'other:demo',
+      getModel: () => ({
+        overrides: {},
+        gridOverrides: {},
+        removedIds: new Set<string>(),
+        get: () => null,
+      }),
+      getSelectedIds: () => [],
+      restoreSelectionIds: vi.fn(),
+      serializeDirtyState: () => '{}',
+      reloadDiagram,
+      getConstraintSummary: () => ({ errors: 0 }),
+      getLayoutRelayoutStatus: () => ({ localReady: true }),
+      getLayoutRelayoutRuntime: () => ({ lastMode: 'local-ready' }),
+      setStatus: vi.fn(),
+    });
+    runtime.setDirty(true);
+
+    await runtime.saveOverrides();
+    expect(runtime.isDirty()).toBe(true);
+    expect(previewWindow.__DG_CONFIG.workspace_revision).toBe('external-revision');
+    expect(reloadDiagram).not.toHaveBeenCalled();
+
+    await runtime.saveOverrides();
+    expect(requestRevisions).toEqual(['opened-revision', 'external-revision']);
+    expect(previewWindow.__DG_CONFIG.workspace_revision).toBe('saved-revision');
+  });
+
+  it('navigates to a successfully saved read-only copy without reloading the old source', async () => {
+    const assigned: string[] = [];
+    const runtime = createPreviewSaveClientRuntime({
+      document: {
+        body: { appendChild() {} },
+        activeElement: null,
+        createElement: () => ({ click() {}, remove() {} }),
+        getElementById: () => null,
+        querySelector: () => null,
+      },
+      previewWindow: { location: { assign: (url) => assigned.push(url) } },
+      fetchFn: async () => ({
+        ok: true,
+        status: 200,
+        text: async () => '',
+        json: async () => ({ workspaceCopyAddress: 'local-mine:demo' }),
+      }),
+      alertFn: vi.fn(),
+    });
+    const reloadDiagram = vi.fn();
+    runtime.init({
+      slug: 'examples:demo',
+      getModel: () => ({
+        overrides: {},
+        gridOverrides: {},
+        removedIds: new Set<string>(),
+        get: () => null,
+      }),
+      getSelectedIds: () => [],
+      restoreSelectionIds: vi.fn(),
+      serializeDirtyState: () => '{}',
+      reloadDiagram,
+      getConstraintSummary: () => ({ errors: 0 }),
+      getLayoutRelayoutStatus: () => ({ localReady: true }),
+      getLayoutRelayoutRuntime: () => ({ lastMode: 'local-ready' }),
+    });
+    runtime.setDirty(true);
+
+    await runtime.saveOverrides();
+
+    expect(reloadDiagram).not.toHaveBeenCalled();
+    expect(assigned).toEqual(['/view/v3:local-mine:demo']);
+    expect(runtime.isDirty()).toBe(false);
+  });
+
   it('emits canonical drag, nudge, multi-select, and resize overrides before POST', async () => {
     const fetchFn = vi.fn(async (_input, init) => ({
       ok: true,
@@ -1017,6 +1133,163 @@ describe('preview save client runtime', () => {
       body: JSON.stringify({ source: 'flowchart TB\n  source[Source]' }),
     });
     expect(locationAssign).toHaveBeenCalledWith('/view/v3:customer-flow');
+  });
+
+  it('names visual downgrades in the import summary and still navigates', async () => {
+    const fileInput = {
+      accept: '',
+      files: {
+        length: 1,
+        0: {
+          name: 'styled-flow.mmd',
+          text: vi.fn(async () => 'flowchart TB\n  source[Source]:::highlight'),
+        },
+      },
+      addEventListener: vi.fn(),
+    };
+    const formatSelect = { value: 'mermaid', addEventListener: vi.fn() };
+    const slugInput = { value: 'styled-flow' };
+    const locationAssign = vi.fn();
+    const alertFn = vi.fn();
+    const setStatus = vi.fn();
+    const runtime = createPreviewSaveClientRuntime({
+      document: {
+        body: { appendChild() {} },
+        activeElement: null,
+        createElement: () => ({ click() {}, remove() {} }),
+        getElementById(id: string) {
+          if (id === 'interchange-import-file') return fileInput;
+          if (id === 'interchange-import-format') return formatSelect;
+          if (id === 'interchange-import-slug') return slugInput;
+          return null;
+        },
+        querySelector: () => null,
+      },
+      previewWindow: { location: { assign: locationAssign } },
+      fetchFn: vi.fn(async () => ({
+        ok: true,
+        status: 201,
+        statusText: 'Created',
+        text: async () => '',
+        json: async () => ({
+          ok: true,
+          slug: 'styled-flow',
+          warnings: [],
+          summary: {
+            preserved: 1,
+            downgraded: [
+              { message: 'Class highlight fill was not preserved.' },
+              { message: 'Rounded shape was imported as a rectangle.' },
+            ],
+            blocked: [],
+          },
+        }),
+      })),
+      alertFn,
+    });
+    runtime.init({
+      slug: 'demo',
+      getModel: () => ({ overrides: {}, gridOverrides: {}, removedIds: new Set<string>() }),
+      getSelectedIds: () => [],
+      restoreSelectionIds: vi.fn(),
+      serializeDirtyState: () => '{}',
+      reloadDiagram: vi.fn(),
+      setStatus,
+    });
+
+    await runtime.importCurrentFile();
+
+    expect(alertFn).toHaveBeenCalledWith(expect.stringContaining(
+      '1 preserved, 2 downgraded, 0 blocked',
+    ));
+    expect(alertFn).toHaveBeenCalledWith(expect.stringContaining(
+      'Class highlight fill was not preserved.',
+    ));
+    expect(alertFn).toHaveBeenCalledWith(expect.stringContaining(
+      'Rounded shape was imported as a rectangle.',
+    ));
+    expect(setStatus).toHaveBeenCalledWith(
+      'Imported: 1 preserved, 2 downgraded, 0 blocked',
+      'ok',
+    );
+    expect(locationAssign).toHaveBeenCalledWith('/view/v3:styled-flow');
+  });
+
+  it('does not report success or navigate when the import summary is blocked', async () => {
+    const fileInput = {
+      accept: '',
+      files: {
+        length: 1,
+        0: {
+          name: 'lossy-flow.mmd',
+          text: vi.fn(async () => 'flowchart TB\n  source@{ animate: true } --> target'),
+        },
+      },
+      addEventListener: vi.fn(),
+    };
+    const formatSelect = { value: 'mermaid', addEventListener: vi.fn() };
+    const slugInput = { value: 'lossy-flow' };
+    const locationAssign = vi.fn();
+    const alertFn = vi.fn();
+    const setStatus = vi.fn();
+    const runtime = createPreviewSaveClientRuntime({
+      document: {
+        body: { appendChild() {} },
+        activeElement: null,
+        createElement: () => ({ click() {}, remove() {} }),
+        getElementById(id: string) {
+          if (id === 'interchange-import-file') return fileInput;
+          if (id === 'interchange-import-format') return formatSelect;
+          if (id === 'interchange-import-slug') return slugInput;
+          return null;
+        },
+        querySelector: () => null,
+      },
+      previewWindow: { location: { assign: locationAssign } },
+      fetchFn: vi.fn(async () => ({
+        ok: false,
+        status: 422,
+        statusText: 'Unprocessable Content',
+        text: async () => JSON.stringify({
+          ok: false,
+          slug: 'lossy-flow',
+          warnings: [],
+          summary: {
+            preserved: 0,
+            downgraded: [],
+            blocked: [{ message: 'Animated edge identity cannot be preserved.' }],
+          },
+        }),
+        json: async () => {
+          throw new Error('A blocked response must not be consumed as success JSON.');
+        },
+      })),
+      alertFn,
+    });
+    runtime.init({
+      slug: 'demo',
+      getModel: () => ({ overrides: {}, gridOverrides: {}, removedIds: new Set<string>() }),
+      getSelectedIds: () => [],
+      restoreSelectionIds: vi.fn(),
+      serializeDirtyState: () => '{}',
+      reloadDiagram: vi.fn(),
+      setStatus,
+    });
+
+    await runtime.importCurrentFile();
+
+    expect(alertFn).toHaveBeenCalledWith(expect.stringContaining(
+      'Import blocked: 0 preserved, 0 downgraded, 1 blocked',
+    ));
+    expect(alertFn).toHaveBeenCalledWith(expect.stringContaining(
+      'Animated edge identity cannot be preserved.',
+    ));
+    expect(setStatus).toHaveBeenCalledWith(
+      'Import blocked: 0 preserved, 0 downgraded, 1 blocked',
+      'error',
+    );
+    expect(setStatus).not.toHaveBeenCalledWith(expect.anything(), 'ok');
+    expect(locationAssign).not.toHaveBeenCalled();
   });
 
   it('keeps removal state and reports reload failures after a successful persist', async () => {

@@ -32,6 +32,7 @@ import {
 import {
   frameDiagramExists,
   importInterchangeForSlug,
+  InterchangeImportBlockedError,
   resolveFramePreviewViewerContext,
 } from "./frame-documents.js";
 import { AUTOLAYOUT_HOST_LANE } from "./lanes.js";
@@ -43,6 +44,7 @@ import {
 import type {
   PreviewHostApiRouteDescriptor,
   PreviewHostApiRouteHandlerContext,
+  PreviewHostBrowseSection,
   PreviewHostViewerPageDefinition,
   PreviewHostViewerRouteDescriptor,
 } from "./types.js";
@@ -75,7 +77,14 @@ function resolveSvgExportSlug(pathname: string): string | null {
   const rawName = pathname.startsWith("/svg/")
     ? pathname.slice("/svg/".length)
     : pathname.slice("/v3/svg/".length);
-  const safeName = path.posix.basename(rawName);
+  let decodedName: string;
+  try {
+    decodedName = decodeURIComponent(rawName);
+  } catch {
+    return null;
+  }
+  if (decodedName.includes("/") || decodedName.includes("\\")) return null;
+  const safeName = path.posix.basename(decodedName);
   return safeName
     .replace(/-onbrand-v3-grid\.svg$/i, "")
     .replace(/-onbrand-v3\.svg$/i, "");
@@ -85,7 +94,14 @@ function resolveDrawioExportSlug(pathname: string): string | null {
   const rawName = pathname.startsWith("/drawio/")
     ? pathname.slice("/drawio/".length)
     : pathname.slice("/v3/drawio/".length);
-  const safeName = path.posix.basename(rawName);
+  let decodedName: string;
+  try {
+    decodedName = decodeURIComponent(rawName);
+  } catch {
+    return null;
+  }
+  if (decodedName.includes("/") || decodedName.includes("\\")) return null;
+  const safeName = path.posix.basename(decodedName);
   return safeName.replace(/\.drawio$/i, "");
 }
 
@@ -108,6 +124,12 @@ function readInterchangeImportSource(payload: unknown): string {
   return source;
 }
 
+function readWorkspaceRevision(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
+  const revision = (payload as Record<string, unknown>).workspaceRevision;
+  return typeof revision === "string" ? revision : null;
+}
+
 function createPreviewInterchangeImportHostApiRoute(
   format: "mermaid" | "d2",
   deps: BuiltinAutolayoutPreviewHostModuleDeps,
@@ -125,14 +147,46 @@ function createPreviewInterchangeImportHostApiRoute(
       }
       try {
         const payload = await context.readJsonBody(context.req);
+        const resolved = deps.resolveFrameDir?.(rawSlug);
+        if (deps.resolveFrameDir && !resolved) {
+          context.sendText(404, `Unknown diagram: ${rawSlug}`);
+          return;
+        }
+        if (resolved && !resolved.writable) {
+          context.sendText(403, `Workspace source '${resolved.sourceId}' is read-only`);
+          return;
+        }
+        const expectedRevision = readWorkspaceRevision(payload);
+        if (
+          expectedRevision !== null
+          && resolved?.revision !== null
+          && expectedRevision !== resolved?.revision
+        ) {
+          context.sendJson(409, {
+            error: "This diagram changed on disk after it was opened.",
+            workspaceRevision: resolved?.revision ?? null,
+          });
+          return;
+        }
         const result = importInterchangeForSlug(
-          rawSlug,
+          resolved?.slug ?? rawSlug,
           format,
           readInterchangeImportSource(payload),
-          deps.framePreviewDocumentDeps,
+          resolved
+            ? { ...deps.framePreviewDocumentDeps, framesDir: resolved.framesDir }
+            : deps.framePreviewDocumentDeps,
         );
-        context.sendJson(201, result);
+        const workspaceRevision = deps.resolveFrameDir?.(rawSlug)?.revision ?? null;
+        context.sendJson(201, { ...result, workspaceRevision });
       } catch (error) {
+        if (error instanceof InterchangeImportBlockedError) {
+          context.sendJson(422, {
+            error: error.message,
+            summary: error.summary,
+            warnings: error.warnings,
+          });
+          return;
+        }
         context.sendText(400, error instanceof Error ? error.message : String(error));
       }
     },
@@ -306,13 +360,49 @@ export function installBuiltinAutolayoutPreviewHostApiRoutes(
 export function createAutolayoutPreviewHostViewerRoute(
   deps: BuiltinAutolayoutPreviewHostModuleDeps,
 ): PreviewHostViewerRouteDescriptor {
+  const resolveDocContext = (
+    slug: string,
+  ): {
+    deps: typeof deps.framePreviewDocumentDeps;
+    slug: string;
+    sourceId: string;
+    writable: boolean;
+    revision: string | null;
+  } | null => {
+    if (!deps.resolveFrameDir) {
+      return {
+        deps: deps.framePreviewDocumentDeps,
+        slug,
+        sourceId: "default",
+        writable: true,
+        revision: null,
+      };
+    }
+    const resolved = deps.resolveFrameDir(slug);
+    if (!resolved) return null;
+    return {
+      deps: { ...deps.framePreviewDocumentDeps, framesDir: resolved.framesDir },
+      slug: resolved.slug,
+      sourceId: resolved.sourceId,
+      writable: resolved.writable,
+      revision: resolved.revision,
+    };
+  };
   return {
     key: "autolayout",
     lane: AUTOLAYOUT_HOST_LANE,
     routePrefixes: ["/view/"],
     listSlugs: () => deps.listAutolayoutDiagrams(),
-    hasDocument: (slug: string) => frameDiagramExists(slug, deps.framePreviewDocumentDeps),
+    listBrowseSections: deps.listAutolayoutBrowseSections
+      ? (): readonly PreviewHostBrowseSection[] => deps.listAutolayoutBrowseSections?.() ?? []
+      : undefined,
+    hasDocument: (slug: string) => {
+      const docCtx = resolveDocContext(slug);
+      return docCtx !== null && frameDiagramExists(docCtx.slug, docCtx.deps);
+    },
     buildHtml: (slug: string) => {
+      const docCtx = resolveDocContext(slug);
+      if (!docCtx) throw new Error(`Unknown diagram: ${slug}`);
       const {
         authoredLayoutEngine,
         documentKind,
@@ -321,8 +411,8 @@ export function createAutolayoutPreviewHostViewerRoute(
         compatibleEngines,
         hasReference,
       } = resolveFramePreviewViewerContext(
-        slug,
-        deps.framePreviewDocumentDeps,
+        docCtx.slug,
+        docCtx.deps,
         {
           normalizeLayoutEngine: deps.normalizeLayoutEngine,
           findReferenceImage: deps.findReferenceImage,
@@ -365,6 +455,9 @@ export function createAutolayoutPreviewHostViewerRoute(
         icon_size: deps.iconSize ?? ICON_SIZE,
         col_gap: deps.gridGutter ?? GRID_GUTTER,
         has_reference: hasReference,
+        workspace_source_id: docCtx.sourceId,
+        workspace_writable: docCtx.writable,
+        workspace_revision: docCtx.revision,
       });
       const modeScripts = buildPreviewModeScriptsHtml({
         previewAssetUrl: deps.previewAssetUrl,
@@ -401,6 +494,7 @@ export function createAutolayoutPreviewHostViewerRoute(
       framePreviewRenderDeps: deps.framePreviewRenderDeps,
       parseYaml: deps.parseYaml,
       normalizeLayoutEngine: deps.normalizeLayoutEngine,
+      resolveFrameDir: deps.resolveFrameDir,
     }),
   };
 }

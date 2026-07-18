@@ -1,3 +1,4 @@
+import { PreviewHostHttpError } from "./types.js";
 import type {
   PreviewHostApiRouteDescriptor,
   PreviewHostApiRouteHandlerContext,
@@ -126,7 +127,14 @@ export function createPreviewHostDocumentPostJsonRoute<
       try {
         context.sendJson(200, await resolved.handler(resolved.slug, payload));
       } catch (error) {
-        context.sendText(400, error instanceof Error ? error.message : String(error));
+        if (error instanceof PreviewHostHttpError && error.payload !== undefined) {
+          context.sendJson(error.statusCode, error.payload);
+          return;
+        }
+        context.sendText(
+          error instanceof PreviewHostHttpError ? error.statusCode : 400,
+          error instanceof Error ? error.message : String(error),
+        );
       }
     },
   };

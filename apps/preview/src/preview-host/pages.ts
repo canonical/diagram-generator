@@ -23,7 +23,8 @@ function buildPreviewNavOptions(
       const options = section.links
         .map((link) => {
           const selected = currentPath === link.href ? " selected" : "";
-          return `<option value="${link.href}"${selected}>${htmlEscape(link.label)}</option>`;
+          const readOnly = link.writable === false ? " — read-only" : "";
+          return `<option value="${link.href}"${selected}>${htmlEscape(link.label + readOnly)}</option>`;
         })
         .join("");
       if (!options) {
@@ -43,7 +44,10 @@ function buildBrowseNav(
       const items = section.links
         .map((link) => {
           const active = currentPath === link.href ? " is-active" : "";
-          return `<li><a class="dg-browse-link${active}" href="${link.href}">${htmlEscape(link.label)}</a></li>`;
+          const readOnly = link.writable === false
+            ? '<span class="dg-workspace-lock" aria-label="Read-only" title="Read-only">🔒</span>'
+            : "";
+          return `<li><a class="dg-browse-link${active}" href="${link.href}">${htmlEscape(link.label)}${readOnly}</a></li>`;
         })
         .join("");
       if (!items) {
@@ -58,7 +62,12 @@ function buildIndexSection(section: PreviewHostBrowseSection): string {
   const content =
     section.links.length > 0
       ? `<ul class="dg-browse-list">${section.links
-          .map((link) => `<li><a class="dg-browse-link" href="${link.href}">${htmlEscape(link.label)}</a></li>`)
+          .map((link) => {
+            const readOnly = link.writable === false
+              ? '<span class="dg-workspace-lock" aria-label="Read-only" title="Read-only">🔒</span>'
+              : "";
+            return `<li><a class="dg-browse-link" href="${link.href}">${htmlEscape(link.label)}${readOnly}</a></li>`;
+          })
           .join("")}</ul>`
       : `<p class="bf-form-help">No ${htmlEscape(section.label).toLowerCase()} found.</p>`;
   return `<section class="dg-browse-group"><h2 class="dg-browse-heading">${htmlEscape(section.label)}</h2>${content}</section>`;
@@ -124,12 +133,21 @@ ${baselineStylesHtml}
     <div class="bf-panel-header">
       <h1 class="bf-h4">Preview index</h1>
       <p class="bf-form-help">Node preview app on port ${port}. Spec home: ${htmlEscape(specHome)}</p>
+      <p class="bf-form-help">Open a folder you own to edit its root-level YAML diagrams directly. Bundled examples remain read-only; edit one and use <strong>Save a copy…</strong> to keep it in a folder you choose.</p>
+      <div class="dg-workspace-open-row">
+        <button class="bf-button is-base" id="dg-open-folder" type="button">Open folder…</button>
+        <button class="bf-button is-base" id="dg-reconnect-folders" type="button" hidden>Reconnect folders…</button>
+        <button class="bf-button is-base" id="dg-forget-folder" type="button" hidden>Forget current folder</button>
+        <span class="bf-form-help" id="dg-workspace-status" role="status" aria-live="polite"></span>
+      </div>
     </div>
     <div class="bf-panel-content">
       ${browseSections.map((section) => buildIndexSection(section)).join("")}
     </div>
   </section>
 </main>
+<script src="/preview/layout-engine.js"></script>
+<script>window.LayoutEngine?.previewShell?.workspace?.initPreviewLocalFolderWorkspace?.();</script>
 </body>
 </html>`;
 }

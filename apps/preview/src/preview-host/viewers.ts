@@ -1,4 +1,4 @@
-import { buildPreviewBrowseSections } from "./lanes.js";
+import { buildPreviewBrowseSection } from "./lanes.js";
 import { buildViewerPageHtml } from "./pages.js";
 import type {
   PreviewHostBrowseSection,
@@ -76,12 +76,13 @@ export function buildPreviewWindowConfigScript(
 export function buildPreviewBrowseSectionsFromViewerRoutes(
   routes: readonly PreviewHostViewerRouteDescriptor[],
 ): PreviewHostBrowseSection[] {
-  return buildPreviewBrowseSections(
-    routes.map((route) => ({
-      lane: route.lane,
-      slugs: route.listSlugs(),
-    })),
-  );
+  return routes.flatMap((route) => {
+    if (route.listBrowseSections) {
+      return [...route.listBrowseSections()];
+    }
+    const section = buildPreviewBrowseSection(route.lane, route.listSlugs());
+    return section ? [section] : [];
+  });
 }
 
 export function resolvePreviewViewerRoute(

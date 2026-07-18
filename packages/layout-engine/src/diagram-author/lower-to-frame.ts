@@ -44,6 +44,7 @@ export function authorNodeToRecord(node: AuthorFrameNode): Record<string, unknow
   };
 
   assignIfDefined(record, 'direction', node.direction);
+  assignIfDefined(record, 'flow_direction', node.flowDirection);
   assignIfDefined(record, 'gap', node.gap);
   assignIfDefined(record, 'gap_delta', node.gapDelta);
   assignIfDefined(record, 'padding', node.padding);

@@ -7,7 +7,15 @@ import { compileDiagramYaml } from '../src/diagram-author/compile.js';
 import { exportD2 } from '../src/diagram-author/export-d2.js';
 import { exportMermaid } from '../src/diagram-author/export-mermaid.js';
 import { importD2 } from '../src/diagram-author/import-d2.js';
-import { importMermaid } from '../src/diagram-author/import-mermaid.js';
+import {
+  importMermaid,
+  MERMAID_DIAGNOSTIC_CATEGORIES,
+} from '../src/diagram-author/import-mermaid.js';
+import {
+  diagnostic,
+  finishImport,
+  makeImportedDocument,
+} from '../src/diagram-author/import-result.js';
 import { serializeDiagramYaml } from '../src/diagram-author/serialize-yaml.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
@@ -18,6 +26,116 @@ function frameIds(root: { id: string; children: typeof root[] } | null): string[
 }
 
 describe('diagram interchange imports', () => {
+  it('classifies every existing Mermaid import diagnostic by fidelity impact', () => {
+    expect(MERMAID_DIAGNOSTIC_CATEGORIES).toEqual({
+      IMPORT_MERMAID_UNSUPPORTED_EDGE: 'structural',
+      IMPORT_MERMAID_UNSUPPORTED_SYNTAX: 'structural',
+      IMPORT_MERMAID_UNSUPPORTED_DIRECTION: 'structural',
+      IMPORT_MERMAID_UNSUPPORTED_SUBGRAPH: 'structural',
+      IMPORT_MERMAID_MISSING_FRAME_REF: 'structural',
+      IMPORT_MERMAID_UNSUPPORTED_SHAPE: 'visual',
+      IMPORT_MERMAID_UNSUPPORTED_STYLE: 'visual',
+      IMPORT_MERMAID_UNSUPPORTED_EDGE_STYLE: 'visual',
+      IMPORT_MERMAID_UNSUPPORTED_EDGE_DIRECTION: 'visual',
+      IMPORT_MERMAID_UNSUPPORTED_EDGE_DECORATION: 'visual',
+      IMPORT_MERMAID_CONFLICTING_NODE_LABEL: 'visual',
+      IMPORT_MERMAID_UNSUPPORTED_DIAGRAM_TYPE: 'type',
+      IMPORT_MERMAID_UNSUPPORTED_FRONTMATTER: 'invalid',
+      IMPORT_MERMAID_SOURCE_TOO_LARGE: 'invalid',
+      IMPORT_MERMAID_TOO_MANY_TOKENS: 'invalid',
+      IMPORT_MERMAID_NESTING_TOO_DEEP: 'invalid',
+      IMPORT_MERMAID_UNTERMINATED_STRING: 'invalid',
+      IMPORT_MERMAID_TOO_MANY_LINES: 'invalid',
+      IMPORT_MERMAID_TOO_MANY_NODES: 'invalid',
+      IMPORT_MERMAID_TOO_MANY_EDGES: 'invalid',
+    });
+
+    expect(importMermaid('flowchart TB\na(round)\n').warnings[0]).toMatchObject({
+      code: 'IMPORT_MERMAID_UNSUPPORTED_SHAPE',
+      category: 'visual',
+    });
+    expect(importMermaid('flowchart sideways\n').errors[0]).toMatchObject({
+      code: 'IMPORT_MERMAID_UNSUPPORTED_DIRECTION',
+      category: 'structural',
+    });
+    expect(importMermaid('sequenceDiagram\n').errors[0]).toMatchObject({
+      code: 'IMPORT_MERMAID_UNSUPPORTED_DIAGRAM_TYPE',
+      category: 'type',
+    });
+    expect(importMermaid('---\ntitle: unclosed\n').errors[0]).toMatchObject({
+      code: 'IMPORT_MERMAID_UNSUPPORTED_FRONTMATTER',
+      category: 'invalid',
+    });
+  });
+
+  it('blocks fidelity-loss categories independently of strict mode and summarizes the import', () => {
+    const imported = makeImportedDocument(
+      [
+        { id: 'source', children: [] },
+        { id: 'target', children: [] },
+      ],
+      [{ source: 'source', target: 'target', kind: 'directed' }],
+    );
+    const result = finishImport(imported.ast, [
+      diagnostic(
+        'VISUAL_DOWNGRADE',
+        'Presentation was simplified.',
+        'test.visual',
+      ),
+      diagnostic(
+        'DROPPED_TOPOLOGY',
+        'An edge was dropped.',
+        'test.structural',
+        undefined,
+        'warning',
+        'structural',
+      ),
+    ], false);
+
+    expect(result.errors).toMatchObject([{
+      code: 'DROPPED_TOPOLOGY',
+      level: 'error',
+      category: 'structural',
+    }]);
+    expect(result.warnings).toMatchObject([{
+      code: 'VISUAL_DOWNGRADE',
+      level: 'warning',
+      category: 'visual',
+    }]);
+    expect(result.summary).toEqual({
+      preserved: 3,
+      downgraded: result.warnings,
+      blocked: result.errors,
+    });
+  });
+
+  it('imports the exact screenshot inline-declared edge without structural loss', () => {
+    const result = importMermaid([
+      'flowchart TB',
+      '  power_on["Power On"]:::highlight --> load_spl["Load SPL"]:::leaf',
+    ].join('\n'));
+
+    expect(result.errors).toEqual([]);
+    expect(result.ast.root?.children).toMatchObject([
+      { id: 'power_on', label: [{ text: 'Power On' }] },
+      { id: 'load_spl', label: [{ text: 'Load SPL' }] },
+    ]);
+    expect(result.ast.arrows).toEqual([{
+      source: 'power_on',
+      target: 'load_spl',
+      kind: 'directed',
+    }]);
+    expect(result.warnings).toMatchObject([
+      { code: 'IMPORT_MERMAID_UNSUPPORTED_STYLE', category: 'visual' },
+      { code: 'IMPORT_MERMAID_UNSUPPORTED_STYLE', category: 'visual' },
+    ]);
+    expect(result.summary).toEqual({
+      preserved: 3,
+      downgraded: result.warnings,
+      blocked: [],
+    });
+  });
+
   it('imports nested D2 blocks, multiline labels, dot-path arrows, and compiles serialized YAML', () => {
     const result = importD2([
       'network: {',
@@ -109,6 +227,60 @@ describe('diagram interchange imports', () => {
 
     const compiled = compileDiagramYaml(serializeDiagramYaml(result.ast));
     expect(compiled.errors).toEqual([]);
+  });
+
+  it('imports unquoted edge labels and defaults a direction-less header to TB', () => {
+    const result = importMermaid([
+      'flowchart',
+      '  a -- Yes --> b',
+      '  b -- click me --> c',
+    ].join('\n'));
+
+    expect(result.errors).toEqual([]);
+    expect(result.diagnostics.filter(entry => entry.category === 'structural')).toEqual([]);
+    expect(result.ast.root).toMatchObject({
+      direction: 'vertical',
+      children: [{ id: 'a' }, { id: 'b' }, { id: 'c' }],
+    });
+    expect(result.ast.arrows).toEqual([
+      {
+        source: 'a',
+        target: 'b',
+        kind: 'directed',
+        label: [{ text: 'Yes' }],
+      },
+      {
+        source: 'b',
+        target: 'c',
+        kind: 'directed',
+        label: [{ text: 'click me' }],
+      },
+    ]);
+  });
+
+  it('imports idiomatic no-space edges and dotted labelled edges without structural loss', () => {
+    const result = importMermaid([
+      'flowchart',
+      'A-->B-->C',
+      'C-. maybe .->D',
+    ].join('\n'));
+
+    expect(result.errors).toEqual([]);
+    expect(result.diagnostics.filter(entry => entry.category === 'structural')).toEqual([]);
+    expect(result.ast.arrows).toEqual([
+      { source: 'A', target: 'B', kind: 'directed' },
+      { source: 'B', target: 'C', kind: 'directed' },
+      {
+        source: 'C',
+        target: 'D',
+        kind: 'directed',
+        label: [{ text: 'maybe' }],
+      },
+    ]);
+    expect(result.warnings).toContainEqual(expect.objectContaining({
+      code: 'IMPORT_MERMAID_UNSUPPORTED_EDGE_STYLE',
+      category: 'visual',
+    }));
   });
 
   it('imports real-world Mermaid frontmatter, class suffixes, labeled subgraphs, and alternate edges', () => {
@@ -270,6 +442,33 @@ describe('diagram interchange imports', () => {
     expect(compileDiagramYaml(serializeDiagramYaml(result.ast)).errors).toEqual([]);
   });
 
+  it('imports Mermaid attribute shapes and maps faithful fill/border style properties', () => {
+    const result = importMermaid([
+      'flowchart LR',
+      '  a@{ shape: cyl } --> b@{ shape: rect }',
+      '  classDef stored fill:#fff,stroke-dasharray: 5 5',
+      '  class a stored',
+      '  style b fill:#000,stroke:none',
+    ].join('\n'));
+
+    expect(result.errors).toEqual([]);
+    expect(result.ast.root?.children).toMatchObject([
+      { id: 'a', fill: 'white', border: 'dashed' },
+      { id: 'b', fill: 'black', border: 'none' },
+    ]);
+    expect(result.ast.arrows).toMatchObject([{ source: 'a', target: 'b' }]);
+    expect(result.warnings.filter(entry =>
+      entry.code === 'IMPORT_MERMAID_UNSUPPORTED_SHAPE')).toHaveLength(2);
+    expect(result.warnings.filter(entry =>
+      entry.code === 'IMPORT_MERMAID_UNSUPPORTED_STYLE')).toEqual([]);
+    const reloaded = compileDiagramYaml(serializeDiagramYaml(result.ast));
+    expect(reloaded.errors).toEqual([]);
+    expect(reloaded.ast.root?.children).toMatchObject([
+      { id: 'a', fill: 'white', border: 'dashed' },
+      { id: 'b', fill: 'black', border: 'none' },
+    ]);
+  });
+
   it('rejects non-flowchart Mermaid types with one clear error and no phantom frames', () => {
     for (const token of ['sequenceDiagram', 'pie', 'sankey-beta', 'futureDiagram']) {
       const result = importMermaid(`${token}\n  ignored content\n`);
@@ -342,8 +541,13 @@ describe('diagram interchange imports', () => {
       }],
     }]);
     expect(result.ast.arrows).toMatchObject([{ source: 'api', target: 'worker' }]);
+    expect(result.ast.frameIndex.api).toBeDefined();
+    expect(result.ast.root?.children[0]?.children[0]?.children).toMatchObject([
+      { id: 'api', fill: 'white' },
+      { id: 'worker', fill: 'black' },
+    ]);
     expect(result.warnings.filter(entry =>
-      entry.code === 'IMPORT_MERMAID_UNSUPPORTED_STYLE')).toHaveLength(6);
+      entry.code === 'IMPORT_MERMAID_UNSUPPORTED_STYLE')).toHaveLength(2);
     expect(compileDiagramYaml(serializeDiagramYaml(result.ast)).errors).toEqual([]);
   });
 

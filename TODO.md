@@ -55,6 +55,14 @@ gated stages**. Do them in this order; do not skip the gate.
    (`specs/028-diagram-interchange-mermaid-d2/`). After user verification in the
    primary worktree, archive the package and delete the feature branch/worktree.
    Any broader Mermaid grammar work is a follow-up; no Dagre.
+3. **Spec 080 — renderable interchange import (follow-up to 028).** Implemented
+   on `feat/080-renderable-interchange-import`; both adversarial review passes'
+   T070–T077 breadth/truthfulness findings are remediated and final approval is
+   pending.
+   Mermaid and D2 use one blocking structural-loss gate, typed tokenizer/parser/IR
+   lowering, capability-driven v3/ELK selection, persisted engine metadata, and
+   server-root/local-folder persist→reload coverage. The capability matrix and
+   validation record are the closeout evidence.
 
 ### Lane B — standing user-facing regressions (parallel, independent of Epic A)
 
@@ -66,8 +74,10 @@ These are isolated bugfixes; two different GPT agents can take them at once.
 
 ### Lane C — independent features (parallel, outsource anytime)
 
-7. **Spec 075 — preview folder workspaces.** (Also solves the folder-backed
-   navigation backlog idea below.)
+7. **Spec 075 — preview folder workspaces.** In progress on its matching feature
+   branch. Implementation and the real-handle Chromium journey are green; the
+   remaining gates are native OS picker/regrant evidence and Opus closeout
+   review. (Also solves the folder-backed navigation backlog idea below.)
 8. **Spec 070 — layers palette reorder.**
 
 ### Blocked (do not touch)
