@@ -1,7 +1,7 @@
 # Validation: renderable interchange import
 
 **Spec**: 080-renderable-interchange-import
-**Status**: Implementation complete — first adversarial review remediated; follow-up review pending.
+**Status**: Implementation complete — both adversarial review passes remediated; final approval pending.
 
 Evidence below was recorded on Windows in
 `feat/080-renderable-interchange-import` on 2026-07-18.
@@ -103,11 +103,23 @@ git diff --check
   external-source absence is an allowed skip.
 - [x] Phase 7 focused evidence: `8 files / 74 tests passed`.
 
+### Phase 8 — second re-review remediation
+
+- [x] N-H2: connector-aware identifier scanning preserves no-space simple,
+  chained, and open edges while retaining hyphenated and dotted ids.
+- [x] N-L4: dotted labelled edges accept both `.->` and the compatibility
+  `-.->` closer, preserve the label/topology, and emit only the named visual
+  edge-style downgrade.
+- [x] Focused evidence: `3 files / 39 tests passed`.
+- [x] The two untracked review artifacts (`baseline.yaml` and
+  `dmb-manage-packagesets.yaml`) were verified inside this worktree and removed
+  rather than being swept into the feature commit.
+
 ## Recorded suite evidence
 
 - Focused interchange, parser, lowering, engine, CLI, preview-client, and
   local-folder coverage: `12 files / 94 tests passed`.
-- Full layout engine after Phase 7: `179 files / 1133 tests passed` in 6.23 seconds.
+- Full layout engine after Phase 8: `179 files / 1136 tests passed` in 5.22 seconds.
 - Full preview: `190 passed / 1 expected Windows symlink skip / 0 failed`.
 - Browser rebuild/freshness, no-new-Python ratchet, source-artifact cleanup, and
   `git diff --check`: green.
@@ -116,6 +128,6 @@ git diff --check
 
 Per `AGENTS.md`, the preview import/write closeout requires repo-owned
 `import → persist → reload` regressions for both server-root and local-folder
-sources. T041/T042 and the full suites are green. The first Opus implementation
-review is on disk and its six findings are remediated; final status remains
-Review until the follow-up adversarial pass confirms the Phase 7 changes.
+sources. T041/T042 and the full suites are green. Both Opus review passes are on
+disk and T070–T077 are remediated. Final status remains Review until the final
+approval pass confirms the Phase 8 boundary fixes.

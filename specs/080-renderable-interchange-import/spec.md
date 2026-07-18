@@ -6,7 +6,7 @@
 
 **Created**: 2026-07-18
 
-**Status**: Implemented — first adversarial review remediated; follow-up review requested
+**Status**: Implemented — both adversarial review passes remediated; final approval pending
 
 **Depends on**: spec **028** (Mermaid & D2 interchange, merged), spec **022** (diagram authoring AST), the ELK layered engine in `packages/graph-layout-elk/`, and the preview folder-workspace import route from spec **075**.
 

@@ -35,6 +35,7 @@ describe('Mermaid flowchart statement parser', () => {
       'b -- click me --> c',
       'c == heavy flow ==> d',
       'd -. retry later -.-> e',
+      'e -. maybe .-> f',
     ].join('\n'));
 
     expect(flowchart.edges).toEqual([
@@ -42,6 +43,23 @@ describe('Mermaid flowchart statement parser', () => {
       { source: 'b', target: 'c', label: 'click me', connector: '-->', line: 3 },
       { source: 'c', target: 'd', label: 'heavy flow', connector: '==>', line: 4 },
       { source: 'd', target: 'e', label: 'retry later', connector: '-.->', line: 5 },
+      { source: 'e', target: 'f', label: 'maybe', connector: '-.->', line: 6 },
+    ]);
+  });
+
+  it('parses no-space simple, chained, open, and dotted-id edges without changing ids', () => {
+    const flowchart = parse([
+      'flowchart TB',
+      'A-->B-->C',
+      'my-node---other-node',
+      'a.b-->c.d',
+    ].join('\n'));
+
+    expect(flowchart.edges).toEqual([
+      { source: 'A', target: 'B', connector: '-->', line: 2 },
+      { source: 'B', target: 'C', connector: '-->', line: 2 },
+      { source: 'my-node', target: 'other-node', connector: '---', line: 3 },
+      { source: 'a.b', target: 'c.d', connector: '-->', line: 4 },
     ]);
   });
 

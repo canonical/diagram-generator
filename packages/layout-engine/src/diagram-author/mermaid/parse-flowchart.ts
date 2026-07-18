@@ -310,10 +310,16 @@ function parsePipeLabel(
 }
 
 const LABELLED_CONNECTOR_CLOSERS = {
-  '--': '-->',
-  '==': '==>',
-  '-.': '-.->',
-} as const satisfies Readonly<Record<string, IrEdge['connector']>>;
+  '--': [{ token: '-->', connector: '-->' }],
+  '==': [{ token: '==>', connector: '==>' }],
+  '-.': [
+    { token: '.->', connector: '-.->' },
+    { token: '-.->', connector: '-.->' },
+  ],
+} as const satisfies Readonly<Record<
+  string,
+  readonly { token: string; connector: IrEdge['connector'] }[]
+>>;
 
 function parseLabelledConnector(
   source: string,
@@ -322,22 +328,27 @@ function parseLabelledConnector(
 ): { connector: IrEdge['connector']; label: string; next: number } | null {
   const opener = tokens[start];
   if (!opener || opener.kind !== 'connector') return null;
-  const connector = LABELLED_CONNECTOR_CLOSERS[
+  const closers = LABELLED_CONNECTOR_CLOSERS[
     opener.value as keyof typeof LABELLED_CONNECTOR_CLOSERS
   ];
-  if (!connector) return null;
+  if (!closers) return null;
 
   let closing = start + 1;
+  let matchedCloser: (typeof closers)[number] | undefined;
   while (closing < tokens.length) {
     const token = tokens[closing]!;
-    if (token.kind === 'connector' && token.value === connector) break;
+    matchedCloser = closers.find(closer =>
+      token.kind === 'connector' && token.value === closer.token);
+    if (matchedCloser) break;
     if (!['identifier', 'keyword', 'string', 'text'].includes(token.kind)) return null;
     closing += 1;
   }
   const closingToken = tokens[closing];
-  if (!closingToken || closing === start + 1) return null;
+  if (!closingToken || !matchedCloser || closing === start + 1) return null;
   const label = decodeLabel(source.slice(opener.end, closingToken.start));
-  return label ? { connector, label, next: closing + 1 } : null;
+  return label
+    ? { connector: matchedCloser.connector, label, next: closing + 1 }
+    : null;
 }
 
 function parseEdgeStatement(

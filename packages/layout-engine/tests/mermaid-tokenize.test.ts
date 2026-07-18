@@ -112,6 +112,30 @@ describe('Mermaid flowchart tokenizer', () => {
     ]);
   });
 
+  it('recognizes no-space connectors without truncating hyphenated or dotted ids', () => {
+    const tokens = tokenizeMermaidFlowchart([
+      'flowchart TB',
+      'A-->B-->C',
+      'my-node---other-node',
+      'a.b-->c.d',
+      'x-.maybe.->y',
+    ].join('\n')).tokens;
+
+    expect(tokens.filter(token => token.kind === 'identifier').map(token => token.value)).toEqual([
+      'TB',
+      'A', 'B', 'C',
+      'my-node', 'other-node',
+      'a.b', 'c.d',
+      'x', 'maybe', 'y',
+    ]);
+    expect(tokens.filter(token => token.kind === 'connector').map(token => token.value)).toEqual([
+      '-->', '-->',
+      '---',
+      '-->',
+      '-.', '.->',
+    ]);
+  });
+
   it.each([
     {
       name: 'source bytes',

@@ -258,6 +258,31 @@ describe('diagram interchange imports', () => {
     ]);
   });
 
+  it('imports idiomatic no-space edges and dotted labelled edges without structural loss', () => {
+    const result = importMermaid([
+      'flowchart',
+      'A-->B-->C',
+      'C-. maybe .->D',
+    ].join('\n'));
+
+    expect(result.errors).toEqual([]);
+    expect(result.diagnostics.filter(entry => entry.category === 'structural')).toEqual([]);
+    expect(result.ast.arrows).toEqual([
+      { source: 'A', target: 'B', kind: 'directed' },
+      { source: 'B', target: 'C', kind: 'directed' },
+      {
+        source: 'C',
+        target: 'D',
+        kind: 'directed',
+        label: [{ text: 'maybe' }],
+      },
+    ]);
+    expect(result.warnings).toContainEqual(expect.objectContaining({
+      code: 'IMPORT_MERMAID_UNSUPPORTED_EDGE_STYLE',
+      category: 'visual',
+    }));
+  });
+
   it('imports real-world Mermaid frontmatter, class suffixes, labeled subgraphs, and alternate edges', () => {
     const result = importMermaid([
       '---',

@@ -304,3 +304,69 @@ corrected in the same change so the documented contract stops overclaiming. I ha
 updated the matrix and spec to reflect reality and added unchecked remediation
 tasks T070–T075 (owner seams + named proofs) to `tasks.md`. No product code was
 changed in this review.
+
+---
+
+## Re-review addendum (2026-07-18, after `72aff38 fix(080): close adversarial import gaps`)
+
+**Trigger**: maintainer asked "are we ready to merge" after landing fixes for
+N-H1..N-L3. Re-reviewed at HEAD `72aff38`.
+
+### Remediation verification (all confirmed by fresh repro + suites)
+
+| Finding | Fix | Verified |
+|---------|-----|----------|
+| N-H1 unquoted labelled edges | `parseLabelledConnector` handles `--`/`==` label…arrow openers; `==`/`-.` added to tokenizer | `a -- Yes --> b`, `a -- click me --> b`, `a == go ==> b` import with the label ✔ |
+| N-M1 direction-less header | bare `flowchart`/`graph` defaults `TB`; `graph LR extra` still blocks | ✔ |
+| N-M2 D2 implicit endpoints | `materializeImplicitConnectionEndpoints` creates simple implicit frames; dotted paths still block | `a -> b -> c`, `x -> y` import; `a.b -> c.d` blocks (safe) ✔ |
+| N-L1 conflicting labels | `IMPORT_MERMAID_CONFLICTING_NODE_LABEL` visual warning names kept/dropped | ✔ |
+| N-L2 `o--o`/`x--x` | tokenized, lowered to directed arrow + `..._EDGE_DECORATION` downgrade | ✔ |
+| N-L3 provenance | validation wording reconciled | ✔ |
+
+Matrix rows MF-01a/MF-09a (now `S`), MF-36 (`V`), D2-03a (`B`), D2-06 (`S`)
+reconciled with reality; tasks T070–T075 marked `[x]` with real proofs. Full
+suites green: layout-engine **179 files / 1133 tests** (+15), preview **190 pass
+/ 1 expected skip / 0 fail**. Browser bundle fresh, no-new-Python, `git diff
+--check` clean.
+
+### Two residual gaps found in this pass (safe blocks, pre-existing tokenizer limit)
+
+#### N-H2 — No-space edges (`A-->B`) block
+
+The identifier tokenizer consumes `[\w.-]`, so with no surrounding spaces `A-->B`
+lexes the `-` characters into the id (`A--`) and the arrow never forms; the
+statement falls to `IMPORT_MERMAID_UNSUPPORTED_SYNTAX` (`structural`, blocking).
+`A-->B` without spaces is idiomatic, extremely common hand-authored Mermaid. This
+is **pre-existing** (present in the originally-reviewed code, not introduced by
+`72aff38`) and **safe** (blocks, never corrupts), but it is the same class of
+breadth gap as N-H1 and row **MF-08** (`a --> b`, `S`) silently assumes spaces.
+Remediation: task **T076**.
+
+#### N-L4 — Dotted labelled edges (`a -. text .-> b`) block
+
+The labelled-connector fix covers `--`/`==` openers but the dotted labelled form
+closes with `.->`, not `-.->`, so `parseLabelledConnector` returns null and the
+edge blocks. Solid and thick labelled edges now work, so this is a small
+asymmetry. Safe block. Remediation: task **T077**.
+
+### Verdict: CHANGES REQUESTED (soft) — safe to merge the safety work; two items to clear first
+
+The safety-critical contract is complete and solid, and every previously-filed
+finding is genuinely fixed. **The branch is safe to merge** (no path writes a
+lossy diagram or reports false success). Before calling it *breadth-complete* /
+matrix-truthful, clear:
+
+1. **Working-tree hygiene (blocker for a clean merge)**: two untracked stray
+   fixtures — `diagrams/1.input/baseline.yaml` and
+   `diagrams/1.input/dmb-manage-packagesets.yaml` — are uncommitted and unrelated
+   to the committed work. Per `AGENTS.md` ("keep the tree focused"), commit them
+   deliberately as corpus fixtures or delete them; do not let a merge sweep them
+   in accidentally.
+2. **N-H2 (`A-->B` no-space)**: recommend fixing before merge (common form) or
+   explicitly cataloguing it as a known gap on MF-08 so the matrix stops
+   implying it works.
+3. **N-L4 (dotted labelled)**: low; may follow up.
+
+If the maintainer accepts N-H2/N-L4 as tracked follow-ups and resolves the
+untracked-file hygiene, the branch is mergeable. Tasks T076/T077 added to
+`tasks.md`.

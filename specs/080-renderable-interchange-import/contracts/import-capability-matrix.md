@@ -32,12 +32,14 @@ The renderable chain each **S**/**P** row must satisfy:
 | MF-05 | Multiline label `<br/>` | `api["A<br/>B"]` | S | `label[]` array | — |
 | MF-06 | Non-rectangular shapes | `a(...)`, `b{...}`, `c((...))`, etc. | V | frame + label; geometry dropped | `IMPORT_MERMAID_UNSUPPORTED_SHAPE` |
 | MF-07 | Implicit node from edge | `A --> B` (undeclared) | S | on-demand frames (already works) | — |
-| MF-08 | Simple edge | `a --> b` | S | directed arrow | — |
+| MF-08 | Simple edge | `a --> b`, `a-->b` | S | connector-aware identifier scanning preserves spaced and no-space directed arrows | — |
+| MF-08a | Hyphenated/dotted ids adjacent to an edge | `my-node-->other-node`, `a.b-->c.d` | S | internal `-`/`.` remain part of ids; scanning stops only at a recognized connector boundary | — |
 | MF-09 | Labelled edge (**quoted / pipe**) | `a -->|x| b`, `a -- "x" --> b` | S | directed arrow + label | — |
 | MF-09a | Labelled edge (**unquoted**) | `a -- Yes --> b`, `a -- click me --> b` | S | tokenizer preserves labelled connector openers; parser lowers the intervening text to the arrow label | — |
 | MF-10 | Chained edge | `a --> b --> c` | S | one arrow per segment (already works) | — |
 | MF-11 | Bidirectional edge | `a <--> b` | V | one directed arrow `a→b`; arrow model is directed-only | `IMPORT_MERMAID_UNSUPPORTED_EDGE_DIRECTION` |
 | MF-12 | Link styles (thick/dotted/open) | `a ==> b`, `a -.-> b`, `a --- b` | V | standard directed arrow | `IMPORT_MERMAID_UNSUPPORTED_EDGE_STYLE` |
+| MF-12a | Labelled dotted edge | `a -. maybe .-> b` | V | arrow and label are preserved; dotted stroke is a named visual downgrade | `IMPORT_MERMAID_UNSUPPORTED_EDGE_STYLE` |
 | MF-13 | Subgraph (id only) | `subgraph core ... end` | S | container frame | — |
 | MF-14 | Subgraph with label | `subgraph core["Core"] ... end` | S | container + `heading` | — |
 | MF-15 | Nested subgraphs | subgraph in subgraph | S | nested containers; verify ELK compounds | — |
@@ -99,7 +101,7 @@ as a non-blocking warning.
 | MF-01–15, MF-21–25, MF-28–30, MF-35 | `diagram-author-import.test.ts` |
 | MF-16–20, MF-26–27 | `mermaid-parse.test.ts`, `mermaid-lower.test.ts` |
 | MF-03, MF-20 reverse + engine persistence | `select-import-engine.test.ts` |
-| MF-01a, MF-09a | `mermaid-parse.test.ts`, `diagram-author-import.test.ts` |
+| MF-01a, MF-08/08a, MF-09a, MF-12a | `mermaid-tokenize.test.ts`, `mermaid-parse.test.ts`, `diagram-author-import.test.ts` |
 | MF-22, MF-29 | `diagram-author-import.test.ts` style/attribute-shape regression |
 | MF-31–34, MF-36 | `mermaid-topology.test.ts` |
 | Bounded/malformed/HTML contract | `mermaid-tokenize.test.ts`, `mermaid-robustness.test.ts` |

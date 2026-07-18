@@ -66,7 +66,7 @@ const KEYWORDS = new Set([
 ]);
 
 const CONNECTORS = [
-  '<-->', 'o--o', 'x--x', '-.->', '-->', '==>', '---', '--', '==', '-.',
+  '<-->', 'o--o', 'x--x', '-.->', '.->', '-->', '==>', '---', '--', '==', '-.',
 ] as const;
 const DELIMITERS = [
   '((', '))', '([', '])', '[[', ']]', '[(', ')]', '{{', '}}',
@@ -269,7 +269,10 @@ export function tokenizeMermaidFlowchart(
     }
     if (/[A-Za-z_]/.test(character)) {
       let end = cursor + 1;
-      while (end < source.length && /[\w.-]/.test(source[end]!)) end += 1;
+      while (end < source.length && /[\w.-]/.test(source[end]!)) {
+        if (CONNECTORS.some(candidate => source.startsWith(candidate, end))) break;
+        end += 1;
+      }
       const value = source.slice(cursor, end);
       push(KEYWORDS.has(value.toLowerCase()) ? 'keyword' : 'identifier', start, end, value);
       cursor = end;

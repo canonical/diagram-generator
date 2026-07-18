@@ -2,7 +2,7 @@
 
 **Spec**: 080-renderable-interchange-import
 
-> **Implementation complete; first adversarial review remediated and follow-up pending.**
+> **Implementation complete; both adversarial review passes remediated and final approval pending.**
 > Work was executed test-first on `feat/080-renderable-interchange-import`.
 > Every task names an owner file/seam, expected behaviour, and proof. Do not mark
 > a task `[ ]` → `[x]` until its named test passes and no existing test regresses.
@@ -100,6 +100,11 @@
 - [x] T074 **N-L2: catalogue `o--o` / `x--x` edge decorations.** Owner: `src/diagram-author/mermaid/tokenize.ts` + matrix. Either import as a plain directed arrow with a `visual` decoration downgrade (class `V`) or keep the block but add a matrix row with a reason. Proof: matrix row + `tests/mermaid-topology.test.ts` (or a new row test) asserting the chosen behaviour.
 - [x] T075 **N-L3 (optional): verifiable corpus provenance.** Owner: `tests/imported-corpus-fixtures.test.ts`. Either check in a copy of each source `.mmd` and add a regenerate-and-diff test proving the fixture is importer-generated, or drop the "verifiable SHA-256 provenance" wording from `validation.md`. Proof: a passing provenance test, or the softened wording.
 
+## Phase 8 — second re-review remediation (2026-07-18, findings addendum in `opus-adversarial-review-findings-2026-07-18-spec-080-implementation.md`)
+
+- [x] T076 **N-H2: no-space edges (`A-->B`).** Owner: `src/diagram-author/mermaid/tokenize.ts`. The identifier scanner consumes `[\w.-]`, so `A-->B` (no spaces) lexes `A--` and the arrow never forms → the edge blocks. Recognise connector sequences at an identifier boundary (do not absorb a trailing `-`/`.` that begins a connector), so `A-->B`, `a-->b-->c`, `a---b` import identically to their spaced forms while `my-node`/`a.b` ids still parse. Note the spaces-required caveat on matrix row MF-08 until fixed. Proof: `tests/mermaid-tokenize.test.ts` + `tests/diagram-author-import.test.ts` — `A-->B` imports one arrow, two frames, zero structural diagnostics; `my-node --> other-node` and `a.b --> c.d` unchanged.
+- [x] T077 **N-L4: dotted labelled edges (`a -. text .-> b`).** Owner: `src/diagram-author/mermaid/parse-flowchart.ts` `parseLabelledConnector`. Recognise the dotted labelled closer `.->` (and `-.->`) so dotted labelled edges lower like the solid/thick forms already fixed in T070. Proof: `tests/mermaid-parse.test.ts` — `a -. maybe .-> b` imports one arrow labelled `maybe` with a `visual` edge-style downgrade.
+
 ## Dependency order
 
 ```
@@ -111,4 +116,5 @@ T000→T001→T002→T003→T004→{T005,T006,T007}
    → {T050,T051,T052,T053}
    → {T060,T061,T062,T063}
    → {T070,T071,T072,T073,T074,T075}   # Phase 7 re-review remediation (green)
+   → {T076,T077}   # Phase 8 second re-review remediation (green)
 ```

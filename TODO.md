@@ -56,8 +56,8 @@ gated stages**. Do them in this order; do not skip the gate.
    primary worktree, archive the package and delete the feature branch/worktree.
    Any broader Mermaid grammar work is a follow-up; no Dagre.
 3. **Spec 080 — renderable interchange import (follow-up to 028).** Implemented
-   on `feat/080-renderable-interchange-import`; the first adversarial review's
-   T070–T075 breadth/truthfulness findings are remediated and follow-up review is
+   on `feat/080-renderable-interchange-import`; both adversarial review passes'
+   T070–T077 breadth/truthfulness findings are remediated and final approval is
    pending.
    Mermaid and D2 use one blocking structural-loss gate, typed tokenizer/parser/IR
    lowering, capability-driven v3/ELK selection, persisted engine metadata, and

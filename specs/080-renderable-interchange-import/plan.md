@@ -1,7 +1,7 @@
 # Plan: renderable interchange import
 
 **Spec**: 080-renderable-interchange-import
-**Status**: Implemented — first adversarial review remediated; follow-up review requested
+**Status**: Implemented — both adversarial review passes remediated; final approval pending
 
 ## Architecture
 
