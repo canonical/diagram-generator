@@ -28,7 +28,7 @@ export interface IrEdge {
   readonly source: string;
   readonly target: string;
   readonly label?: string;
-  readonly connector: '-->' | '<-->' | '---' | '==>' | '-.->';
+  readonly connector: '-->' | '<-->' | 'o--o' | 'x--x' | '---' | '==>' | '-.->';
   readonly line: number;
 }
 

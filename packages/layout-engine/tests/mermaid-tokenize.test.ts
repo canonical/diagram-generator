@@ -60,6 +60,8 @@ describe('Mermaid flowchart tokenizer', () => {
       'e([E]) ==> f[[F]]',
       'g[(G)] -.-> h{{H}}',
       'i>I] <--> j[J]',
+      'k[K] o--o l[L]',
+      'm[M] x--x n[N]',
       '',
     ].join('\n');
 
@@ -71,6 +73,8 @@ describe('Mermaid flowchart tokenizer', () => {
       '==>',
       '-.->',
       '<-->',
+      'o--o',
+      'x--x',
     ]);
     expect(tokens.filter(token => token.kind === 'delimiter').map(token => token.value)).toEqual([
       '[', ']',
@@ -83,6 +87,28 @@ describe('Mermaid flowchart tokenizer', () => {
       '{{', '}}',
       '>', ']',
       '[', ']',
+      '[', ']',
+      '[', ']',
+      '[', ']',
+      '[', ']',
+    ]);
+  });
+
+  it('keeps unquoted-label connector openers separate from their closing arrows', () => {
+    const tokens = tokenizeMermaidFlowchart([
+      'flowchart TB',
+      'a -- Yes --> b',
+      'b == heavy flow ==> c',
+      'c -. retry later -.-> d',
+    ].join('\n')).tokens;
+
+    expect(tokens.filter(token => token.kind === 'connector').map(token => token.value)).toEqual([
+      '--',
+      '-->',
+      '==',
+      '==>',
+      '-.',
+      '-.->',
     ]);
   });
 

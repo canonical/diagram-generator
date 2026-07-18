@@ -11,6 +11,7 @@ interface RawArrow {
   target: string;
   label?: string;
   line: number;
+  scopeNodes: AuthorFrameNode[];
 }
 
 interface ParseState {
@@ -276,6 +277,7 @@ function parseBlock(
             ? { label: splitD2Label(edge[2]) }
             : {}),
           line: index + 1,
+          scopeNodes: nodes,
         });
       }
       if (edge[3] === '{') {
@@ -346,6 +348,24 @@ function pathMap(root: AuthorFrameNode): Map<string, AuthorFrameNode> {
   return result;
 }
 
+function materializeImplicitConnectionEndpoints(rawArrows: readonly RawArrow[]): void {
+  const knownIdsByScope = new WeakMap<AuthorFrameNode[], Set<string>>();
+  for (const arrow of rawArrows) {
+    let knownIds = knownIdsByScope.get(arrow.scopeNodes);
+    if (!knownIds) {
+      knownIds = new Set(arrow.scopeNodes.map(node => node.id));
+      knownIdsByScope.set(arrow.scopeNodes, knownIds);
+    }
+    for (const endpoint of [arrow.source, arrow.target]) {
+      // A dotted endpoint carries containment semantics that cannot be inferred
+      // safely. Keep those unresolved so the structural-loss gate names them.
+      if (!/^[A-Za-z_][\w-]*$/.test(endpoint) || knownIds.has(endpoint)) continue;
+      arrow.scopeNodes.push({ id: endpoint, children: [] });
+      knownIds.add(endpoint);
+    }
+  }
+}
+
 function applyD2StyleProperty(
   target: AuthorFrameNode,
   property: string,
@@ -381,6 +401,7 @@ export function importD2(source: string, options: D2ImportOptions = {}): Diagram
     line: 0,
   };
   const parsed = parseBlock(lines, 0, state);
+  materializeImplicitConnectionEndpoints(state.rawArrows);
   const imported = makeImportedDocument(parsed.nodes, [], {});
   const ast = imported.ast;
   state.diagnostics.push(...imported.diagnostics);

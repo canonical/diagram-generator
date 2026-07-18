@@ -26,12 +26,12 @@ function locations(
 }
 
 describe('D2 import parity and structural-loss handling', () => {
-  it('treats a missing connection endpoint as fatal structural loss, never partial success', () => {
+  it('keeps an undeclared dotted endpoint fatal because its containment cannot be inferred', () => {
     const result = importD2([
       'source: "Source"',
       'target: "Target"',
       'source -> target',
-      'source -> missing',
+      'source -> missing.child',
       '',
     ].join('\n'));
 
@@ -45,6 +45,48 @@ describe('D2 import parity and structural-loss handling', () => {
     expect(result.summary.blocked).toEqual(result.errors);
     expect(result.ast.arrows).toEqual([
       { source: 'source', target: 'target', kind: 'directed' },
+    ]);
+  });
+
+  it.each([
+    {
+      source: 'a -> b',
+      ids: ['a', 'b'],
+      edges: [['a', 'b']],
+    },
+    {
+      source: 'a -> b -> c',
+      ids: ['a', 'b', 'c'],
+      edges: [['a', 'b'], ['b', 'c']],
+    },
+  ])('creates safe implicit leaf endpoints for `$source`', ({ source, ids, edges }) => {
+    const result = importD2(`${source}\n`);
+
+    expect(result.errors).toEqual([]);
+    expect(result.diagnostics.filter(issue => issue.category === 'structural')).toEqual([]);
+    expect(locations(result.ast.root?.children ?? [])).toEqual(
+      ids.map(id => ({ id, parent: null })),
+    );
+    expect(result.ast.arrows.map(arrow => [arrow.source, arrow.target])).toEqual(edges);
+    expect(Object.keys(result.ast.frameIndex).sort()).toEqual(['page', ...ids].sort());
+  });
+
+  it('materializes implicit endpoints in the connection block instead of flattening containment', () => {
+    const result = importD2([
+      'group: "Group" {',
+      '  a -> b',
+      '}',
+      '',
+    ].join('\n'));
+
+    expect(result.errors).toEqual([]);
+    expect(locations(result.ast.root?.children ?? [])).toEqual([
+      { id: 'group', parent: null, heading: 'Group' },
+      { id: 'a', parent: 'group' },
+      { id: 'b', parent: 'group' },
+    ]);
+    expect(result.ast.arrows).toEqual([
+      { source: 'a', target: 'b', kind: 'directed' },
     ]);
   });
 

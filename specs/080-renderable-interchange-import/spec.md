@@ -6,7 +6,7 @@
 
 **Created**: 2026-07-18
 
-**Status**: Implemented — adversarial re-review requested
+**Status**: Implemented — first adversarial review remediated; follow-up review requested
 
 **Depends on**: spec **028** (Mermaid & D2 interchange, merged), spec **022** (diagram authoring AST), the ELK layered engine in `packages/graph-layout-elk/`, and the preview folder-workspace import route from spec **075**.
 
@@ -316,6 +316,9 @@ phased D2 tasks are listed and not marked complete.
 ## Success criteria
 
 1. The screenshot's two failures are fixed: inline-declared edges import with both nodes and the arrow (FR-004); subgraph-local `direction` is preserved or honestly blocked (FR-005), never a silent warning-only success.
+   - **Re-review remediation (2026-07-18)**: unquoted decision edges such as
+     `a -- Yes --> b` now import faithfully too. Findings N-H1/N-M1/N-M2/N-L1/N-L2/N-L3
+     and tasks T070–T075 are closed by the Phase 7 regressions.
 2. No import path can write a structurally lossy diagram; the shared gate blocks edges/nodes/containment/direction/multiplicity loss through preview server, local folder, and both CLIs (FR-002).
 3. The import UI distinguishes preserved / downgraded / blocked and never reports success for a structurally lossy import (FR-003).
 4. Engine selection is deterministic and persisted; reload renders with the persisted engine (FR-010).

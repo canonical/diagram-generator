@@ -1,7 +1,7 @@
 # Plan: renderable interchange import
 
 **Spec**: 080-renderable-interchange-import
-**Status**: Implemented — adversarial re-review requested
+**Status**: Implemented — first adversarial review remediated; follow-up review requested
 
 ## Architecture
 

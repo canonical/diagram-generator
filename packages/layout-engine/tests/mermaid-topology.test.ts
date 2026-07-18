@@ -107,4 +107,32 @@ describe('Mermaid flowchart exact topology', () => {
       ],
     });
   });
+
+  it.each(['o--o', 'x--x'])(
+    'preserves %s topology while downgrading endpoint decorations',
+    connector => {
+      const source = [
+        'flowchart TB',
+        `a ${connector} b`,
+        '',
+      ].join('\n');
+      const parsed = parseMermaidFlowchart(source);
+      expect(parsed.issues).toEqual([]);
+      expect(parsed.flowchart).not.toBeNull();
+      const lowered = lowerMermaidFlowchart(parsed.flowchart!);
+
+      expect(locations(lowered.nodes)).toEqual([
+        { id: 'a', parent: null },
+        { id: 'b', parent: null },
+      ]);
+      expect(lowered.arrows).toEqual([
+        { source: 'a', target: 'b', kind: 'directed' },
+      ]);
+      expect(lowered.diagnostics).toContainEqual(expect.objectContaining({
+        code: 'IMPORT_MERMAID_UNSUPPORTED_EDGE_DECORATION',
+        category: 'visual',
+      }));
+      expect(lowered.diagnostics.filter(issue => issue.category !== 'visual')).toEqual([]);
+    },
+  );
 });

@@ -292,7 +292,7 @@ function parseEndpointGroup(
 
 function connectorValue(token: MermaidToken | undefined): IrEdge['connector'] | null {
   if (!token || token.kind !== 'connector') return null;
-  return ['-->', '<-->', '---', '==>', '-.->'].includes(token.value)
+  return ['-->', '<-->', 'o--o', 'x--x', '---', '==>', '-.->'].includes(token.value)
     ? token.value as IrEdge['connector']
     : null;
 }
@@ -309,6 +309,37 @@ function parsePipeLabel(
   return { label: decodeLabel(label), next: closing + 1 };
 }
 
+const LABELLED_CONNECTOR_CLOSERS = {
+  '--': '-->',
+  '==': '==>',
+  '-.': '-.->',
+} as const satisfies Readonly<Record<string, IrEdge['connector']>>;
+
+function parseLabelledConnector(
+  source: string,
+  tokens: readonly MermaidToken[],
+  start: number,
+): { connector: IrEdge['connector']; label: string; next: number } | null {
+  const opener = tokens[start];
+  if (!opener || opener.kind !== 'connector') return null;
+  const connector = LABELLED_CONNECTOR_CLOSERS[
+    opener.value as keyof typeof LABELLED_CONNECTOR_CLOSERS
+  ];
+  if (!connector) return null;
+
+  let closing = start + 1;
+  while (closing < tokens.length) {
+    const token = tokens[closing]!;
+    if (token.kind === 'connector' && token.value === connector) break;
+    if (!['identifier', 'keyword', 'string', 'text'].includes(token.kind)) return null;
+    closing += 1;
+  }
+  const closingToken = tokens[closing];
+  if (!closingToken || closing === start + 1) return null;
+  const label = decodeLabel(source.slice(opener.end, closingToken.start));
+  return label ? { connector, label, next: closing + 1 } : null;
+}
+
 function parseEdgeStatement(
   source: string,
   statement: Statement,
@@ -322,18 +353,15 @@ function parseEdgeStatement(
   let cursor = group.next;
 
   while (cursor < statement.tokens.length) {
-    let connector = connectorValue(statement.tokens[cursor]);
+    const labelledConnector = parseLabelledConnector(source, statement.tokens, cursor);
+    let connector: IrEdge['connector'] | null;
     let label: string | undefined;
-    if (
-      statement.tokens[cursor]?.kind === 'connector'
-      && statement.tokens[cursor]?.value === '--'
-      && statement.tokens[cursor + 1]?.kind === 'string'
-      && connectorValue(statement.tokens[cursor + 2]) === '-->'
-    ) {
-      connector = '-->';
-      label = decodeLabel(statement.tokens[cursor + 1]!.value);
-      cursor += 3;
+    if (labelledConnector) {
+      connector = labelledConnector.connector;
+      label = labelledConnector.label;
+      cursor = labelledConnector.next;
     } else {
+      connector = connectorValue(statement.tokens[cursor]);
       if (!connector) return null;
       cursor += 1;
       const labelled = parsePipeLabel(source, statement.tokens, cursor);
@@ -439,8 +467,10 @@ export function parseMermaidFlowchart(
         });
         return { flowchart: null, issues };
       }
-      const directionToken = statement.tokens[1]?.value.toUpperCase();
-      if (!isDirection(directionToken) || statement.tokens.length !== 2) {
+      const directionToken = statement.tokens.length === 1
+        ? 'TB'
+        : statement.tokens[1]?.value.toUpperCase();
+      if (!isDirection(directionToken) || statement.tokens.length > 2) {
         issues.push({
           code: 'IMPORT_MERMAID_UNSUPPORTED_DIRECTION',
           message: `Mermaid direction is outside the supported flowchart subset: ${statement.raw}`,

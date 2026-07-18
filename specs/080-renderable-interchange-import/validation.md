@@ -1,7 +1,7 @@
 # Validation: renderable interchange import
 
 **Spec**: 080-renderable-interchange-import
-**Status**: Implementation complete — adversarial re-review pending.
+**Status**: Implementation complete — first adversarial review remediated; follow-up review pending.
 
 Evidence below was recorded on Windows in
 `feat/080-renderable-interchange-import` on 2026-07-18.
@@ -85,11 +85,29 @@ git diff --check
   provenance, compile cleanly, and select ELK layered.
 - [x] Every capability-matrix `S`/`P`/`V`/`B`/`M` row cites passing-test evidence.
 
+### Phase 7 — adversarial re-review remediation
+
+- [x] N-H1: unquoted and multi-word Mermaid decision-edge labels import without
+  structural diagnostics; quoted and pipe forms remain green.
+- [x] N-M1: bare `flowchart` / `graph` headers default to canonical `TB`, while
+  malformed multi-token headers still block.
+- [x] N-M2: simple implicit D2 endpoints and chains materialize as leaf frames in
+  their containing block; dotted endpoints still block when containment cannot
+  be inferred.
+- [x] N-L1: conflicting explicit inline labels emit a named visual diagnostic
+  that states which label was retained and which was dropped.
+- [x] N-L2: `o--o` / `x--x` preserve arrow topology and emit a named endpoint
+  decoration downgrade.
+- [x] N-L3: corpus tests require provenance headers and re-compute all three
+  SHA-256 values when the read-only sibling Mermaid corpus is available; only
+  external-source absence is an allowed skip.
+- [x] Phase 7 focused evidence: `8 files / 74 tests passed`.
+
 ## Recorded suite evidence
 
 - Focused interchange, parser, lowering, engine, CLI, preview-client, and
   local-folder coverage: `12 files / 94 tests passed`.
-- Full layout engine: `179 files / 1118 tests passed` in 5.11 seconds.
+- Full layout engine after Phase 7: `179 files / 1133 tests passed` in 6.23 seconds.
 - Full preview: `190 passed / 1 expected Windows symlink skip / 0 failed`.
 - Browser rebuild/freshness, no-new-Python ratchet, source-artifact cleanup, and
   `git diff --check`: green.
@@ -98,5 +116,6 @@ git diff --check
 
 Per `AGENTS.md`, the preview import/write closeout requires repo-owned
 `import → persist → reload` regressions for both server-root and local-folder
-sources. T041/T042 and the full suites are green. Final status remains Review
-until the requested Opus adversarial pass is written to disk.
+sources. T041/T042 and the full suites are green. The first Opus implementation
+review is on disk and its six findings are remediated; final status remains
+Review until the follow-up adversarial pass confirms the Phase 7 changes.

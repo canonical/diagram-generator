@@ -2,7 +2,7 @@
 
 **Spec**: 080-renderable-interchange-import
 
-> **Implementation complete; adversarial re-review pending.**
+> **Implementation complete; first adversarial review remediated and follow-up pending.**
 > Work was executed test-first on `feat/080-renderable-interchange-import`.
 > Every task names an owner file/seam, expected behaviour, and proof. Do not mark
 > a task `[ ]` → `[x]` until its named test passes and no existing test regresses.
@@ -85,6 +85,21 @@
 - [x] T062 **Capability-matrix test index.** Ensure every `S`/`P`/`V`/`B`/`M` matrix row cites a passing test by id; add a checklist test or doc cross-reference. Proof: matrix rows annotated with test names.
 - [x] T063 **Docs.** Update `docs/diagram-authoring.md` and `contracts/interchange-fidelity.md` (spec 028) to point at the spec-080 capability matrix as the import authority. Proof: docs updated; no contradictory "known limitations" claims remain for now-supported rows.
 
+## Phase 7 — adversarial re-review remediation (2026-07-18, findings `opus-adversarial-review-findings-2026-07-18-spec-080-implementation.md`)
+
+> These tasks close the matrix-truthfulness and false-block gaps found in the
+> re-review. All are safe-blocking today (no data corruption), but they defeat the
+> "faithful breadth" mission and make the normative matrix overclaim. Owner seams
+> and named proofs below. Do not mark `[x]` until the named test passes red→green
+> and no existing test regresses.
+
+- [x] T070 **N-H1: unquoted labelled edges (`a -- Yes --> b`).** Owner: `src/diagram-author/mermaid/parse-flowchart.ts` `parseEdgeStatement`. Treat identifier/text tokens between a `--`/`==`/`-.` opener and the following arrow (`-->`/`==>`/`-.->`) as the edge label, matching the quoted and pipe forms. Split matrix row **MF-09** into a proven `S` sub-row (quoted/pipe) and this now-`S` sub-row. Proof: `tests/mermaid-parse.test.ts` + `tests/diagram-author-import.test.ts` — `a -- Yes --> b` imports one arrow labelled `Yes`, both endpoints, zero structural diagnostics; `a -- click me --> b` (multi-word) likewise.
+- [x] T071 **N-M1: direction-less headers default to `TB`.** Owner: `parse-flowchart.ts` header branch. A bare `flowchart` / `graph` header (one token) MUST default `direction = 'TB'` instead of emitting `IMPORT_MERMAID_UNSUPPORTED_DIRECTION`. Keep the block for a malformed multi-token header (`flowchart LR extra`). Add an MF-01 sub-row. Proof: `tests/mermaid-parse.test.ts` — bare `flowchart`/`graph` parses with `direction: TB`; `graph LR extra` still blocks.
+- [x] T072 **N-M2: D2 implicit connection endpoints.** Owner: `src/diagram-author/import-d2.ts`. Create implicit leaf frames for connection endpoints that were never declared (matching Mermaid MF-07), or — if kept phased — reclassify matrix rows **D2-03/D2-06** to `P` and annotate the pre-declaration requirement so the matrix stops overclaiming. Proof: `tests/d2-parity.test.ts` — bare `a -> b -> c` (no declarations) imports three frames + two arrows, zero structural diagnostics; OR a matrix/test note proving the `P` reclassification.
+- [x] T073 **N-L1: conflicting inline labels for one id.** Owner: `src/diagram-author/mermaid/lower-flowchart.ts` `collectNodes`. When two explicit occurrences of the same id carry different non-empty labels, emit a diagnostic (`visual` naming the dropped label, or `invalid` blocking) instead of silently keeping the last. Proof: `tests/mermaid-lower.test.ts` — `a["First"] --> b` / `a["Second"] --> c` yields a named diagnostic, not a silent drop.
+- [x] T074 **N-L2: catalogue `o--o` / `x--x` edge decorations.** Owner: `src/diagram-author/mermaid/tokenize.ts` + matrix. Either import as a plain directed arrow with a `visual` decoration downgrade (class `V`) or keep the block but add a matrix row with a reason. Proof: matrix row + `tests/mermaid-topology.test.ts` (or a new row test) asserting the chosen behaviour.
+- [x] T075 **N-L3 (optional): verifiable corpus provenance.** Owner: `tests/imported-corpus-fixtures.test.ts`. Either check in a copy of each source `.mmd` and add a regenerate-and-diff test proving the fixture is importer-generated, or drop the "verifiable SHA-256 provenance" wording from `validation.md`. Proof: a passing provenance test, or the softened wording.
+
 ## Dependency order
 
 ```
@@ -95,4 +110,5 @@ T000→T001→T002→T003→T004→{T005,T006,T007}
    → {T040,T041,T042}→[Gate B T043]
    → {T050,T051,T052,T053}
    → {T060,T061,T062,T063}
+   → {T070,T071,T072,T073,T074,T075}   # Phase 7 re-review remediation (green)
 ```

@@ -28,6 +28,37 @@ describe('Mermaid flowchart statement parser', () => {
     ]);
   });
 
+  it('parses single- and multi-word unquoted labels for supported edge families', () => {
+    const flowchart = parse([
+      'flowchart TB',
+      'a -- Yes --> b',
+      'b -- click me --> c',
+      'c == heavy flow ==> d',
+      'd -. retry later -.-> e',
+    ].join('\n'));
+
+    expect(flowchart.edges).toEqual([
+      { source: 'a', target: 'b', label: 'Yes', connector: '-->', line: 2 },
+      { source: 'b', target: 'c', label: 'click me', connector: '-->', line: 3 },
+      { source: 'c', target: 'd', label: 'heavy flow', connector: '==>', line: 4 },
+      { source: 'd', target: 'e', label: 'retry later', connector: '-.->', line: 5 },
+    ]);
+  });
+
+  it.each(['flowchart', 'graph'])('defaults a direction-less %s header to TB', (header) => {
+    expect(parse(`${header}\na --> b`).direction).toBe('TB');
+  });
+
+  it('keeps malformed multi-token headers blocking', () => {
+    const result = parseMermaidFlowchart('graph LR extra\na --> b');
+
+    expect(result.flowchart).toBeNull();
+    expect(result.issues).toMatchObject([{
+      code: 'IMPORT_MERMAID_UNSUPPORTED_DIRECTION',
+      category: 'structural',
+    }]);
+  });
+
   it('treats top-level semicolons as statement separators', () => {
     const flowchart = parse('flowchart LR; a["A"]; b["B"]; a --> b; c --> d');
     const explicit = flowchart.nodes.filter(node => node.explicit);

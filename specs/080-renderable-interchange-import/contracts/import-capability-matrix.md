@@ -25,6 +25,7 @@ The renderable chain each **S**/**P** row must satisfy:
 | # | Construct | Example | Class | Chain / prerequisite | Diagnostic |
 |---|-----------|---------|-------|----------------------|------------|
 | MF-01 | Header + vertical direction | `flowchart TB`, `graph TD` | S | root `direction: vertical` | — |
+| MF-01a | Header, **direction omitted** | `flowchart`, `graph` | S | valid Mermaid; parser defaults the canonical direction to `TB` | — |
 | MF-02 | Header + horizontal direction | `graph LR` | S | root `direction: horizontal` | — |
 | MF-03 | Header + reverse direction | `graph RL`, `graph BT` | S | canonical `flow_direction`; ELK layered `LEFT`/`UP` | — |
 | MF-04 | Explicit node + label | `api["API service"]` | S | frame + label | — |
@@ -32,7 +33,8 @@ The renderable chain each **S**/**P** row must satisfy:
 | MF-06 | Non-rectangular shapes | `a(...)`, `b{...}`, `c((...))`, etc. | V | frame + label; geometry dropped | `IMPORT_MERMAID_UNSUPPORTED_SHAPE` |
 | MF-07 | Implicit node from edge | `A --> B` (undeclared) | S | on-demand frames (already works) | — |
 | MF-08 | Simple edge | `a --> b` | S | directed arrow | — |
-| MF-09 | Labelled edge | `a -->|x| b`, `a -- "x" --> b` | S | directed arrow + label | — |
+| MF-09 | Labelled edge (**quoted / pipe**) | `a -->|x| b`, `a -- "x" --> b` | S | directed arrow + label | — |
+| MF-09a | Labelled edge (**unquoted**) | `a -- Yes --> b`, `a -- click me --> b` | S | tokenizer preserves labelled connector openers; parser lowers the intervening text to the arrow label | — |
 | MF-10 | Chained edge | `a --> b --> c` | S | one arrow per segment (already works) | — |
 | MF-11 | Bidirectional edge | `a <--> b` | V | one directed arrow `a→b`; arrow model is directed-only | `IMPORT_MERMAID_UNSUPPORTED_EDGE_DIRECTION` |
 | MF-12 | Link styles (thick/dotted/open) | `a ==> b`, `a -.-> b`, `a --- b` | V | standard directed arrow | `IMPORT_MERMAID_UNSUPPORTED_EDGE_STYLE` |
@@ -59,6 +61,7 @@ The renderable chain each **S**/**P** row must satisfy:
 | MF-33 | Cycle | `a-->b-->c-->a` | S | all arrows preserved | — |
 | MF-34 | Disconnected components | two unlinked subtrees | S | all frames preserved | — |
 | MF-35 | Non-flowchart diagram type | `sequenceDiagram`, `pie`, ... | X | rejected by spec 028 FR-008 guard | `IMPORT_MERMAID_UNSUPPORTED_DIAGRAM_TYPE` |
+| MF-36 | Circle/cross edge decorations | `a o--o b`, `a x--x b` | V | topology imports as a plain directed arrow; endpoint glyphs are named visual downgrades | `IMPORT_MERMAID_UNSUPPORTED_EDGE_DECORATION` |
 
 ### Behavioural change from spec 028
 
@@ -72,10 +75,11 @@ ELK layered; they are no longer collapsed.
 |---|-----------|---------|-------|-------|
 | D2-01 | Nested blocks | `a: { b: {} }` | S | container frames (already works) |
 | D2-02 | Shape + label | `a: "Label"` | S | leaf frame |
-| D2-03 | Connection | `a -> b` | S | directed arrow |
+| D2-03 | Connection | `a -> b` | S | directed arrow; simple undeclared endpoints become implicit leaf frames in their containing block |
+| D2-03a | Connection with unresolved dotted endpoint | `a -> missing.child` | B | containment cannot be inferred safely; the shared structural gate blocks instead of inventing a parent | `IMPORT_D2_MISSING_FRAME_REF` |
 | D2-04 | Labelled connection | `a -> b: "x"` | S | arrow + label |
 | D2-05 | Dot-path endpoints | `a.b -> c.d` | S | resolve to nested frames |
-| D2-06 | Chained connections | `a -> b -> c` | S | expands to one arrow per segment |
+| D2-06 | Chained connections | `a -> b -> c` | S | expands to one arrow per segment and materializes simple implicit endpoints in first-seen order |
 | D2-07 | `direction` | `direction: right` | S | right/down/left/up map to axis + `flow_direction` |
 | D2-08 | class/style with colour | `a.style.fill: red` | V | map fill/border if faithful (FR-006); else downgrade |
 | D2-09 | `classes` block | `classes: { ... }` | V | resolve then apply/downgrade |
@@ -95,12 +99,13 @@ as a non-blocking warning.
 | MF-01–15, MF-21–25, MF-28–30, MF-35 | `diagram-author-import.test.ts` |
 | MF-16–20, MF-26–27 | `mermaid-parse.test.ts`, `mermaid-lower.test.ts` |
 | MF-03, MF-20 reverse + engine persistence | `select-import-engine.test.ts` |
+| MF-01a, MF-09a | `mermaid-parse.test.ts`, `diagram-author-import.test.ts` |
 | MF-22, MF-29 | `diagram-author-import.test.ts` style/attribute-shape regression |
-| MF-31–34 | `mermaid-topology.test.ts` |
+| MF-31–34, MF-36 | `mermaid-topology.test.ts` |
 | Bounded/malformed/HTML contract | `mermaid-tokenize.test.ts`, `mermaid-robustness.test.ts` |
-| D2-01–12 and structural gate | `diagram-author-import.test.ts`, `d2-parity.test.ts` |
+| D2-01–12, implicit endpoints, and structural gate | `diagram-author-import.test.ts`, `d2-parity.test.ts` |
 | Server-root and local-folder persisted reload | `interchange-export.test.ts`, `local-folder-workspace.test.ts` |
-| Representative corpus imports | `imported-corpus-fixtures.test.ts` |
+| Representative corpus imports + source SHA-256 provenance | `imported-corpus-fixtures.test.ts` |
 
 ## Engine-selection decision table (FR-010)
 

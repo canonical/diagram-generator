@@ -95,7 +95,7 @@ describe('diagram interchange import CLIs', () => {
   it('surfaces D2 structural-loss categories, exits nonzero, and writes nothing', () => {
     const result = runImport(
       'import-d2.mjs',
-      'source: "Source"\nsource -> missing\n',
+      'source: "Source"\nsource -> missing.child\n',
       'd2',
     );
 

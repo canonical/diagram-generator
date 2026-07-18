@@ -37,6 +37,8 @@ describe('diagram interchange imports', () => {
       IMPORT_MERMAID_UNSUPPORTED_STYLE: 'visual',
       IMPORT_MERMAID_UNSUPPORTED_EDGE_STYLE: 'visual',
       IMPORT_MERMAID_UNSUPPORTED_EDGE_DIRECTION: 'visual',
+      IMPORT_MERMAID_UNSUPPORTED_EDGE_DECORATION: 'visual',
+      IMPORT_MERMAID_CONFLICTING_NODE_LABEL: 'visual',
       IMPORT_MERMAID_UNSUPPORTED_DIAGRAM_TYPE: 'type',
       IMPORT_MERMAID_UNSUPPORTED_FRONTMATTER: 'invalid',
       IMPORT_MERMAID_SOURCE_TOO_LARGE: 'invalid',
@@ -225,6 +227,35 @@ describe('diagram interchange imports', () => {
 
     const compiled = compileDiagramYaml(serializeDiagramYaml(result.ast));
     expect(compiled.errors).toEqual([]);
+  });
+
+  it('imports unquoted edge labels and defaults a direction-less header to TB', () => {
+    const result = importMermaid([
+      'flowchart',
+      '  a -- Yes --> b',
+      '  b -- click me --> c',
+    ].join('\n'));
+
+    expect(result.errors).toEqual([]);
+    expect(result.diagnostics.filter(entry => entry.category === 'structural')).toEqual([]);
+    expect(result.ast.root).toMatchObject({
+      direction: 'vertical',
+      children: [{ id: 'a' }, { id: 'b' }, { id: 'c' }],
+    });
+    expect(result.ast.arrows).toEqual([
+      {
+        source: 'a',
+        target: 'b',
+        kind: 'directed',
+        label: [{ text: 'Yes' }],
+      },
+      {
+        source: 'b',
+        target: 'c',
+        kind: 'directed',
+        label: [{ text: 'click me' }],
+      },
+    ]);
   });
 
   it('imports real-world Mermaid frontmatter, class suffixes, labeled subgraphs, and alternate edges', () => {

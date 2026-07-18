@@ -97,6 +97,22 @@ function collectNodes(
         'invalid',
       ));
     }
+    const labelled = explicit.filter(node => node.label?.trim());
+    const distinctLabels = [...new Set(labelled.map(node => node.label!.trim()))];
+    if (distinctLabels.length > 1) {
+      const selectedLabel = preferredNodeOccurrence(candidates).label?.trim() ?? distinctLabels.at(-1)!;
+      const droppedLabels = distinctLabels.filter(label => label !== selectedLabel);
+      const line = labelled.find(node => node.label?.trim() === selectedLabel)?.line
+        ?? labelled.at(-1)!.line;
+      diagnostics.push(diagnostic(
+        'IMPORT_MERMAID_CONFLICTING_NODE_LABEL',
+        `Mermaid node '${id}' has conflicting labels; kept '${selectedLabel}' and dropped ${droppedLabels.map(label => `'${label}'`).join(', ')}.`,
+        `mermaid.line[${line}]`,
+        line,
+        'warning',
+        'visual',
+      ));
+    }
     selected.set(id, preferredNodeOccurrence(candidates));
   }
   return selected;
@@ -351,6 +367,15 @@ export function lowerMermaidFlowchart(flowchart: IrFlowchart): LoweredMermaidFlo
       diagnostics.push(diagnostic(
         'IMPORT_MERMAID_UNSUPPORTED_EDGE_DIRECTION',
         `Mermaid bidirectional edge ${edge.source} <--> ${edge.target} was imported as ${edge.source} -> ${edge.target}.`,
+        `mermaid.line[${edge.line}]`,
+        edge.line,
+        'warning',
+        'visual',
+      ));
+    } else if (edge.connector === 'o--o' || edge.connector === 'x--x') {
+      diagnostics.push(diagnostic(
+        'IMPORT_MERMAID_UNSUPPORTED_EDGE_DECORATION',
+        `Mermaid '${edge.connector}' endpoint decorations on ${edge.source} -> ${edge.target} were reduced to a standard directed arrow.`,
         `mermaid.line[${edge.line}]`,
         edge.line,
         'warning',

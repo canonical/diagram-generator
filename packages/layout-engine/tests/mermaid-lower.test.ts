@@ -76,6 +76,27 @@ describe('Mermaid flowchart IR lowering', () => {
     ]);
   });
 
+  it('reports conflicting inline labels instead of silently dropping the earlier label', () => {
+    const lowered = lower([
+      'flowchart TB',
+      'a["First"] --> b',
+      'a["Second"] --> c',
+      '',
+    ].join('\n'));
+    const nodes = flatten(lowered.nodes);
+
+    expect(nodes.find(node => node.id === 'a')).toMatchObject({
+      label: [{ text: 'Second' }],
+    });
+    expect(lowered.diagnostics).toContainEqual(expect.objectContaining({
+      code: 'IMPORT_MERMAID_CONFLICTING_NODE_LABEL',
+      category: 'visual',
+      message: expect.stringContaining("kept 'Second'"),
+    }));
+    expect(lowered.diagnostics.find(issue =>
+      issue.code === 'IMPORT_MERMAID_CONFLICTING_NODE_LABEL')?.message).toContain("'First'");
+  });
+
   it('lowers edge ids to a structural diagnostic instead of a partial edge', () => {
     const lowered = lower([
       'flowchart TB',
