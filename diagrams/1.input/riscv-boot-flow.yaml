@@ -1,0 +1,125 @@
+engine: v3
+title: RISC-V Boot Flow
+root:
+  id: page
+  direction: vertical
+  children:
+    - id: boot_rom
+      level: 2
+      heading: Boot ROM
+      children: []
+    - id: u_boot_spl
+      level: 2
+      heading: U-Boot SPL
+      children: []
+    - id: open_sbi
+      level: 2
+      heading: Open SBI
+      children: []
+    - id: u_boot
+      level: 2
+      heading: U-Boot
+      children:
+        - id: fixup_dtb
+          level: 1
+          label:
+            - Fixup DTB
+          children: []
+        - id: poweroff_request_uboot
+          level: 1
+          label:
+            - PowerOff Request
+          children: []
+    - id: grub
+      level: 2
+      heading: GRUB
+      children:
+        - id: start_kernel
+          level: 1
+          label:
+            - Start Kernel
+          children: []
+    - id: linux
+      level: 2
+      heading: Linux
+      children: []
+    - id: callout
+      level: 2
+      label:
+        - A devicetree command is added to grub.cfg when updating the initramfs.
+        - First boot uses the DTB from the ESP.
+      children: []
+    - id: load_spl
+      level: 2
+      label:
+        - load_spl
+      children: []
+    - id: init_ram_init_drivers_spl
+      level: 2
+      label:
+        - init_ram_init_drivers_spl
+      children: []
+    - id: load_fit_image
+      level: 2
+      label:
+        - load_fit_image
+      children: []
+    - id: init_drivers_sbi
+      level: 2
+      label:
+        - init_drivers_sbi
+      children: []
+    - id: start_u_boot
+      level: 2
+      label:
+        - start_u_boot
+      children: []
+    - id: init_drivers_uboot
+      level: 2
+      label:
+        - init_drivers_uboot
+      children: []
+    - id: load_uefi_binary
+      level: 2
+      label:
+        - load_uefi_binary
+      children: []
+    - id: load_dtb_grub
+      level: 2
+      label:
+        - load_dtb_grub
+      children: []
+    - id: init
+      level: 2
+      label:
+        - init
+      children: []
+    - id: poweroff_request_linux
+      level: 2
+      label:
+        - poweroff_request_linux
+      children: []
+    - id: poweroff_device
+      level: 2
+      label:
+        - poweroff_device
+      children: []
+arrows:
+  - source: load_spl
+    target: init_ram_init_drivers_spl
+  - source: load_fit_image
+    target: init_drivers_sbi
+  - source: start_u_boot
+    target: init_drivers_uboot
+  - source: load_uefi_binary
+    target: load_dtb_grub
+  - source: load_dtb_grub
+    target: fixup_dtb
+  - source: fixup_dtb
+    target: start_kernel
+  - source: start_kernel
+    target: init
+  - source: poweroff_request_linux
+    target: poweroff_request_uboot
+  - source: poweroff_request_uboot
+    target: poweroff_device
