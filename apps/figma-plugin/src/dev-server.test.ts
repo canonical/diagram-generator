@@ -355,7 +355,7 @@ test("telecom payload keeps headingless groups structural and panel heights cont
   }
 });
 
-test("value-map payload maps sections and preserves named heading icons", async () => {
+test("value-map payload maps authored roles and preserves named heading icons", async () => {
   const payload = await createFrameDiagramPayload("ai-infra-telco-value-map");
 
   const expectedInlineIcons = {
@@ -367,21 +367,21 @@ test("value-map payload maps sections and preserves named heading icons", async 
   for (const [id, iconName] of Object.entries(expectedInlineIcons)) {
     const node = findPayloadNode(payload.root, id);
     assert.ok(node, `missing ${id}`);
-    assert.equal(node.kind, "section", `${id} must retain semantic Section component chrome`);
-    assert.equal(node.fill, "transparent", `${id} must retain transparent section fill`);
-    assert.equal(node.stroke, "#000000", `${id} must retain section border`);
-    assert.equal(node.icon?.name, iconName, `${id} must preserve its named section icon`);
+    assert.equal(node.kind, "leaf", `${id} must retain its authored level-1 role`);
+    assert.equal(node.fill, "transparent", `${id} must retain transparent child fill`);
+    assert.equal(node.stroke, "#000000", `${id} must retain its child border`);
+    assert.equal(node.icon?.name, iconName, `${id} must preserve its named child icon`);
   }
 
   const foundation = findPayloadNode(payload.root, "production_foundation");
   assert.ok(foundation, "missing production_foundation");
-  assert.equal(foundation.kind, "section");
+  assert.equal(foundation.kind, "panel");
   assert.equal(foundation.headerMinHeight, 48, "production_foundation heading height");
   assert.equal(foundation.headerIcon?.name, "Security.svg", "production_foundation heading icon");
 
   const outcomes = findPayloadNode(payload.root, "business_outcomes");
   assert.ok(outcomes, "missing business_outcomes");
-  assert.equal(outcomes.kind, "section");
+  assert.equal(outcomes.kind, "panel");
   assert.equal(outcomes.headerIcon, null, "business_outcomes has no authored heading icon");
 
   for (const id of ["value_top_row"]) {

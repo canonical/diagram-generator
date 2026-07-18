@@ -1194,7 +1194,7 @@ test("upsertFrameDiagram applies the real telecom effective payload sizing", asy
   }
 });
 
-test("upsertFrameDiagram maps value-map sections and resolves named icon components", async () => {
+test("upsertFrameDiagram maps authored value-map roles and resolves named icon components", async () => {
   resetTestState();
   installBoxComponentSet();
   for (const name of [
@@ -1219,11 +1219,18 @@ test("upsertFrameDiagram maps value-map sections and resolves named icon compone
 
   assert.equal(result.componentMode, "box");
   assert.equal(result.iconSourceCount, 11);
-  for (const id of ["operational_ai", "customer_ai", "network_ai", "ai_services_revenue", "production_foundation", "business_outcomes"]) {
+  for (const id of ["operational_ai", "customer_ai", "network_ai", "ai_services_revenue"]) {
     const imported = findImportedById(importedRoot, id);
     assert.equal(imported?.type, "INSTANCE", `${id} must remain a live component instance`);
-    assert.equal(imported?.mainComponent?.name, "Role=Section", `${id} must use the Section variant`);
-    assert.equal(imported?.getSharedPluginData("dgp", "componentRole"), "Section", `${id} component role`);
+    assert.equal(imported?.mainComponent?.name, "Role=Child", `${id} must use the Child variant`);
+    assert.equal(imported?.getSharedPluginData("dgp", "componentRole"), "Child", `${id} component role`);
+  }
+
+  for (const id of ["production_foundation", "business_outcomes"]) {
+    const imported = findImportedById(importedRoot, id);
+    assert.equal(imported?.type, "INSTANCE", `${id} must remain a live component instance`);
+    assert.equal(imported?.mainComponent?.name, "Role=Parent", `${id} must use the Parent variant`);
+    assert.equal(imported?.getSharedPluginData("dgp", "componentRole"), "Parent", `${id} component role`);
   }
 
   for (const id of ["value_top_row"]) {

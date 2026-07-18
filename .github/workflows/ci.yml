@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: generator-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            apps/figma-plugin/package-lock.json
+            apps/preview/package-lock.json
+            packages/graph-layout-core/package-lock.json
+            packages/graph-layout-dagre/package-lock.json
+            packages/graph-layout-elk/package-lock.json
+            packages/layout-engine/package-lock.json
+
+      - name: Install package dependencies
+        run: |
+          npm ci
+          npm ci --prefix packages/graph-layout-core
+          npm ci --prefix packages/graph-layout-elk
+          npm ci --prefix packages/graph-layout-dagre
+          npm ci --prefix packages/layout-engine
+          npm ci --prefix apps/preview
+          npm ci --prefix apps/figma-plugin
+
+      - name: Install Chromium for Preview regressions
+        run: npx playwright install --with-deps chromium
+
+      - name: Enforce the TypeScript product-path ratchet
+        run: node scripts/check_no_new_python.mjs
+
+      - name: Test graph-layout core
+        run: npm --prefix packages/graph-layout-core test
+
+      - name: Test ELK adapter
+        run: npm --prefix packages/graph-layout-elk test
+
+      - name: Test Dagre adapter
+        run: npm --prefix packages/graph-layout-dagre test
+
+      - name: Test layout engine
+        run: npm --prefix packages/layout-engine test
+
+      - name: Test Preview with Chromium
+        run: npm --prefix apps/preview test
+
+      - name: Test Figma plugin
+        run: npm --prefix apps/figma-plugin test
+
+      - name: Build Preview
+        run: npm run preview:build
+
+      - name: Build Figma plugin
+        run: npm run figma-plugin:build
+
+      - name: Build and verify browser bundle
+        run: |
+          npm run preview:build-browser
+          node scripts/check-browser-bundle-fresh.mjs
