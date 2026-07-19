@@ -12,32 +12,19 @@ spec catalog/status → [`docs/specs.md`](docs/specs.md) · human notes →
 [`INBOX.md`](INBOX.md) · durable per-spec detail → `specs/<id>-<slug>/` ·
 adversarial reviews → `docs/spec-reviews/`.
 
-**Spec 080 merged to `main` and archived (2026-07-18).**
-The reviewed renderable-interchange implementation and all T070–T077 remediation
-landed in merge `eb5e958`. Mermaid and D2 imports share a blocking
-structural-loss gate, preserve supported compound topology and direction, and
-select/persist a compatible v3 or ELK engine. Post-merge validation is green:
-layout engine 1,136/1,136; preview 190 pass with one expected Windows symlink
-skip; browser freshness, preview build, no-new-Python, and diff checks pass.
-The maintainer requested merge after the second review's remaining “almost”
-items were fixed; no additional third-party approval pass was run. Durable
-evidence is archived under
-`docs/spec-archive/080-renderable-interchange-import/` and review records remain
-under `docs/spec-reviews/`.
+**Current task: Spec 077 YAML frame → draw.io export theme control.**
+Worktree: `/Users/l/work/diagram-generator-worktrees/077-yaml-drawio-export`
+on branch `feat/077-yaml-drawio-export`.
 
-**Spec 061 merged (2026-07-17).** `feat/061-preview-grid-regression` merged
-cleanly into the primary `main` worktree at `7317feb`; the feature worktree is
-clean and ready for deletion. The complete evidence and review record live in
-`docs/spec-reviews/` and `specs/061-preview-grid-regression/`.
+Implemented: explicit draw.io `light-dark(...)` theme pairs for page background,
+rect fill/stroke, label style, rich text, edges, and embedded SVG icon
+attributes. The exporter keeps `adaptiveColors="none"` so diagrams.net does not
+apply automatic adaptation on top of the authored pairs.
 
-**Spec 028 merged (2026-07-17).** The reviewed Mermaid-first implementation
-fast-forwarded cleanly into the primary `main` worktree at `32e0390`. After the
-rebase, the full layout-engine (1,054) and preview (174) suites, browser-bundle
-freshness check, Python ratchet, and diff check were green; the real D2 compiler
-gate had also passed. The feature worktree is clean and ready for deletion
-pending user verification in the primary worktree. Durable validation and the
-Opus re-review live in
-[`validation.md`](specs/028-diagram-interchange-mermaid-d2/validation.md) and
-[`opus-adversarial-review-findings-2026-07-17-spec-028.md`](docs/spec-reviews/opus-adversarial-review-findings-2026-07-17-spec-028.md).
-One documented non-blocking limitation remains: inline node declarations on an
-edge require separate node declarations.
+Last-known green: `npm --prefix packages/layout-engine test` on 2026-07-19
+(1,136 passed, 3 skipped) after refreshing the three spec 077 draw.io goldens;
+`node scripts/check_no_new_python.mjs` also passes.
+
+Still open: T030 manual diagrams.net check in Light, Dark, and Automatic modes,
+with special attention to whether embedded SVG data URI icons honor
+`light-dark(...)` inside image markup.

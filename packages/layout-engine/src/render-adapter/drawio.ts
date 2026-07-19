@@ -1,7 +1,7 @@
 import type { FrameDiagram } from '../frame-model.js';
 import { Fill } from '../frame-model.js';
 import { MxGraphBuilder } from '../drawio/mxgraph-builder.js';
-import { tintedIconDataUri } from '../drawio/icon-uri.js';
+import { themedIconDataUri } from '../drawio/icon-uri.js';
 import { richTextFromTextBlockSpans } from '../drawio/rich-text.js';
 import {
   edgeStyle,
@@ -170,7 +170,7 @@ function emitIconFragment(
     y,
     width: ICON_SIZE,
     height: ICON_SIZE,
-    style: imageStyle(tintedIconDataUri(item.markup)),
+    style: imageStyle(themedIconDataUri(item.markup)),
     connectable: false,
   });
 }

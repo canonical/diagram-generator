@@ -8,6 +8,10 @@ Mirror the SVG batch export shell (`export-frame-svg.mjs`) and reuse the same la
 2. **mxGraph builder** — `packages/layout-engine/src/drawio/mxgraph-builder.ts` emits `mxfile` / `mxGraphModel` XML (behavior reference: `DrawioBuilder` in `scripts/export_drawio_batch.py`).
 3. **Frame mapper** — `packages/layout-engine/src/drawio/export-frame-drawio.ts` walks the laid-out frame tree via `resolveFrameRenderPlan`, registers connectable cells by frame id, and emits routed arrows via `routeArrows` + `resolveArrowRenderPlan`.
 4. **CLI** — `packages/layout-engine/scripts/export-frame-drawio.mjs` loads YAML, HarfBuzz adapter, icons, writes `diagrams/2.output/draw.io/<slug>.drawio`.
+5. **Theme owner** — `packages/layout-engine/src/drawio/theme.ts` maps canonical
+   diagram colors to explicit draw.io `light-dark(light,dark)` pairs and keeps
+   mxGraph `adaptiveColors="none"` so draw.io does not apply automatic adaptive
+   heuristics on top of the exported theme.
 
 ## File map
 
@@ -17,6 +21,7 @@ Mirror the SVG batch export shell (`export-frame-svg.mjs`) and reuse the same la
 | `packages/layout-engine/src/drawio/mxgraph-builder.ts` | Cell/edge XML builder |
 | `packages/layout-engine/src/drawio/icon-uri.ts` | Inline SVG data URIs for icons |
 | `packages/layout-engine/src/drawio/rich-text.ts` | Label HTML values |
+| `packages/layout-engine/src/drawio/theme.ts` | draw.io light/dark color contract |
 | `packages/layout-engine/src/drawio/export-frame-drawio.ts` | Layout → draw.io mapper |
 | `packages/layout-engine/scripts/export-frame-drawio.mjs` | CLI entry |
 | `packages/layout-engine/tests/export-frame-drawio.test.ts` | ai-infra fixture regressions |
@@ -26,3 +31,4 @@ Mirror the SVG batch export shell (`export-frame-svg.mjs`) and reuse the same la
 - `npm --prefix packages/layout-engine test -- export-frame-drawio`
 - `node scripts/check_no_new_python.mjs`
 - Manual open-in-draw.io step per `spec.md` test plan
+- Manual diagrams.net Appearance check in Light, Dark, and Automatic modes

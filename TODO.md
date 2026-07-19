@@ -11,6 +11,13 @@ Jira: Stream E (constrained editor) under [DE-941](https://warthogs.atlassian.ne
 
 ## Next spec to tackle (priority order)
 
+Current branch/worktree: **Spec 077 YAML frame → draw.io export** on
+`feat/077-yaml-drawio-export` at
+`/Users/l/work/diagram-generator-worktrees/077-yaml-drawio-export`. Theme-control
+implementation is in progress; continue from
+[`specs/077-yaml-drawio-export/tasks.md`](specs/077-yaml-drawio-export/tasks.md),
+especially T030 manual diagrams.net Light/Dark/Automatic verification.
+
 Refreshed 2026-07-06. Specs 071, 062, 063, 072, **073, and 074 are complete and
 archived** (see `docs/specs.md`) — do **not** start 073/074; they are done. The
 merged-spec bookkeeping is also done: 048, 051, 052, 054–060, 062, 063, 071, 073,
