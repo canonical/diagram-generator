@@ -78,6 +78,16 @@ These are isolated bugfixes; two different GPT agents can take them at once.
    folder-backed navigation backlog idea below.)
 8. **Spec 070 — layers palette reorder.**
 
+### Lane E — Figma handoff return path (parallel, contract-first)
+
+10. **Spec 082 — Figma-to-YAML round trip.** Spec 079 remains the one-way
+    component-instance import dependency. This follow-up captures supported
+    designer layout changes as stable-ID deltas, three-way merges them with
+    current YAML, reports unsupported finishing, and applies only validated,
+    explicitly confirmed updates. Start with T001–T005 and the T010–T015
+    contract gate; after that, the Figma scanner, shared persistence/merge,
+    file-safety service, and plugin UI lanes can run in parallel.
+
 ### Blocked (do not touch)
 
 - **Spec 065 — interactive relayout contract.** Blocked on the uncaptured
@@ -85,7 +95,7 @@ These are isolated bugfixes; two different GPT agents can take them at once.
 
 ### Parallelism summary (for outsourcing)
 
-- Lanes A(1), A(2), B, C can all run **at the same time**.
+- Lanes A(1), A(2), B, C, and E can all run **at the same time**.
 - A(3) and A(4) are the only sequential spine, gated on A(2) passing.
 - Every implemented slice returns to **Opus for adversarial review** before merge.
 

@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://canonical-diagrams.dev/schemas/yaml-update-plan.v1.json",
+  "title": "Diagram YAML Update Plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "planId", "planHash", "diagramId", "baselineSourceHash", "currentSourceHash", "operations", "conflicts", "observations", "validation", "writeModes"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "planId": { "$ref": "#/$defs/id" },
+    "planHash": { "$ref": "#/$defs/hash" },
+    "diagramId": { "$ref": "#/$defs/id" },
+    "baselineSourceHash": { "$ref": "#/$defs/hash" },
+    "currentSourceHash": { "$ref": "#/$defs/hash" },
+    "candidateSourceHash": { "$ref": "#/$defs/hash" },
+    "operations": { "type": "array", "items": { "$ref": "#/$defs/operation" } },
+    "conflicts": { "type": "array", "items": { "$ref": "#/$defs/conflict" } },
+    "observations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["category", "message"],
+        "properties": {
+          "category": { "type": "string", "minLength": 1 },
+          "message": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "checks"],
+      "properties": {
+        "status": { "enum": ["valid", "invalid", "blocked"] },
+        "checks": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "writeModes": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "enum": ["file-handle", "guarded-repository", "download"] }
+    }
+  },
+  "$defs": {
+    "id": { "type": "string", "minLength": 1, "maxLength": 256, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$" },
+    "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "jsonValue": { "type": ["string", "number", "boolean", "array", "object", "null"] },
+    "operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operationId", "yamlNodeId", "field", "currentValue", "proposedValue", "mergeState"],
+      "properties": {
+        "operationId": { "$ref": "#/$defs/id" },
+        "yamlNodeId": { "$ref": "#/$defs/id" },
+        "field": { "type": "string", "minLength": 1 },
+        "currentValue": { "$ref": "#/$defs/jsonValue" },
+        "proposedValue": { "$ref": "#/$defs/jsonValue" },
+        "mergeState": { "enum": ["figma-only-change", "converged"] }
+      }
+    },
+    "conflict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["conflictId", "yamlNodeId", "field", "kind", "baselineValue", "yamlValue", "figmaValue", "resolution"],
+      "properties": {
+        "conflictId": { "$ref": "#/$defs/id" },
+        "yamlNodeId": { "$ref": "#/$defs/id" },
+        "field": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["divergent-field", "delete-edit", "structural", "identity"] },
+        "baselineValue": { "$ref": "#/$defs/jsonValue" },
+        "yamlValue": { "$ref": "#/$defs/jsonValue" },
+        "figmaValue": { "$ref": "#/$defs/jsonValue" },
+        "resolution": { "enum": ["unresolved", "use-yaml", "use-figma", "cancelled"] }
+      }
+    }
+  }
+}

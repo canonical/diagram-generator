@@ -12,6 +12,15 @@ spec catalog/status → [`docs/specs.md`](docs/specs.md) · human notes →
 [`INBOX.md`](INBOX.md) · durable per-spec detail → `specs/<id>-<slug>/` ·
 adversarial reviews → `docs/spec-reviews/`.
 
+**Spec 082 is ready as an isolated parallel feature (2026-07-19).**
+`feat/082-figma-yaml-round-trip` owns the Spec Kit bundle at
+`specs/082-figma-yaml-round-trip/`. Spec 079 is deliberately one-way; 082 adds
+the supported return path from designer-edited Figma layout into canonical YAML.
+Begin with T001–T005 and freeze T010–T015. After that, the Figma scanner, shared
+YAML persistence/three-way merge, guarded file service, and plugin UI have
+separate file ownership. Do not claim ELK or connector-waypoint round trip until
+their explicit mapping gates pass.
+
 **Spec 080 merged to `main` and archived (2026-07-18).**
 The reviewed renderable-interchange implementation and all T070–T077 remediation
 landed in merge `eb5e958`. Mermaid and D2 imports share a blocking

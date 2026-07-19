@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://canonical-diagrams.dev/schemas/figma-change-set.v1.json",
+  "title": "Figma Diagram Change Set",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "diagramId", "baselineSourceHash", "mappingVersion", "engineId", "representation", "changes", "observations"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "diagramId": { "$ref": "#/$defs/id" },
+    "baselineSourceHash": { "$ref": "#/$defs/hash" },
+    "mappingVersion": { "type": "string", "minLength": 1 },
+    "engineId": { "type": "string", "minLength": 1 },
+    "representation": { "enum": ["component-autolayout", "generic-autolayout", "elk", "other"] },
+    "changes": { "type": "array", "items": { "$ref": "#/$defs/change" } },
+    "observations": { "type": "array", "items": { "$ref": "#/$defs/observation" } }
+  },
+  "$defs": {
+    "id": { "type": "string", "minLength": 1, "maxLength": 256, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$" },
+    "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "jsonValue": { "type": ["string", "number", "boolean", "array", "object", "null"] },
+    "change": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operationId", "yamlNodeId", "mappingId", "field", "baselineValue", "figmaValue"],
+      "properties": {
+        "operationId": { "$ref": "#/$defs/id" },
+        "yamlNodeId": { "$ref": "#/$defs/id" },
+        "mappingId": { "$ref": "#/$defs/id" },
+        "field": { "type": "string", "minLength": 1 },
+        "baselineValue": { "$ref": "#/$defs/jsonValue" },
+        "figmaValue": { "$ref": "#/$defs/jsonValue" },
+        "figmaNodeId": { "type": "string", "minLength": 1 }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["category", "message"],
+      "properties": {
+        "category": { "enum": ["figma-only", "unmanaged", "ambiguous", "structural-conflict", "engine-unsupported"] },
+        "yamlNodeId": { "$ref": "#/$defs/id" },
+        "figmaNodeId": { "type": "string" },
+        "message": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}
