@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://canonical-diagrams.dev/schemas/review-findings.v1.json",
+  "title": "Diagram Review Findings",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "reviewSetId", "source", "collectedAt", "findings"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "reviewSetId": { "$ref": "#/$defs/id" },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "documentId"],
+      "properties": {
+        "provider": { "const": "figma" },
+        "documentId": { "type": "string", "minLength": 1 },
+        "url": { "type": "string", "format": "uri" }
+      }
+    },
+    "collectedAt": { "type": "string", "format": "date-time" },
+    "findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/finding" }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resolution"],
+      "properties": {
+        "resolution": { "enum": ["resolved", "unresolved", "provisional"] },
+        "entryId": { "$ref": "#/$defs/id" },
+        "variantId": { "$ref": "#/$defs/id" },
+        "boardNodeId": { "type": "string" },
+        "reason": { "type": "string" }
+      }
+    },
+    "routedReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adapter", "targetId", "deduplicationKey"],
+      "properties": {
+        "adapter": { "type": "string", "minLength": 1 },
+        "targetId": { "type": "string", "minLength": 1 },
+        "url": { "type": "string", "format": "uri" },
+        "deduplicationKey": { "type": "string", "minLength": 1 }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "findingId",
+        "providerCommentId",
+        "target",
+        "text",
+        "state",
+        "createdAt",
+        "reviewedSourceHash",
+        "routedReferences"
+      ],
+      "properties": {
+        "findingId": { "$ref": "#/$defs/id" },
+        "providerCommentId": { "type": "string", "minLength": 1 },
+        "target": { "$ref": "#/$defs/target" },
+        "text": { "type": "string", "minLength": 1 },
+        "author": { "type": "string" },
+        "state": { "enum": ["open", "resolved", "reopened", "deleted"] },
+        "disposition": {
+          "enum": ["untriaged", "accepted", "duplicate", "not-planned", "fixed"]
+        },
+        "severity": { "enum": ["low", "medium", "high", "critical"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "reviewedSourceHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "routedReferences": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/routedReference" }
+        }
+      }
+    }
+  }
+}

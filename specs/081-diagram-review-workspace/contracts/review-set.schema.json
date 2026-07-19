@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://canonical-diagrams.dev/schemas/review-set.v1.json",
+  "title": "Diagram Review Set",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "reviewSetId", "title", "generatedAt", "source", "entries"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "reviewSetId": { "$ref": "#/$defs/id" },
+    "title": { "type": "string", "minLength": 1 },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adapter"],
+      "properties": {
+        "adapter": { "type": "string", "minLength": 1 },
+        "repository": { "type": "string", "minLength": 1 },
+        "revision": { "type": "string", "minLength": 1 }
+      }
+    },
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/entry" }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "uri", "sha256"],
+      "properties": {
+        "kind": { "enum": ["canonical-yaml", "svg", "png", "figma", "mermaid", "other"] },
+        "uri": { "type": "string", "minLength": 1 },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "variant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["variantId", "label", "route", "format", "artifact"],
+      "properties": {
+        "variantId": { "$ref": "#/$defs/id" },
+        "label": { "type": "string", "minLength": 1 },
+        "route": { "type": "string", "minLength": 1 },
+        "format": { "type": "string", "minLength": 1 },
+        "engine": { "type": "string" },
+        "artifact": { "$ref": "#/$defs/artifact" },
+        "lineage": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifact" }
+        }
+      }
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entryId", "title", "variants"],
+      "properties": {
+        "entryId": { "$ref": "#/$defs/id" },
+        "title": { "type": "string", "minLength": 1 },
+        "family": { "type": "string" },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "registryPatternId": { "$ref": "#/$defs/id" },
+        "registryArtifactId": { "$ref": "#/$defs/id" },
+        "provisional": { "type": "boolean", "default": false },
+        "variants": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/variant" }
+        }
+      }
+    }
+  }
+}

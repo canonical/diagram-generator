@@ -12,6 +12,16 @@ spec catalog/status → [`docs/specs.md`](docs/specs.md) · human notes →
 [`INBOX.md`](INBOX.md) · durable per-spec detail → `specs/<id>-<slug>/` ·
 adversarial reviews → `docs/spec-reviews/`.
 
+**Spec 081 is isolated for parallel work (2026-07-19).**
+`feat/081-diagram-review-workspace` owns the Spec Kit bundle at
+`specs/081-diagram-review-workspace/`. It promotes the existing Mermaid and
+planning FigJam import/comment/spec tools into a reusable official review rung.
+Start with T001–T005; do not refactor either reference plugin until their commits,
+audits, data shapes, and compatibility fixtures are recorded. The neutral
+contract gate (T010–T013) precedes the parallel core/CLI, plugin, adapter, and
+documentation lanes. This branch is independent of the active work in the
+primary `main` checkout.
+
 **Spec 080 merged to `main` and archived (2026-07-18).**
 The reviewed renderable-interchange implementation and all T070–T077 remediation
 landed in merge `eb5e958`. Mermaid and D2 imports share a blocking

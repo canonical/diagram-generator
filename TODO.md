@@ -78,6 +78,16 @@ These are isolated bugfixes; two different GPT agents can take them at once.
    folder-backed navigation backlog idea below.)
 8. **Spec 070 — layers palette reorder.**
 
+### Lane D — reusable review tooling (parallel, contract-first)
+
+9. **Spec 081 — diagram review workspace and feedback loop.** The isolated
+   branch `feat/081-diagram-review-workspace` freezes the neutral review-set and
+   findings contracts and extracts the proven Mermaid/planning FigJam tooling.
+   Phase 0 baseline evidence and the Phase 1 schema gate must land first; after
+   that, the core/CLI, plugin, adapters, and documentation lanes have disjoint
+   ownership and can be assigned in parallel. The intended distribution home is
+   neutral (`canonical-diagram-review`), not another route-local plugin copy.
+
 ### Blocked (do not touch)
 
 - **Spec 065 — interactive relayout contract.** Blocked on the uncaptured
@@ -85,7 +95,7 @@ These are isolated bugfixes; two different GPT agents can take them at once.
 
 ### Parallelism summary (for outsourcing)
 
-- Lanes A(1), A(2), B, C can all run **at the same time**.
+- Lanes A(1), A(2), B, C, and D can all run **at the same time**.
 - A(3) and A(4) are the only sequential spine, gated on A(2) passing.
 - Every implemented slice returns to **Opus for adversarial review** before merge.
 
