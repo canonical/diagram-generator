@@ -20,6 +20,7 @@ to open the three generated diagrams in diagrams.net Light, Dark, and Automatic
 modes and record whether embedded SVG icons honor the declared pairs.
 
 Last known green: `npm --prefix packages/layout-engine test` (1,136 passed,
-3 skipped) and `node scripts/check_no_new_python.mjs` on 2026-07-19. This machine
-has no discoverable Node/npm installation or local draw.io app, so PreviewEditor
-cannot start and the manual gate needs a browser/editor with diagrams.net.
+3 skipped) and `node scripts/check_no_new_python.mjs` on 2026-07-19. Node v24.11.1
+is installed through `nvm`; `~/.zshrc` already loads it for interactive shells.
+PreviewEditor is running at `http://127.0.0.1:8100/`. The manual gate still needs
+diagrams.net Light/Dark/Automatic verification.
