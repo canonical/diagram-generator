@@ -33,3 +33,17 @@
 - [x] T022 Run FULL `npm --prefix packages/layout-engine test` + browser-bundle-fresh + preview-shell size budgets + `check_no_new_python`.
 - [ ] T024 Commit `diagrams/1.input/ai-infra-*.yaml` + goldens.
 - [x] T025 Rebase onto current main (post reopened-076); add export to `public-api-contract.ts` or keep off barrel.
+
+## Phase 3b: draw.io theme / adaptive-colour closeout
+
+- [x] T026 Research diagrams.net/draw.io theme persistence and record the
+      chosen explicit `light-dark(...)` contract in `theme-findings.md`.
+- [x] T027 Record the dark-system-theme failure and define controlled page,
+      fill, stroke, text, icon, and arrow pairs.
+- [x] T028 Implement the TypeScript-owned theme contract; do not hand-patch
+      generated `.drawio` outputs.
+- [x] T029 Add focused theme XML assertions and refresh the three ai-infra
+      goldens from the exporter.
+- [ ] T030 Manually open all three generated diagrams in diagrams.net Light,
+      Dark, and Automatic modes; specifically verify embedded SVG icon behavior.
+      Record the result. T021 cannot close until this is complete.

@@ -9,104 +9,92 @@ why it lives here.
 
 Jira: Stream E (constrained editor) under [DE-941](https://warthogs.atlassian.net/browse/DE-941).
 
-## Next spec to tackle (priority order)
+## Immediate cleanup checklist
 
-Refreshed 2026-07-06. Specs 071, 062, 063, 072, **073, and 074 are complete and
-archived** (see `docs/specs.md`) — do **not** start 073/074; they are done. The
-merged-spec bookkeeping is also done: 048, 051, 052, 054–060, 062, 063, 071, 073,
-074 are archived under `docs/spec-archive/`.
+Created from the 2026-07-19 machine-switch audit so these do not get lost while
+individual tasks are discussed.
 
-Spec 075's committed implementation is present on `main` through the spec-080
-merge, while its separate worktree is retained for native picker/regrant
-evidence and Opus closeout. Spec 028 is merged to `main`; after user
-verification, archive its package and delete its feature branch and worktree
-before any follow-up syntax expansion.
+- [x] Move merged spec 028 from `specs/` to `docs/spec-archive/` and update
+      `docs/specs.md`.
+- [x] Move merged spec 061 from `specs/` to `docs/spec-archive/` and update
+      `docs/specs.md`.
+- [ ] Close spec 077 draw.io theme handling: `af0391e` on
+      `feat/077-yaml-drawio-export` completed the research, explicit paired
+      theme contract, tests, and goldens. Record the diagrams.net Light/Dark/
+      Automatic result for T021/T030, then merge the branch.
+- [ ] Close spec 075 with native OS picker/regrant evidence and Opus closeout
+      review, then archive `specs/075-preview-folder-workspaces/`.
+- [ ] Delete stale merged remote branches after push access is confirmed:
+      `origin/feat/028-diagram-interchange-mermaid-d2` and
+      `origin/feat/061-preview-grid-regression`.
+- [x] Delete local merged branches:
+      `feat/053-preview-editor-post-refactor-correctness` and
+      `feat/spec-kit-retrofit-core-engine-specs`.
+- [ ] Decide whether to delete retired local/remote
+      `feat/076-tls-mermaid-cold-start-fit`; do not merge or resume it.
+- [ ] Decide whether to inspect/drop
+      `stash@{0}` (`codex-preserve-frame-yaml-before-main-pull-2026-07-07`),
+      which only touches two `scripts/diagrams/frames/*.yaml` fixtures.
 
-**076 is RETIRED (2026-07-08) — superseded by 077.** The post-mortem proved 076
-never used Mermaid's algorithm: it lowered cross-cluster edges flat, owned geometry
-after ELK (box-moving + local arrow rerouting), and closed on non-rendering snippet
-asserts, so the raw-ELK view is structurally wrong and nothing cold-starts. Do not
-resume 076.
+## Recommended proceed / merge order
 
-**077 Mermaid ELK cluster lowering port is complete (2026-07-13).** Its generic
-cluster-lowering seam is now available to Epic A work; the completed package is
-archived at
-[`docs/spec-archive/077-mermaid-elk-cluster-lowering-port/`](docs/spec-archive/077-mermaid-elk-cluster-lowering-port/).
-No Dagre or `@mermaid-js/layout-elk` dependency was added.
+1. **Spec 077 YAML -> draw.io export closeout.** The theme implementation is
+   committed on `feat/077-yaml-drawio-export` (`af0391e`), not on `main`.
+   Perform the Light/Dark/Automatic manual verification for T021/T030, then
+   merge it before beginning another layout-engine/exporter change.
+2. **Spec 075 preview folder workspaces closeout.** Implementation is already on
+   `main`; remaining evidence is native OS picker/regrant plus Opus closeout.
+3. **Spec 064 arrow annotation label de-overlap.** Start on
+   `feat/064-arrow-annotation-label-de-overlap`; investigation-first and low
+   conflict with 075/077 closeout.
+4. **Spec 070 layers palette reorder.** Start on
+   `feat/070-layers-palette-reorder` after 064 or in parallel only if a separate
+   agent owns it; it touches preview interaction/persistence surfaces.
+5. **Spec 079 Figma component variant import** or smaller draft specs
+   (`018` PNG export, `006` arrow routing) after the closeout queue is drained.
+6. **Spec 082 Figma-to-YAML round trip** is an independent contract-first
+   feature on `feat/082-figma-yaml-round-trip` at `c53d5ae`. Begin T001–T005 and
+   T010–T015 without changing product code; after the contract gate, scanner,
+   YAML merge/persistence, guarded file service, and plugin UI can run in
+   parallel. Spec 079 remains the one-way import dependency.
 
-### Roles (do not blur these)
+### Branch audit from 2026-07-19
 
-- **Claude / Opus** — planning, architecture, spec authoring, and **adversarial
-  review** of finished work. Does NOT implement these features.
-- **GPT (grunt implementation)** — implements the specs below **exactly as
-  written**, on a fresh `feat/<id>` branch, then hands back for Opus review.
-- If a spec is ambiguous, STOP and ask; do not invent scope. Every spec below has
-  `spec.md` + `plan.md` + `tasks.md` — execute the numbered tasks in order.
+- Active implementation checkout: `feat/077-yaml-drawio-export` is the only
+  product branch in flight; independent spec-only worktrees exist for
+  `feat/081-diagram-review-workspace` and `feat/082-figma-yaml-round-trip`.
+- Neither spec-only branch contains product implementation yet.
+- Local stale merged branches: deleted during the 2026-07-19 audit
+  (`feat/053-preview-editor-post-refactor-correctness`,
+  `feat/spec-kit-retrofit-core-engine-specs`).
+- Retired branch present locally and remotely:
+  `feat/076-tls-mermaid-cold-start-fit`; keep only as history unless a human
+  explicitly asks to salvage a commit.
+- Stale post-merge remote branches:
+  `origin/feat/028-diagram-interchange-mermaid-d2`,
+  `origin/feat/061-preview-grid-regression`.
+- Independent dependency/service branches:
+  `origin/renovate/configure` and the three Dependabot branches. They are
+  independent of the spec closeout order and should be reviewed separately.
+- Historical SVG/force branches:
+  `origin/svg/data-centre-cloud-1`, `origin/svg/controller-agent-architecture`,
+  and `origin/feature/force-layout`. Do not merge into the spec queue without a
+  separate human decision.
 
-### Epic A — Mermaid composite diagrams (grouping/parenting). Highest priority.
-
-Goal: render Mermaid-style clustered/nested diagrams. This is **one epic in three
-gated stages**. Do them in this order; do not skip the gate.
-
-1. **Planning audit (research, parallel-ok).** The
-   `diagram-generator-planning` repo owns a new audit
-   (`specs/004-mermaid-composite-lowering-audit/`, requested in that repo's
-   `AGENT-INBOX.md`) of every Mermaid ELK lowering trick. Not this repo's code.
-2. **Spec 028 — Mermaid import: merged, pending verification**
-   (`specs/028-diagram-interchange-mermaid-d2/`). After user verification in the
-   primary worktree, archive the package and delete the feature branch/worktree.
-   Any broader Mermaid grammar work is a follow-up; no Dagre.
-3. **Spec 080 — renderable interchange import (follow-up to 028): complete.**
-   Merged to `main` and archived 2026-07-18 after T070–T077 remediation.
-   The capability matrix and archived validation record are the closeout
-   evidence.
-
-### Lane B — standing user-facing regressions (parallel, independent of Epic A)
-
-These are isolated bugfixes; two different GPT agents can take them at once.
-
-5. **Spec 061 — grid regression.** Its "hide grid affordances on non-grid engines"
-   containment is a fast visible win; do that first, then root-cause.
-6. **Spec 064 — arrow annotation label de-overlap.** Investigation-first.
-
-### Lane C — independent features (parallel, outsource anytime)
-
-7. **Spec 075 — preview folder workspaces.** Its committed implementation is now
-   present on `main`; keep the matching feature worktree until its dirty
-   user-verification artifacts are reconciled. The remaining gates are native OS
-   picker/regrant evidence and Opus closeout review. (Also solves the
-   folder-backed navigation backlog idea below.)
-8. **Spec 070 — layers palette reorder.**
-
-### Blocked (do not touch)
+## Blocked
 
 - **Spec 065 — interactive relayout contract.** Blocked on the uncaptured
-  historical `baseline-fail.json` artifact. Leave parked until that is resolved.
+  historical `baseline-fail.json` artifact. Leave parked until that is resolved
+  or explicitly waived/replaced.
 
-### Parallelism summary (for outsourcing)
-
-- Lanes A(1), A(2), B, C can all run **at the same time**.
-- A(3) and A(4) are the only sequential spine, gated on A(2) passing.
-- Every implemented slice returns to **Opus for adversarial review** before merge.
-
-The `defineGraphLayoutPreviewEngine` factory + per-engine `engines/*.engine.ts`
-substrate is already in place (decentralized `registerPreviewEngine`, no central
-engine list); engine breadth should consume the Spec 071 node contract rather
-than the current shared render paths.
-
-Other open work: pick a package from `docs/specs.md`, then execute from that
-package's `tasks.md`.
-
----
-
-## Backlog ideas (not yet numbered specs)
+## Backlog ideas
 
 Promote to a numbered `specs/<id>-<slug>/` package (and add a `docs/specs.md`
 row) before coding. Bugs already captured by a numbered spec live in
 `docs/specs.md`, not here.
 
-- `editor-base.js` thinning — true spec 046 follow-up; ~587 lines of legacy
-  interaction state still not decomposed.
+- `editor-base.js` thinning — true spec 046 follow-up; legacy interaction state
+  still needs decomposition.
 - Engine breadth on the spec 071 node contract: state/lifecycle, tree/mindmap,
   swimlane, ER/class orthogonal, `elk-force` lane polish.
 - Editor workflow: folder-backed navigation, cross-engine multi-select
@@ -121,9 +109,8 @@ row) before coding. Bugs already captured by a numbered spec live in
   node without abusing grey annotation children.
 - Contract hardening: arrow clearance, invalid-enum diagnostics, preview JSON
   schema freshness, parser negatives, layout idempotency.
+- Lower-model / terminal usability: slash commands for import/export/convert
+  from pasted image, verbal description, `.mmd`, `.drawio` to SVG, PNG, draw.io,
+  Mermaid, and YAML outputs.
 - Later: ontology-driven engine selection, security hardening, arrow waypoint
   editing, `DIAGRAM.md` refinement.
-- make the project more user-friendly for people on lower models and on terminal rather than vscdoe: slash commands for import,export, convert from inputs (pasted image, verbal description, .mmd, .drawio) to outputs (svg, png, drawio, mermaid).
-
-> Completed-work notes and one-off session audits do not belong here. Put those
-> in the `AGENTS.md` handover (transient) or the spec package they relate to.

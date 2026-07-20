@@ -33,8 +33,13 @@ Completed or retired spec packages live here so `specs/` stays focused on curren
 - `025-multi-engine-preview-architecture`
 - `026-preview-shell-decomposition-ts-migration`
 - `027-preview-browser-test-api`
+- `028-diagram-interchange-mermaid-d2`
 - `029-force-preview-shell-convergence`
 - `030-sequence-layout`
+- `035-compatible-engine-switcher`
+- `036-headingless-wrapper-contract`
+- `037-preview-engine-drift-closeout`
+- `038-ts-authority-python-removal`
 - `039-diagram-typography-token-cleanup`
 - `040-agent-token-slimming`
 - `041-text-block-inline-editing`
@@ -56,6 +61,7 @@ Completed or retired spec packages live here so `specs/` stays focused on curren
 - `058-layer-tree-inspector-selection-ergonomics`
 - `059-cross-document-style-source-of-truth`
 - `060-output-pane-engine-tabs-rerender`
+- `061-preview-grid-regression`
 - `062-parent-child-hug-resize-propagation`
 - `063-auto-style-by-nesting-depth`
 - `066-graph-engine-layout-option-surfacing`
@@ -69,7 +75,3 @@ Completed or retired spec packages live here so `specs/` stays focused on curren
 - `076-tls-mermaid-cold-start-fit`
 - `077-mermaid-elk-cluster-lowering-port`
 - `078-figma-autolayout-plugin`
-- `035-compatible-engine-switcher`
-- `036-headingless-wrapper-contract`
-- `037-preview-engine-drift-closeout`
-- `038-ts-authority-python-removal`

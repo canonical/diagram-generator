@@ -17,11 +17,12 @@ Open `http://127.0.0.1:8100/view/v3:support-engineering-flow`.
 
 Read these in order:
 
-1. [`docs/agent-index.md`](docs/agent-index.md)
-2. [`DIAGRAM.md`](DIAGRAM.md)
-3. Targeted source files for the area you are changing
+1. [`AGENT-INBOX.md`](AGENT-INBOX.md)
+2. [`docs/agent-index.md`](docs/agent-index.md)
+3. [`DIAGRAM.md`](DIAGRAM.md)
+4. Targeted source files for the area you are changing
 
-Handover lives in [`AGENTS.md`](AGENTS.md#handover). Use [`docs/specs.md`](docs/specs.md) only when you need governing references. Workspace: [`diagram-generator.code-workspace`](diagram-generator.code-workspace) (two roots only).
+Live handoff lives in [`AGENT-INBOX.md`](AGENT-INBOX.md). Use [`docs/specs.md`](docs/specs.md) for spec status and governing references. Workspace: [`diagram-generator.code-workspace`](diagram-generator.code-workspace) (two roots only).
 
 ## Spec Branch Workflow
 
