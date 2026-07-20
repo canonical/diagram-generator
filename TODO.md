@@ -18,9 +18,9 @@ individual tasks are discussed.
       `docs/specs.md`.
 - [x] Move merged spec 061 from `specs/` to `docs/spec-archive/` and update
       `docs/specs.md`.
-- [ ] Close spec 077 draw.io theme handling: the pending merge contains the
-      explicit paired theme contract, tests, and goldens. Record the diagrams.net
-      Light/Dark/Automatic result for T021/T030, including embedded SVG icons.
+- [ ] Close spec 077 draw.io theme handling: `main` contains the explicit paired
+      theme contract, tests, and goldens. Record the diagrams.net Light/Dark/
+      Automatic result for T021/T030, including embedded SVG icons.
 - [ ] Close spec 075 with native OS picker/regrant evidence and Opus closeout
       review, then archive `specs/075-preview-folder-workspaces/`.
 - [ ] Delete stale merged remote branches after push access is confirmed:
@@ -37,9 +37,9 @@ individual tasks are discussed.
 
 ## Recommended proceed / merge order
 
-1. **Spec 077 YAML -> draw.io export closeout.** Finish the in-progress merge,
-   then perform the Light/Dark/Automatic manual verification for T021/T030 before
-   beginning another layout-engine/exporter change.
+1. **Spec 077 YAML -> draw.io export closeout.** Perform the Light/Dark/Automatic
+   manual verification for T021/T030 before beginning another layout-engine/
+   exporter change.
 2. **Spec 075 preview folder workspaces closeout.** Implementation is already on
    `main`; remaining evidence is native OS picker/regrant plus Opus closeout.
 3. **Spec 064 arrow annotation label de-overlap.** Start on

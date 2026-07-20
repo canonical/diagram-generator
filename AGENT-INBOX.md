@@ -13,7 +13,7 @@ spec catalog/status → [`docs/specs.md`](docs/specs.md) · human notes →
 adversarial reviews → `docs/spec-reviews/`.
 
 **Current task (2026-07-20): spec 077 draw.io theme closeout.**
-The pending merge brings explicit `light-dark(...)` theme pairs for page
+`main` now contains explicit `light-dark(...)` theme pairs for page
 background, fills, strokes, text, arrows, and embedded SVG icons, while keeping
 `adaptiveColors="none"`. T026-T029 are complete. The remaining T021/T030 gate is
 to open the three generated diagrams in diagrams.net Light, Dark, and Automatic
