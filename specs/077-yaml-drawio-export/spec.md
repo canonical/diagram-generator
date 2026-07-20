@@ -9,13 +9,10 @@
 
 The product path compiles authored frame YAML through TypeScript layout and SVG export (`export-frame-svg.mjs`), but there is no YAML → `.drawio` path. The retained Python batch exporters are not wired to frame YAML and must not grow (`check_no_new_python` ratchet).
 
-Manual diagrams.net verification found a theme issue: when the editor follows a
-dark OS/browser appearance, exported diagrams can render against the dark editor
-surface instead of the intended Canonical light diagram surface. The exporter
-currently writes `background="light-dark(#ffffff, #ffffff)"` and
-`adaptiveColors="none"` on `mxGraphModel`, but that is not sufficient evidence
-that draw.io will preserve the intended light canvas and colours in all supported
-open/export paths.
+Follow-up issue found during user verification: diagrams.net can follow the
+system/editor dark appearance, so exported files need to own theme behavior. The
+exporter must define a deterministic light/dark color contract instead of
+depending on draw.io adaptive-color heuristics.
 
 ## Goals
 
@@ -23,10 +20,8 @@ open/export paths.
 - Pipeline: compile author-v1 YAML → v3 layout (respect `meta.layout_engine` where the batch path supports it) → map positioned frame tree + routed arrows to draw.io mxGraph XML.
 - Reuse draw.io style semantics from `scripts/drawio_style_presets.py` (ported to TypeScript constants).
 - v1 coverage: rect vertices (section/parent/leaf/annotation, heading synthesis), icons, labeled edges.
-- Theme contract: exported `.drawio` files must either define an intentional
-  adaptive light/dark palette or explicitly pin the Canonical light theme so the
-  diagram remains legible when diagrams.net is in Light, Dark, or Automatic
-  appearance.
+- Theme contract: emitted `.drawio` files declare explicit light/dark page,
+  fill, stroke, text, arrow, and icon colors.
 
 ## Non-goals (v1)
 
@@ -44,45 +39,30 @@ open/export paths.
 - **FR-005**: Icons embed as `data:image/svg+xml` URIs from `assets/icons/*.svg`.
 - **FR-006**: YAML arrows emit orthogonal orange edges with labels when authored.
 - **FR-007**: Regression tests compile + export all three `ai-infra-*` fixtures without error.
-- **FR-008**: Theme handling is researched against diagrams.net/draw.io's
-  adaptive-colour model before implementation. The accepted fix must document
-  whether the exporter uses per-page adaptive colours, disables adaptation and
-  pins the light canvas, or emits paired light/dark style values.
-- **FR-009**: The generated XML includes a repo-owned, testable theme contract:
-  page background, shape fills, strokes, text, icons, and arrow colours remain
-  legible when opened in diagrams.net with Light, Dark, and Automatic
-  appearance.
+- **FR-008**: Exported mxGraph XML uses explicit `light-dark(...)` values for
+  exporter-owned page background, rect fill/stroke, labels, rich text, edges,
+  and embedded SVG icon attributes where possible.
+- **FR-009**: Exported mxGraph XML pins `adaptiveColors="none"` so diagrams.net
+  automatic adaptation does not reinterpret the exporter-owned theme pairs.
 
 ## Success criteria
 
 - **SC-001**: `npm --prefix packages/layout-engine test` passes including new draw.io suite.
 - **SC-002**: `node scripts/check_no_new_python.mjs` passes.
 - **SC-003**: All three ai-infra slugs export `.drawio` files that open in diagrams.net (manual verification documented in test plan).
-- **SC-004**: Theme verification is documented for at least one representative
-  ai-infra export in diagrams.net Light, Dark, and Automatic appearance. The
-  note must say whether the final contract is adaptive or pinned-light, and name
-  the XML attributes/style fields that enforce it.
+- **SC-004**: Opening each exported `.drawio` in diagrams.net Light, Dark, and
+  Automatic modes preserves readable contrast and a controlled page theme.
 
 ## Theme research notes
 
-- draw.io treats dark mode as an editor appearance that may follow the browser or
-  OS when Appearance is set to Automatic.
-- draw.io adaptive colours are saved per diagram page and can define specific
-  light and dark values for shapes, connectors, text, and the diagram page
-  background.
-- The docs explicitly allow using the same colour value in both light and dark
-  fields when the intent is to keep a colour unchanged across modes.
-- Exported draw.io/PDF/HTML/URL and light-mode image paths are documented as
-  displaying the light background and light palette, but opening a `.drawio` in a
-  dark editor can still apply the editor's dark-mode rendering model. The spec
-  must therefore verify the editable `.drawio` open path, not only image export.
+Durable findings live in [`theme-findings.md`](theme-findings.md).
 
-Primary references:
+Official draw.io references:
 
-- <https://www.drawio.com/docs/manual/editor/appearance/adaptive-colours/>
-- <https://www.drawio.com/docs/manual/editor/appearance/dark-mode/>
-- <https://www.drawio.com/docs/manual/editor/appearance/>
-- <https://www.drawio.com/blog/dark-mode-diagrams/>
+- Adaptive colors: https://www.drawio.com/docs/manual/editor/appearance/adaptive-colours/
+- Dark mode: https://www.drawio.com/docs/manual/editor/appearance/dark-mode/
+- Dark-mode design: https://www.drawio.com/docs/manual/editor/appearance/dark-mode-design/
+- Editor configuration (`defaultAdaptiveColors`, `enableLightDarkColors`): https://www.drawio.com/docs/reference/configure-diagram-editor/
 
 ## Test plan
 
@@ -94,10 +74,8 @@ Primary references:
    node packages/layout-engine/scripts/export-frame-drawio.mjs --slug ai-infra-production-contract
    ```
 3. Open each output under `diagrams/2.output/draw.io/` in [diagrams.net](https://app.diagrams.net/) (File → Open from → Device). Confirm boxes, icons, and labeled physical-row edges render without XML errors.
-4. Theme verification: for at least one representative export, switch
-   diagrams.net through Settings/Appearance Light, Dark, and Automatic. Confirm
-   the diagram canvas remains intentionally light or intentionally adaptive, and
-   that black/grey text, icons, borders, and orange arrows remain legible.
-5. Inspect Page Setup / adaptive-colour settings and the saved XML after any
-   manual experiment. Record the specific `mxGraphModel` attributes and style
-   fields needed by the implementation before changing exporter code.
+4. In diagrams.net, switch Appearance between Light, Dark, and Automatic. Confirm
+   the page background, fills, strokes, text, arrows, and icons use the exported
+   theme pairs rather than system-theme-only adaptation.
+5. Inspect the generated XML and confirm `adaptiveColors="none"` plus
+   `light-dark(...)` values are present in mxGraph style fields and rich text.

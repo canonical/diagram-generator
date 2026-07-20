@@ -1,4 +1,5 @@
 import { BASELINE_UNIT } from '../tokens.js';
+import { DRAWIO_ADAPTIVE_COLORS, drawioPageBackground } from './theme.js';
 
 function fmt(value: number): string {
   return String(Math.round(value * 100) / 100);
@@ -130,8 +131,8 @@ export class MxGraphBuilder {
       'pageScale="1"',
       `pageWidth="${this.pageWidth}"`,
       `pageHeight="${this.pageHeight}"`,
-      'background="light-dark(#ffffff, #ffffff)"',
-      'adaptiveColors="none"',
+      `background="${drawioPageBackground()}"`,
+      `adaptiveColors="${DRAWIO_ADAPTIVE_COLORS}"`,
       'math="0"',
       'shadow="0"',
     ].join(' ');

@@ -8,6 +8,10 @@ import { Frame, FrameDiagram, createLine } from '../src/frame-model.js';
 import { resolveStyles } from '../src/resolve-styles.js';
 import { layoutFrameDiagramForExport } from '../src/frame-diagram-export-layout.js';
 import { exportFrameDiagramToDrawio } from '../src/drawio-render.js';
+import { themedIconDataUri } from '../src/drawio/icon-uri.js';
+import { richTextFromPlainLines } from '../src/drawio/rich-text.js';
+import { edgeStyle, labelStyle, rectStyle } from '../src/drawio/style-presets.js';
+import { drawioPageBackground } from '../src/drawio/theme.js';
 import { emitFrameDiagramDisplayList } from '../src/render-adapter/display-list.js';
 import { MockTextAdapter } from '../src/text-measure.js';
 import {
@@ -52,6 +56,43 @@ function findFrameDisplayListGeometry(
 }
 
 describe('exportFrameDiagramToDrawio', () => {
+  it('uses explicit draw.io light and dark theme colors for style fields', () => {
+    expect(drawioPageBackground()).toBe('light-dark(#FFFFFF,#1E1E1E)');
+    expect(rectStyle('#FFFFFF', { stroke: '#000000' })).toContain(
+      'fillColor=light-dark(#FFFFFF,#1E1E1E);',
+    );
+    expect(rectStyle('#FFFFFF', { stroke: '#000000' })).toContain(
+      'strokeColor=light-dark(#000000,#F2F2F2);',
+    );
+    expect(labelStyle()).toContain('fontColor=light-dark(#000000,#F2F2F2);');
+    expect(edgeStyle('#E95420')).toContain('strokeColor=light-dark(#E95420,#FF7A45);');
+  });
+
+  it('themes draw.io rich text and inline SVG icon colors', () => {
+    expect(richTextFromPlainLines([{ content: 'muted', fill: '#666666' }])).toContain(
+      'color:light-dark(#666666,#C9C9C9)',
+    );
+
+    const uri = themedIconDataUri(
+      '<path fill="#000000" d="M0 0h1v1z"/><circle stroke="#666666" fill="none"/>',
+      16,
+    );
+    const decoded = decodeURIComponent(uri);
+    expect(decoded).toContain('fill="light-dark(#000000,#F2F2F2)"');
+    expect(decoded).toContain('stroke="light-dark(#666666,#C9C9C9)"');
+    expect(decoded).toContain('fill="none"');
+  });
+
+  it('pins draw.io adaptive color mode so authored light-dark pairs own the theme', async () => {
+    const exported = await exportSlugToDrawio('ai-infra-telecom-services-stack');
+    expect(exported.xml).toContain('background="light-dark(#FFFFFF,#1E1E1E)"');
+    expect(exported.xml).toContain('adaptiveColors="none"');
+    expect(exported.xml).toContain('fillColor=light-dark(#F3F3F3,#303030)');
+    expect(exported.xml).toContain('fontColor=light-dark(#000000,#F2F2F2)');
+    expect(exported.xml).toContain('strokeColor=light-dark(#E95420,#FF7A45)');
+    expect(exported.xml).not.toContain('background="light-dark(#ffffff, #ffffff)"');
+  });
+
   it.each(AI_INFRA_DRAWIO_SLUGS)('exports %s without error', async (slug) => {
     const exported = await exportSlugToDrawio(slug);
     expect(exported.xml).toContain('<mxfile host="app.diagrams.net"');

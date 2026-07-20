@@ -18,10 +18,9 @@ individual tasks are discussed.
       `docs/specs.md`.
 - [x] Move merged spec 061 from `specs/` to `docs/spec-archive/` and update
       `docs/specs.md`.
-- [ ] Close spec 077 draw.io theme handling: `af0391e` on
-      `feat/077-yaml-drawio-export` completed the research, explicit paired
-      theme contract, tests, and goldens. Record the diagrams.net Light/Dark/
-      Automatic result for T021/T030, then merge the branch.
+- [ ] Close spec 077 draw.io theme handling: the pending merge contains the
+      explicit paired theme contract, tests, and goldens. Record the diagrams.net
+      Light/Dark/Automatic result for T021/T030, including embedded SVG icons.
 - [ ] Close spec 075 with native OS picker/regrant evidence and Opus closeout
       review, then archive `specs/075-preview-folder-workspaces/`.
 - [ ] Delete stale merged remote branches after push access is confirmed:
@@ -38,10 +37,9 @@ individual tasks are discussed.
 
 ## Recommended proceed / merge order
 
-1. **Spec 077 YAML -> draw.io export closeout.** The theme implementation is
-   committed on `feat/077-yaml-drawio-export` (`af0391e`), not on `main`.
-   Perform the Light/Dark/Automatic manual verification for T021/T030, then
-   merge it before beginning another layout-engine/exporter change.
+1. **Spec 077 YAML -> draw.io export closeout.** Finish the in-progress merge,
+   then perform the Light/Dark/Automatic manual verification for T021/T030 before
+   beginning another layout-engine/exporter change.
 2. **Spec 075 preview folder workspaces closeout.** Implementation is already on
    `main`; remaining evidence is native OS picker/regrant plus Opus closeout.
 3. **Spec 064 arrow annotation label de-overlap.** Start on
@@ -60,8 +58,8 @@ individual tasks are discussed.
 
 ### Branch audit from 2026-07-19
 
-- Active implementation checkout: `feat/077-yaml-drawio-export` is the only
-  product branch in flight; independent spec-only worktrees exist for
+- Active implementation: spec 077 has a pending merge into `main`; independent
+  spec-only worktrees exist for
   `feat/081-diagram-review-workspace` and `feat/082-figma-yaml-round-trip`.
 - Neither spec-only branch contains product implementation yet.
 - Local stale merged branches: deleted during the 2026-07-19 audit

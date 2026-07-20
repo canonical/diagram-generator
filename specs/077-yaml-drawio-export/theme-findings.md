@@ -1,62 +1,60 @@
-# Spec 077 theme findings
+# Draw.io Theme Findings
 
-## Trigger
+## Research Question
 
-Manual diagrams.net verification on 2026-07-19 found that exported `.drawio`
-files can follow the viewer/editor's dark system appearance. In that mode, the
-diagram may no longer present the intended Canonical light-theme surface.
+Draw.io exports opened from a dark-system editor can render with dark-mode
+interpretation unless the file owns its theme behavior. The preferred outcome is
+full theme control: the exported `.drawio` should define both light and dark
+values for every exporter-owned color, instead of relying on diagrams.net
+adaptive heuristics.
 
-## Current exporter state
+## Official Draw.io Behavior
 
-`packages/layout-engine/src/drawio/mxgraph-builder.ts` currently emits:
+- Draw.io supports adaptive colors for shapes, connectors, text, and page
+  background. Adaptive settings are saved on each page.
+- Appearance can be Light, Dark, or Automatic. Automatic follows system
+  appearance.
+- `defaultAdaptiveColors` supports `auto`, `simple`, and `none`.
+- `enableLightDarkColors` enables CSS `light-dark(light,dark)` color values.
+- Exporting while the editor is in Dark can retain a dark background unless the
+  diagram explicitly controls page/background behavior.
 
-```xml
-background="light-dark(#ffffff, #ffffff)" adaptiveColors="none"
-```
+Sources:
 
-This was intended to pin a white page in both modes, but the manual failure means
-the editable `.drawio` open path needs proof. Do not close T021 on image-export
-evidence alone.
+- https://www.drawio.com/docs/manual/editor/appearance/adaptive-colours/
+- https://www.drawio.com/docs/manual/editor/appearance/dark-mode/
+- https://www.drawio.com/docs/manual/editor/appearance/dark-mode-design/
+- https://www.drawio.com/docs/reference/configure-diagram-editor/
 
-## Official draw.io behaviour to verify
+## Decision
 
-Primary references:
+Use explicit `light-dark(...)` values and keep `adaptiveColors="none"`.
 
-- <https://www.drawio.com/docs/manual/editor/appearance/adaptive-colours/>
-- <https://www.drawio.com/docs/manual/editor/appearance/dark-mode/>
-- <https://www.drawio.com/docs/manual/editor/appearance/>
-- <https://www.drawio.com/blog/dark-mode-diagrams/>
+That makes the exported XML deterministic:
 
-Observed from the docs:
+- Draw.io switches the declared light/dark pair.
+- The exporter, not diagrams.net automatic adaptation, owns the color choices.
+- Light mode remains the canonical white-page diagram.
+- Dark mode gets controlled dark page/background/fill values and high-contrast
+  text/stroke/icon pairs.
 
-- Appearance can be Light, Dark, or Automatic; Automatic may follow the browser
-  or operating system.
-- Adaptive colours are saved per diagram page.
-- Specific light and dark values can be set for shapes, connectors, text labels,
-  and the page background.
-- Using the same colour value for light and dark is a supported way to keep that
-  colour stable across modes.
-- Dark mode may apply a rendering-time colour-intensity transform, so the saved
-  XML data alone is not enough unless the chosen attributes/styles are verified
-  by reopening the editable `.drawio`.
+## Implemented Theme Pairs
 
-## Required experiment
+| Semantic color | Light | Dark |
+|----------------|-------|------|
+| Page / white fill | `#FFFFFF` | `#1E1E1E` |
+| Grey fill | `#F3F3F3` | `#303030` |
+| Black text/stroke/highlight | `#000000` | `#F2F2F2` |
+| Muted text/icon | `#666666` | `#C9C9C9` |
+| Arrow orange | `#E95420` | `#FF7A45` |
 
-1. Export at least one representative ai-infra diagram.
-2. Open the `.drawio` in diagrams.net with Appearance set to Light, Dark, and
-   Automatic.
-3. Inspect Page Setup / Adaptive Colours and save a copy after any manual
-   adjustment.
-4. Diff the saved XML against the generated XML to identify the exact
-   `mxGraphModel` attributes or cell style fields needed.
-5. Choose one contract:
-   - **Pinned-light**: page background, fills, strokes, text, icons, and arrows
-     remain the Canonical light palette in Light, Dark, and Automatic.
-   - **Adaptive**: generated XML carries explicit paired light/dark values for
-     every semantic colour, preserving contrast without losing brand intent.
+Unknown concrete hex colors are wrapped as same-value light/dark pairs so they
+remain deterministic without inventing semantics.
 
-## Acceptance
+## Remaining Manual Verification
 
-The final exporter change must be in TypeScript owners, covered by focused XML
-tests, and manually verified by reopening the generated `.drawio` in diagrams.net
-Light, Dark, and Automatic appearance.
+Draw.io-owned style fields are covered by XML tests. Embedded SVG icons are data
+URI images, not native draw.io shape/text fields. The exporter writes
+`light-dark(...)` values into the SVG attributes too, but diagrams.net manual
+verification must confirm whether the editor's Light/Dark/Automatic modes honor
+those values consistently inside embedded images.

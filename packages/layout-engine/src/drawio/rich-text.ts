@@ -2,6 +2,7 @@ import { Fill } from '../frame-model.js';
 import { BODY_SIZE, sizeToPx } from '../tokens.js';
 import type { FrameRenderTextLinePlan } from '../frame-render-plan.js';
 import type { TextSpanItem } from '../render-ir.js';
+import { drawioThemeColor } from './theme.js';
 
 function escapeHtml(text: string): string {
   return text
@@ -24,7 +25,7 @@ export function richTextFromLines(lines: readonly FrameRenderTextLinePlan[]): st
       styles.push(`font-size:${sizePx}px`);
     }
     if (line.fill !== Fill.BLACK) {
-      styles.push(`color:${line.fill}`);
+      styles.push(`color:${drawioThemeColor(line.fill)}`);
     }
     if (line.spec.smallCaps) {
       styles.push('font-variant:small-caps');
@@ -80,7 +81,7 @@ export function richTextFromTextBlockSpans(spans: readonly TextSpanItem[]): stri
     }
     const fill = paintToCssFill(span.fill);
     if (fill !== Fill.BLACK) {
-      styles.push(`color:${fill}`);
+      styles.push(`color:${drawioThemeColor(fill)}`);
     }
     if (span.smallCaps) {
       styles.push('font-variant:small-caps');

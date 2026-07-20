@@ -34,16 +34,15 @@
 - [ ] T024 Commit `diagrams/1.input/ai-infra-*.yaml` + goldens.
 - [x] T025 Rebase onto current main (post reopened-076); add export to `public-api-contract.ts` or keep off barrel.
 
-## Phase 3b: draw.io theme / adaptive-colour closeout
+## Phase 3b: Draw.io theme control
 
-- [x] T026 Research diagrams.net/draw.io theme persistence and record the
-      chosen explicit `light-dark(...)` contract in `theme-findings.md`.
-- [x] T027 Record the dark-system-theme failure and define controlled page,
-      fill, stroke, text, icon, and arrow pairs.
-- [x] T028 Implement the TypeScript-owned theme contract; do not hand-patch
-      generated `.drawio` outputs.
-- [x] T029 Add focused theme XML assertions and refresh the three ai-infra
-      goldens from the exporter.
-- [ ] T030 Manually open all three generated diagrams in diagrams.net Light,
-      Dark, and Automatic modes; specifically verify embedded SVG icon behavior.
-      Record the result. T021 cannot close until this is complete.
+- [x] T026 Research diagrams.net adaptive colors, dark mode, and
+  `light-dark(...)` support; record findings in `theme-findings.md`.
+- [x] T027 Add a TypeScript draw.io theme owner that maps page, fill, stroke,
+  text, muted labels, and arrow colors to explicit light/dark pairs.
+- [x] T028 Apply theme pairs through mxGraph model attributes, style presets,
+  rich-text HTML, edges, and embedded SVG icon attributes.
+- [x] T029 Refresh draw.io goldens and add targeted tests for
+  `adaptiveColors="none"` plus exported `light-dark(...)` values.
+- [ ] T030 Manually open all three exported diagrams in diagrams.net Light,
+ Dark, and Automatic modes; specifically verify embedded SVG icon behavior.

@@ -13,15 +13,13 @@ spec catalog/status → [`docs/specs.md`](docs/specs.md) · human notes →
 adversarial reviews → `docs/spec-reviews/`.
 
 **Current task (2026-07-20): spec 077 draw.io theme closeout.**
-Implementation is committed as `af0391e` on
-`feat/077-yaml-drawio-export` in
-`/Users/l/work/diagram-generator-worktrees/077-yaml-drawio-export`.
-T026-T029 are complete: exporter-owned colors use explicit `light-dark(...)`
-pairs with `adaptiveColors="none"`. The only remaining work is T021/T030: open
-the three generated diagrams in diagrams.net Light, Dark, and Automatic modes,
-including embedded SVG icons, then record the result and merge.
+The pending merge brings explicit `light-dark(...)` theme pairs for page
+background, fills, strokes, text, arrows, and embedded SVG icons, while keeping
+`adaptiveColors="none"`. T026-T029 are complete. The remaining T021/T030 gate is
+to open the three generated diagrams in diagrams.net Light, Dark, and Automatic
+modes and record whether embedded SVG icons honor the declared pairs.
 
-Last known green for that branch: `npm --prefix packages/layout-engine test`
-(1,136 passed, 3 skipped) and `node scripts/check_no_new_python.mjs` on
-2026-07-19. This machine currently has no discoverable Node/npm installation and
-no local draw.io application; PreviewEditor cannot start until Node is available.
+Last known green: `npm --prefix packages/layout-engine test` (1,136 passed,
+3 skipped) and `node scripts/check_no_new_python.mjs` on 2026-07-19. This machine
+has no discoverable Node/npm installation or local draw.io app, so PreviewEditor
+cannot start and the manual gate needs a browser/editor with diagrams.net.

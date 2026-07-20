@@ -4,6 +4,7 @@
 
 import { Fill } from '../frame-model.js';
 import { BODY_SIZE, sizeToPx } from '../tokens.js';
+import { drawioThemeColor } from './theme.js';
 
 export const FONT_SOURCE = 'https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DUbuntu%2BSans';
 
@@ -32,13 +33,13 @@ export function rectStyleProps(
     whiteSpace: 'wrap',
     html: '1',
     shadow: '0',
-    fillColor: fill === 'transparent' ? 'none' : fill,
+    fillColor: fill === 'transparent' ? 'none' : drawioThemeColor(fill),
   };
   if (stroke === 'none') {
     props.strokeColor = 'none';
     props.strokeWidth = '0';
   } else {
-    props.strokeColor = stroke;
+    props.strokeColor = drawioThemeColor(stroke);
     props.strokeWidth = String(strokeWidth);
   }
   if (dashed) {
@@ -73,7 +74,7 @@ export function labelStyleProps(options?: {
     shadow: '0',
     fontFamily: options?.fontFamily ?? 'Ubuntu Sans',
     fontSize: String(options?.fontSize ?? sizeToPx(BODY_SIZE)),
-    fontColor: options?.fontColor ?? Fill.BLACK,
+    fontColor: drawioThemeColor(options?.fontColor ?? Fill.BLACK),
   };
   const fontSource = options?.fontSource === undefined ? FONT_SOURCE : options.fontSource;
   if (fontSource) {
@@ -126,7 +127,7 @@ export function edgeStyleProps(
     orthogonalLoop: '1',
     jettySize: 'auto',
     html: '1',
-    strokeColor: color,
+    strokeColor: drawioThemeColor(color),
     strokeWidth: '1',
   });
   if (options?.startArrow) {

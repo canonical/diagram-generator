@@ -1,5 +1,6 @@
 import { ICON_SIZE } from '../tokens.js';
 import { tintIconInnerMarkup } from '../icon-markup.js';
+import { drawioThemeSvgColorAttributes } from './theme.js';
 
 function compactSvg(svgText: string): string {
   return svgText.replace(/>\s+</g, '><').replace(/\s+/g, ' ').trim();
@@ -22,4 +23,8 @@ export function tintedIconDataUri(tintedInnerMarkup: string, size = ICON_SIZE): 
     '</svg>',
   ].join('');
   return inlineSvgDataUri(svg);
+}
+
+export function themedIconDataUri(tintedInnerMarkup: string, size = ICON_SIZE): string {
+  return tintedIconDataUri(drawioThemeSvgColorAttributes(tintedInnerMarkup), size);
 }
