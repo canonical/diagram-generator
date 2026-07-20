@@ -24,3 +24,27 @@ Last known green: `npm --prefix packages/layout-engine test` (1,136 passed,
 is installed through `nvm`; `~/.zshrc` already loads it for interactive shells.
 PreviewEditor is running at `http://127.0.0.1:8100/`. The manual gate still needs
 diagrams.net Light/Dark/Automatic verification.
+
+**Requested Opus review: Preview folder-workspace UX and delivery path.**
+Review the current implementation, the existing adversarial review, and Spec 075
+as a product and architecture owner. The intended first-run experience is simple:
+the user opens a folder; the left sidebar immediately lists the diagrams in that
+folder (grouped when several folders/examples are open); selecting one renders it
+on the central canvas; edits save back to that same folder. Bundled examples must
+remain discoverable without obscuring the user's folder. The experience should
+work for a non-repo user without terminal setup beyond launching the preview.
+
+Assess whether the current product actually delivers that flow, including empty,
+unsupported-browser, permission-regrant, external-change, duplicate-filename,
+read-only-copy, and restart states. Check the source ownership and save contract
+as well as the visible UX; do not accept test coverage as a substitute for the
+real workflow. Identify the smallest useful way forward, ordered by user impact
+and dependency, separating must-fix closeout issues from follow-up work.
+
+Update the durable owner as part of the review: amend `specs/075-preview-folder-workspaces/`
+when the work belongs there, or create/name a narrowly scoped successor spec when
+it does not. Keep branch and task ownership unambiguous; do not implement product
+code in this review. Then replace this request with concise review findings in
+`AGENT-INBOX.md`: decision, prioritized next steps, blockers/evidence gaps, and
+links to the durable spec/review record. Update `TODO.md` and `docs/specs.md` only
+when the review changes queue order or spec status.
