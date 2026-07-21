@@ -25,26 +25,34 @@ is installed through `nvm`; `~/.zshrc` already loads it for interactive shells.
 PreviewEditor is running at `http://127.0.0.1:8100/`. The manual gate still needs
 diagrams.net Light/Dark/Automatic verification.
 
-**Requested Opus review: Preview folder-workspace UX and delivery path.**
-Review the current implementation, the existing adversarial review, and Spec 075
-as a product and architecture owner. The intended first-run experience is simple:
-the user opens a folder; the left sidebar immediately lists the diagrams in that
-folder (grouped when several folders/examples are open); selecting one renders it
-on the central canvas; edits save back to that same folder. Bundled examples must
-remain discoverable without obscuring the user's folder. The experience should
-work for a non-repo user without terminal setup beyond launching the preview.
+**Preview folder-workspace UX review — done 2026-07-20.**
+Durable findings: [`docs/spec-reviews/opus-adversarial-review-findings-2026-07-20-spec-075-ux-delivery.md`](docs/spec-reviews/opus-adversarial-review-findings-2026-07-20-spec-075-ux-delivery.md).
 
-Assess whether the current product actually delivers that flow, including empty,
-unsupported-browser, permission-regrant, external-change, duplicate-filename,
-read-only-copy, and restart states. Check the source ownership and save contract
-as well as the visible UX; do not accept test coverage as a substitute for the
-real workflow. Identify the smallest useful way forward, ordered by user impact
-and dependency, separating must-fix closeout issues from follow-up work.
+Decision: **changes requested / evidence-gated — not a code block.** Tracing the
+production routes (not the tests) confirms the target flow works: prominent
+"Open folder…" CTA, opened folder grouped first in the sidebar (local → server →
+bundled), qualified-address render onto the canvas, and a save gated on the real
+browser file-handle write. Read-only bundled examples, Save a copy, conflict
+handling, reconnect, bounded ingest, and safe YAML are all wired at the right
+boundaries and merged on `main`.
 
-Update the durable owner as part of the review: amend `specs/075-preview-folder-workspaces/`
-when the work belongs there, or create/name a narrowly scoped successor spec when
-it does not. Keep branch and task ownership unambiguous; do not implement product
-code in this review. Then replace this request with concise review findings in
-`AGENT-INBOX.md`: decision, prioritized next steps, blockers/evidence gaps, and
-links to the durable spec/review record. Update `TODO.md` and `docs/specs.md` only
-when the review changes queue order or spec status.
+Blockers / evidence gaps before Closeout Ready:
+- **G1 (must-fix):** T045 native OS chooser + real permission revoke/restart/
+  regrant is unproven — all handle evidence is a deterministic OPFS harness.
+- **G2:** the prior 2026-07-17 Opus closeout was never written; this review
+  discharges that gate, conditional on G1.
+- **G3 (process note):** all of 075 shipped to `main` with no `feat/075` branch
+  ahead of closeout, so the review is retroactive. Already reflected in
+  `docs/specs.md` / `TODO.md`; no action beyond finishing G1 then archiving.
+
+Prioritized next steps:
+1. Run and record the G1 native-picker/regrant journey → closes T045.
+2. Archive `specs/075-preview-folder-workspaces/`; flip status to Closed.
+3. Follow-up only: **Spec 083 preview folder-workspace delivery shell**
+   (`specs/083-preview-folder-workspace-delivery-shell/`) owns the non-repo
+   launch gap (users still need a checkout + `npm install` today). Not a 075
+   blocker.
+
+Durable owners updated: spec 075 status + T044, `docs/specs.md`, `TODO.md`, and
+new draft spec 083. Do not resume with product code until G1 lands on a matching
+branch.

@@ -139,9 +139,12 @@ predecessor's tests are green.
 - [x] T043 Full validation on 2026-07-17 is green: layout-engine 1,062; preview
       188 pass / 1 expected Windows symlink skip; builds, browser freshness,
       no-new-Python, diff check, and the Chromium real-handle journey pass.
-- [~] T044 Initial adversarial review and remediation are recorded in
-      `docs/spec-reviews/075-preview-folder-workspaces-adversarial-review-2026-07-17.md`.
-      An Opus closeout request is prepared; its findings file is still pending.
+- [x] T044 Adversarial review and remediation are recorded in
+      `docs/spec-reviews/075-preview-folder-workspaces-adversarial-review-2026-07-17.md`;
+      the Opus closeout review is complete in
+      `docs/spec-reviews/opus-adversarial-review-findings-2026-07-20-spec-075-ux-delivery.md`
+      (verdict: changes requested / evidence-gated on T045). Delivery/packaging
+      for non-repo users is split out to successor Spec 083.
 - [~] T045 Run a supported Chromium picker journey against the production bundle:
       open two same-named folders, edit/save each, externally change one, reload,
       revoke/re-grant permission, and record the OS files plus grouped nav as

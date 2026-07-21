@@ -1,8 +1,13 @@
 # Spec 075: Preview folder workspaces
 
-**Feature Branch**: `feat/075-preview-folder-workspaces`
-**Status**: In progress — implementation and real-handle Chromium coverage are
-complete; native OS-picker/regrant evidence and final adversarial review remain
+**Feature Branch**: `feat/075-preview-folder-workspaces` (merged; branch deleted —
+all phases are on `main`, so closeout is retroactive)
+**Status**: Closeout pending — full implementation is on `main` and the Opus
+closeout review is complete
+([`opus-adversarial-review-findings-2026-07-20-spec-075-ux-delivery.md`](../../docs/spec-reviews/opus-adversarial-review-findings-2026-07-20-spec-075-ux-delivery.md),
+verdict: changes requested / evidence-gated). The one remaining gate is T045
+native OS-picker + real permission revoke/restart/regrant evidence. Non-repo
+delivery/packaging is out of scope here and tracked as successor Spec 083.
 **Created**: 2026-07-06
 **Support files**: [`plan.md`](./plan.md), [`tasks.md`](./tasks.md),
 [`workspace-flow.md`](./workspace-flow.md), [`validation.md`](./validation.md)

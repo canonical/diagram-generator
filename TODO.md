@@ -21,8 +21,11 @@ individual tasks are discussed.
 - [ ] Close spec 077 draw.io theme handling: `main` contains the explicit paired
       theme contract, tests, and goldens. Record the diagrams.net Light/Dark/
       Automatic result for T021/T030, including embedded SVG icons.
-- [ ] Close spec 075 with native OS picker/regrant evidence and Opus closeout
-      review, then archive `specs/075-preview-folder-workspaces/`.
+- [ ] Close spec 075: the Opus closeout review is done
+      (`docs/spec-reviews/opus-adversarial-review-findings-2026-07-20-spec-075-ux-delivery.md`);
+      the only remaining gate is T045 native OS picker/regrant evidence. Land it,
+      then archive `specs/075-preview-folder-workspaces/`. Non-repo delivery is
+      split out to successor Spec 083.
 - [ ] Delete stale merged remote branches after push access is confirmed:
       `origin/feat/028-diagram-interchange-mermaid-d2` and
       `origin/feat/061-preview-grid-regression`.
@@ -41,7 +44,9 @@ individual tasks are discussed.
    manual verification for T021/T030 before beginning another layout-engine/
    exporter change.
 2. **Spec 075 preview folder workspaces closeout.** Implementation is already on
-   `main`; remaining evidence is native OS picker/regrant plus Opus closeout.
+   `main`; the Opus closeout review is complete, so the only remaining evidence
+   is the T045 native OS picker/regrant journey. Spec 083 (delivery shell) is the
+   follow-up owner for non-repo launch and is not a 075 blocker.
 3. **Spec 064 arrow annotation label de-overlap.** Start on
    `feat/064-arrow-annotation-label-de-overlap`; investigation-first and low
    conflict with 075/077 closeout.
