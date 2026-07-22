@@ -24,7 +24,7 @@ native OS chooser, its cancel path, or permission re-grant.
 
 ## Automated validation
 
-- `npm --prefix packages/layout-engine exec vitest run tests/local-folder-workspace.test.ts` — 14 tests passed.
+- `npm --prefix packages/layout-engine exec vitest run tests/local-folder-workspace.test.ts` — 15 tests passed, including selected-folder scan progress.
 - `npm --prefix packages/layout-engine test` — 179 files passed; 1,140 tests
   passed, 3 skipped.
 - `npm --prefix apps/preview run test -- src/persistence/preview-host-contract.test.ts` — passed.

@@ -76,6 +76,7 @@ const LEGACY_DB_KEY = 'last-folder';
 const MAX_WORKSPACE_FILE_COUNT = 500;
 const MAX_WORKSPACE_FILE_BYTES = 2 * 1024 * 1024;
 const MAX_WORKSPACE_TOTAL_BYTES = 25 * 1024 * 1024;
+const FOLDER_SCAN_TIMEOUT_MS = 15_000;
 
 class PreviewWorkspaceConflictError extends Error {}
 
@@ -216,6 +217,20 @@ async function readDirectory(directory: FileSystemDirectoryHandle): Promise<Prev
     files.push({ name, content: await file.text(), handle: fileHandle });
   }
   return files.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function readDirectoryWithinTimeout(directory: FileSystemDirectoryHandle): Promise<PreviewLocalFolderFile[]> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const timeoutResult = new Promise<never>((_resolve, reject) => {
+    timeout = setTimeout(() => {
+      reject(new Error(
+        `Reading ${directory.name} took too long. Choose a folder with YAML diagrams directly inside it.`,
+      ));
+    }, FOLDER_SCAN_TIMEOUT_MS);
+  });
+  return Promise.race([readDirectory(directory), timeoutResult]).finally(() => {
+    if (timeout !== undefined) clearTimeout(timeout);
+  });
 }
 
 async function uploadFolder(
@@ -383,11 +398,27 @@ export function createPreviewLocalFolderWorkspace(
     allowEmpty = false,
     operation?: number,
   ): Promise<PreviewLocalFolderOpenResult> {
-    const files = await readDirectory(directory);
+    if (operation !== undefined) {
+      setOperationStatus(
+        operation,
+        `Selected ${directory.name}. Reading root-level YAML diagrams…`,
+        'pending',
+      );
+    }
+    const files = await readDirectoryWithinTimeout(directory);
     if (files.length === 0 && !allowEmpty) {
-      throw new Error('The selected folder has no root-level .yaml diagrams.');
+      throw new Error(
+        `${directory.name} has no .yaml diagrams directly inside it. Choose the folder that contains your diagram files.`,
+      );
     }
     const requestedSourceId = record?.sourceId ?? createSourceId(directory.name);
+    if (operation !== undefined) {
+      setOperationStatus(
+        operation,
+        `Found ${files.length} diagram${files.length === 1 ? '' : 's'} in ${directory.name}. Registering folder…`,
+        'pending',
+      );
+    }
     const result = await uploadFolder(fetchFn, directory.name, files, requestedSourceId, allowEmpty);
     const state: PreviewLocalFolderState = {
       sourceId: result.sourceId,

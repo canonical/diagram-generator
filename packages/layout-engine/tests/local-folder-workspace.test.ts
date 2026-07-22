@@ -200,6 +200,41 @@ describe('preview local-folder workspace', () => {
     expect(elements.get('dg-workspace-status')?.attributes.get('data-status-kind')).toBe('error');
   });
 
+  it('confirms the selected folder while its YAML files are being read', async () => {
+    let releaseEntries: (() => void) | null = null;
+    const directory = {
+      kind: 'directory',
+      name: 'Diagrams',
+      async *entries() {
+        await new Promise<void>((resolve) => { releaseEntries = resolve; });
+      },
+    } as FileSystemDirectoryHandle;
+    const { document, elements } = fakeDocument();
+    const windowObject = {
+      __DG_CONFIG: { slug: '' },
+      location: { assign() {} },
+      showDirectoryPicker: async () => directory,
+    } as unknown as Window;
+    const controller = createPreviewLocalFolderWorkspace({
+      windowObject,
+      document,
+      fetchFn: vi.fn() as unknown as typeof fetch,
+      handleStore: memoryStore().store,
+    });
+
+    const opening = controller.openFolder();
+    await vi.waitFor(() => {
+      expect(elements.get('dg-workspace-status')?.textContent)
+        .toBe('Selected Diagrams. Reading root-level YAML diagrams…');
+    });
+    expect(elements.get('dg-workspace-status')?.attributes.get('data-status-kind')).toBe('pending');
+
+    releaseEntries?.();
+    await opening;
+    expect(elements.get('dg-workspace-status')?.textContent)
+      .toBe('Diagrams has no .yaml diagrams directly inside it. Choose the folder that contains your diagram files.');
+  });
+
   it('does not let a stale restore overwrite a newer folder-operation status', async () => {
     const permission: { value: PermissionState } = { value: 'prompt' };
     const handle = fakeDirectory('Alpha', [fakeFileHandle('alpha.yaml', 'alpha: original\n')], permission);

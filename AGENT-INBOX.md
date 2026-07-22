@@ -25,6 +25,12 @@ restore, one bounded reload, reconstructed active state, and corrected test
 paths. `8100` now runs this worktree (not 075); served UI and automated evidence
 is in `specs/084-folder-workspace-reliability/evidence/`.
 
+**New reproduction (2026-07-22):** selecting a folder in the native chooser did
+not create a server workspace, so the flow stalled before `/api/workspaces/open`.
+The controller now reports selected-folder scan and registration progress, bounds
+an unresponsive scan at 15 seconds, and explains the root-level YAML requirement.
+The refreshed bundle needs a clean 8100 restart before retest.
+
 **Remaining blocker:** perform and record the real Chrome native chooser,
 cancel, valid-folder open, restart, permission revoke/re-grant, save/reload,
 and alternate-local-address journey. Mocked/controller checks do not clear this
