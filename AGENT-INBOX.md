@@ -17,23 +17,18 @@ The user reports a silent **Open folder…** action and an absent visible recove
 control. This is now a dedicated follow-up, not a claim that Spec 075 is ready
 to close. The active branch is `feat/084-folder-workspace-reliability`.
 
-Evidence so far: the known sidebar fix is `f0f440f` (2026-07-18), and remains
-in `main` and the prior 075 worktree. The server on `http://127.0.0.1:8100/`
-currently runs the 075 worktree, which serves a fresh bundle with the typed
-folder controller. A controlled Chrome page shows the reconnect action only
-after its async restore detects a denied remembered handle; the user's real UI
-does not expose it. The follow-up must make every folder action observable,
-make recovery adjacent and durable, and prove native Chrome chooser/regrant
-behavior. See `specs/084-folder-workspace-reliability/`.
-
-**Pending Opus adversarial review:** use
-[`specs/084-folder-workspace-reliability/opus-adversarial-review-request-2026-07-22.md`](specs/084-folder-workspace-reliability/opus-adversarial-review-request-2026-07-22.md).
-Opus must write its findings only to
+Opus review is complete at
 [`docs/spec-reviews/opus-adversarial-review-findings-2026-07-22-spec-084-folder-workspace-reliability.md`](docs/spec-reviews/opus-adversarial-review-findings-2026-07-22-spec-084-folder-workspace-reliability.md).
+Its F1–F5 and F7–F9 findings are implemented: synchronous pending/cancelled and
+unsupported outcomes, a separate folder-status region, generation-guarded
+restore, one bounded reload, reconstructed active state, and corrected test
+paths. `8100` now runs this worktree (not 075); served UI and automated evidence
+is in `specs/084-folder-workspace-reliability/evidence/`.
 
-Last known live check: `8100` returned HTTP 200 from the 075 worktree on
-2026-07-22. Do not treat bundle/source inspection or mocked handles as native
-picker evidence; the new Spec 084 tasks require a real Chrome journey.
+**Remaining blocker:** perform and record the real Chrome native chooser,
+cancel, valid-folder open, restart, permission revoke/re-grant, save/reload,
+and alternate-local-address journey. Mocked/controller checks do not clear this
+closeout gate.
 
 **Preview folder-workspace UX review — done 2026-07-20.**
 Durable findings: [`docs/spec-reviews/opus-adversarial-review-findings-2026-07-20-spec-075-ux-delivery.md`](docs/spec-reviews/opus-adversarial-review-findings-2026-07-20-spec-075-ux-delivery.md).

@@ -97,7 +97,13 @@ function defaultSourceId(label: string): string {
   return `local-${sourceToken(label)}-${randomPart}`;
 }
 
-function setStatus(document: Document, message: string, kind: 'ok' | 'error' = 'ok'): void {
+type PreviewWorkspaceStatusKind = 'ok' | 'error' | 'pending' | 'cancelled';
+
+function setStatus(
+  document: Document,
+  message: string,
+  kind: PreviewWorkspaceStatusKind = 'ok',
+): void {
   const node = document.getElementById('dg-workspace-status');
   if (node) {
     node.textContent = message;
@@ -319,6 +325,35 @@ export function createPreviewLocalFolderWorkspace(
   let deniedRecords: PreviewLocalFolderHandleRecord[] = [];
   let opening = false;
   let restoreInFlight: Promise<void> | null = null;
+  let latestOperation = 0;
+  let restoreReloadTriggered = false;
+
+  function beginOperation(): number {
+    latestOperation += 1;
+    return latestOperation;
+  }
+
+  function operationIsCurrent(operation: number): boolean {
+    return latestOperation === operation;
+  }
+
+  function setOperationStatus(
+    operation: number,
+    message: string,
+    kind: PreviewWorkspaceStatusKind = 'ok',
+  ): void {
+    if (operationIsCurrent(operation)) setStatus(document, message, kind);
+  }
+
+  function setOperationReconnectVisibility(operation: number, count: number): void {
+    if (operationIsCurrent(operation)) setReconnectVisibility(document, count);
+  }
+
+  function reloadAfterRestoredRegistration(operation: number, registered: boolean): void {
+    if (!registered || !operationIsCurrent(operation) || restoreReloadTriggered) return;
+    restoreReloadTriggered = true;
+    windowObject.location.reload();
+  }
 
   async function persistRecords(): Promise<void> {
     try {
@@ -346,6 +381,7 @@ export function createPreviewLocalFolderWorkspace(
     record: PreviewLocalFolderHandleRecord | null,
     navigate: boolean,
     allowEmpty = false,
+    operation?: number,
   ): Promise<PreviewLocalFolderOpenResult> {
     const files = await readDirectory(directory);
     if (files.length === 0 && !allowEmpty) {
@@ -370,10 +406,11 @@ export function createPreviewLocalFolderWorkspace(
       nextRecord,
     ];
     await persistRecords();
-    setStatus(
-      document,
-      `${result.slugs.length} diagram${result.slugs.length === 1 ? '' : 's'} loaded from ${result.label}.`,
-    );
+    const loadedMessage = navigate
+      ? `Opened ${result.label}. Loading its first diagram…`
+      : `${result.slugs.length} diagram${result.slugs.length === 1 ? '' : 's'} loaded from ${result.label}.`;
+    if (operation === undefined) setStatus(document, loadedMessage);
+    else setOperationStatus(operation, loadedMessage);
     const firstSlug = result.slugs[0];
     if (navigate && firstSlug) {
       windowObject.location.assign(`/view/v3:${result.sourceId}:${firstSlug}`);
@@ -562,25 +599,32 @@ export function createPreviewLocalFolderWorkspace(
 
   const controller: PreviewLocalFolderController = {
     async openFolder() {
-      if (opening) return;
+      if (opening) {
+        setStatus(document, 'A folder chooser is already open.', 'pending');
+        return;
+      }
+      const operation = beginOperation();
       const picker = (windowObject as Window & {
         showDirectoryPicker?: (options?: { mode?: 'read' | 'readwrite' }) => Promise<FileSystemDirectoryHandle>;
       }).showDirectoryPicker;
       if (typeof picker !== 'function') {
-        setStatus(
-          document,
-          'Folder access requires a Chromium-based browser on localhost. You can still start the preview with --root "Name=path".',
+        setOperationStatus(
+          operation,
+          'This browser cannot open local folders. Use a Chromium-based browser on localhost, or start the preview with --root "Name=path".',
           'error',
         );
         return;
       }
       opening = true;
+      setOperationStatus(operation, 'Opening folder chooser…', 'pending');
       try {
         const directory = await picker.call(windowObject, { mode: 'readwrite' });
-        await openDirectory(directory, await findExistingRecord(directory), true);
+        await openDirectory(directory, await findExistingRecord(directory), true, false, operation);
       } catch (error) {
-        if ((error as { name?: string })?.name !== 'AbortError') {
-          setStatus(document, error instanceof Error ? error.message : String(error), 'error');
+        if ((error as { name?: string })?.name === 'AbortError') {
+          setOperationStatus(operation, 'No folder was opened.', 'cancelled');
+        } else {
+          setOperationStatus(operation, error instanceof Error ? error.message : String(error), 'error');
         }
       } finally {
         opening = false;
@@ -588,45 +632,57 @@ export function createPreviewLocalFolderWorkspace(
     },
 
     async restoreFolders() {
+      const operationId = beginOperation();
       const operation = (async () => {
         try {
           storedRecords = await handleStore.load();
         } catch (error) {
           console.warn('Could not read remembered folder handles', error);
-          setStatus(document, 'This browser could not restore remembered folders.', 'error');
+          setOperationStatus(operationId, 'This browser could not restore remembered folders.', 'error');
           return;
         }
         for (const record of storedRecords) knownLocalSourceIds.add(record.sourceId);
         deniedRecords = [];
         let restored = 0;
         let registered = false;
+        let activeWorkspace: PreviewLocalFolderOpenResult | null = null;
+        const activeAddress = configuredAddress(windowObject);
         for (const record of storedRecords) {
           try {
             if (await directoryPermission(record.handle, false) !== 'granted') {
               deniedRecords.push(record);
               continue;
             }
-            const result = await openDirectory(record.handle, record, false);
+            const result = await openDirectory(record.handle, record, false, false, operationId);
             registered ||= result.registered === true;
             restored += 1;
+            if (activeAddress?.sourceId === result.sourceId) activeWorkspace = result;
           } catch (error) {
             console.warn(`Could not restore folder '${record.label}'`, error);
             deniedRecords.push(record);
           }
         }
-        setReconnectVisibility(document, deniedRecords.length);
+        setOperationReconnectVisibility(operationId, deniedRecords.length);
         if (deniedRecords.length > 0) {
-          setStatus(
-            document,
+          setOperationStatus(
+            operationId,
             `${deniedRecords.length} folder${deniedRecords.length === 1 ? '' : 's'} need permission to reconnect.`,
             'error',
           );
+        } else if (activeWorkspace) {
+          setOperationStatus(
+            operationId,
+            `${activeWorkspace.label} is active (${activeWorkspace.slugs.length} diagram${activeWorkspace.slugs.length === 1 ? '' : 's'}).`,
+          );
         } else if (restored > 0) {
-          setStatus(document, `${restored} folder${restored === 1 ? '' : 's'} reconnected.`);
+          setOperationStatus(operationId, `${restored} folder${restored === 1 ? '' : 's'} reconnected.`);
+        } else {
+          setOperationStatus(
+            operationId,
+            'Open a folder to edit its YAML diagrams. Folders are remembered for this local browser address.',
+          );
         }
-        if (registered) {
-          windowObject.location.reload();
-        }
+        reloadAfterRestoredRegistration(operationId, registered);
       })();
       restoreInFlight = operation;
       try {
@@ -637,28 +693,40 @@ export function createPreviewLocalFolderWorkspace(
     },
 
     async reconnectFolders() {
+      const operationId = beginOperation();
       const stillDenied: PreviewLocalFolderHandleRecord[] = [];
       let restored = 0;
+      let registered = false;
+      let activeWorkspace: PreviewLocalFolderOpenResult | null = null;
+      const activeAddress = configuredAddress(windowObject);
       for (const record of deniedRecords) {
         try {
           if (await directoryPermission(record.handle, true) !== 'granted') {
             stillDenied.push(record);
             continue;
           }
-          await openDirectory(record.handle, record, false);
+          const result = await openDirectory(record.handle, record, false, false, operationId);
+          registered ||= result.registered === true;
           restored += 1;
+          if (activeAddress?.sourceId === result.sourceId) activeWorkspace = result;
         } catch (error) {
           console.warn(`Could not reconnect folder '${record.label}'`, error);
           stillDenied.push(record);
         }
       }
       deniedRecords = stillDenied;
-      setReconnectVisibility(document, deniedRecords.length);
+      setOperationReconnectVisibility(operationId, deniedRecords.length);
       if (deniedRecords.length > 0) {
-        setStatus(document, 'Folder permission was not granted. Your files were not changed.', 'error');
+        setOperationStatus(operationId, 'Folder permission was not granted. Your files were not changed.', 'error');
+      } else if (activeWorkspace) {
+        setOperationStatus(
+          operationId,
+          `${activeWorkspace.label} is active (${activeWorkspace.slugs.length} diagram${activeWorkspace.slugs.length === 1 ? '' : 's'}).`,
+        );
       } else if (restored > 0) {
-        setStatus(document, `${restored} folder${restored === 1 ? '' : 's'} reconnected.`);
+        setOperationStatus(operationId, `${restored} folder${restored === 1 ? '' : 's'} reconnected.`);
       }
+      reloadAfterRestoredRegistration(operationId, registered);
     },
 
     async forgetCurrentFolder() {

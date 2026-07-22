@@ -58,16 +58,19 @@ folders, and all restart/reload/permission outcomes.
 `packages/layout-engine/src/preview-shell/local-folder-workspace.ts` is the
 owner for open, restore, reconnect, forget, and browser-handle outcomes. Extend
 its typed view model so an operation moves through pending, cancelled,
-successful, recoverable, and failed states. The state presenter must update the
-dedicated workspace area rather than relying on the unrelated build status.
+unsupported, successful, recoverable, and failed states. Each operation receives
+a monotonic generation: a foreground user action wins over an older async
+restore, whose late status writes are discarded. The state presenter must update
+the dedicated workspace area rather than relying on the unrelated build status.
 
 ### 2. Keep recovery adjacent to Open folder
 
 The static viewer provides stable, accessible placeholders. The typed workspace
 owner decides whether recovery is relevant and supplies the label, explanation,
-and action. A denied remembered handle must not be the only condition under
-which users receive recovery guidance: the idle workflow also explains that
-folders are remembered per local browser address and can be opened again there.
+and action. The status area is structurally separate from preview build status.
+A denied remembered handle must not be the only condition under which users
+receive recovery guidance: the idle workflow explicitly explains that folders
+are remembered only for this local browser address and can be opened again there.
 
 ### 3. Preserve the existing registry/nav boundary
 
@@ -81,8 +84,10 @@ wait for/observe its visible navigation result.
 
 The server registry is process-local while browser handles may persist. A
 granted remembered handle must re-register after server restart and show its
-named Browse group. A denied handle must leave a durable actionable recovery
-state, not a hidden control or a transient status race.
+named Browse group. Registration-triggered navigation happens at most once per
+page lifecycle, and its destination reconstructs the active-folder message. A
+denied handle must leave a durable actionable recovery state, not a hidden
+control or a transient status race.
 
 ### 5. Test browser facts at the right layer
 
@@ -105,8 +110,10 @@ apps/preview/src/
 packages/layout-engine/src/
 ├── browser-entry-preview-shell.ts
 └── preview-shell/
-    ├── local-folder-workspace.ts
-    └── local-folder-workspace.test.ts
+    └── local-folder-workspace.ts
+
+packages/layout-engine/tests/
+└── local-folder-workspace.test.ts
 
 scripts/preview/
 └── viewer-unified.html                 # structural placeholders only

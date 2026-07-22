@@ -9,19 +9,20 @@
 - [ ] T001 Record the current Chrome reproduction, exact local address, browser
       version, and visible folder-workflow DOM in
       `specs/084-folder-workspace-reliability/evidence/`.
-- [ ] T002 [P] Add focused controller cases for open pending, cancellation,
+- [x] T002 [P] Add focused controller cases for open pending, cancellation,
       native-picker failure, and durable status transitions in
-      `packages/layout-engine/src/preview-shell/local-folder-workspace.test.ts`.
+      `packages/layout-engine/tests/local-folder-workspace.test.ts`.
 - [ ] T003 [P] Add preview-host contracts for successful local-folder
       registration rendering a group before Bundled examples in
       `apps/preview/src/persistence/preview-host-contract.test.ts`.
 
 ## Phase 2: Foundational operation-state contract
 
-- [ ] T004 Define the typed workspace operation/recovery presentation contract
+- [x] T004 Define the typed workspace operation/recovery presentation contract
       in `packages/layout-engine/src/preview-shell/local-folder-workspace.ts`.
-- [ ] T005 Add stable, accessible workspace status/action hooks only in
-      `scripts/preview/viewer-unified.html`; do not add behavior there.
+- [x] T005 Add stable, accessible workspace status/action hooks only in
+      `scripts/preview/viewer-unified.html`, structurally separate from preview
+      build status; do not add behavior there.
 - [ ] T006 Wire the typed operation state to the viewer hooks through
       `packages/layout-engine/src/browser-entry-preview-shell.ts` and the
       existing preview-shell bootstrap owner.
@@ -33,11 +34,12 @@
 **Independent Test**: In Chrome, trigger supported, cancelled, and rejected
 picker paths and observe a durable visible result for each.
 
-- [ ] T007 [US1] Implement pending, cancelled, unsupported, and picker-failure
-      presentation in `packages/layout-engine/src/preview-shell/local-folder-workspace.ts`.
-- [ ] T008 [US1] Extend controller tests for every US1 result in
-      `packages/layout-engine/src/preview-shell/local-folder-workspace.test.ts`.
-- [ ] T009 [US1] Build the browser bundle and verify the served `8100` asset
+- [x] T007 [US1] Implement pending, cancelled, unsupported, and picker-failure
+      presentation plus generation-guarded async status writes in
+      `packages/layout-engine/src/preview-shell/local-folder-workspace.ts`.
+- [x] T008 [US1] Extend controller tests for every US1 result in
+      `packages/layout-engine/tests/local-folder-workspace.test.ts`.
+- [x] T009 [US1] Build the browser bundle and verify the served `8100` asset
       exports the operation-state surface using
       `packages/layout-engine/build-browser.mjs` and
       `scripts/check-browser-bundle-fresh.mjs`.
@@ -49,8 +51,9 @@ picker paths and observe a durable visible result for each.
 **Independent Test**: Open a valid folder and observe its named group above
 Bundled examples without a manual refresh.
 
-- [ ] T010 [US2] Make local-folder registration completion wait for/trigger the
-      visible viewer navigation result in
+- [x] T010 [US2] Make local-folder registration completion trigger the visible
+      viewer navigation result and reconstruct its active-folder status after
+      navigation in
       `packages/layout-engine/src/preview-shell/local-folder-workspace.ts`.
 - [ ] T011 [US2] Preserve typed local-folder ordering and registration response
       semantics in `apps/preview/src/preview-host/builtin-host-runtime.ts` and
@@ -66,10 +69,11 @@ Bundled examples without a manual refresh.
 **Independent Test**: Restart after opening a folder, then prove granted restore
 and denied/re-granted recovery both end in the named Browse group.
 
-- [ ] T013 [US3] Implement persistent granted/denied restore and local-address
-      guidance states in `packages/layout-engine/src/preview-shell/local-folder-workspace.ts`.
-- [ ] T014 [US3] Add deterministic restore/reconnect contract tests in
-      `packages/layout-engine/src/preview-shell/local-folder-workspace.test.ts`.
+- [x] T013 [US3] Implement persistent granted/denied restore, local-address
+      guidance, and at-most-once restore navigation per page lifecycle in
+      `packages/layout-engine/src/preview-shell/local-folder-workspace.ts`.
+- [x] T014 [US3] Add deterministic restore/reconnect contract tests in
+      `packages/layout-engine/tests/local-folder-workspace.test.ts`.
 - [ ] T015 [US3] Verify a restarted host accepts the re-registration path in
       `apps/preview/src/preview-host/builtin-server-routes.ts` and its preview
       contract tests.
@@ -81,7 +85,7 @@ and denied/re-granted recovery both end in the named Browse group.
 **Independent Test**: Each outcome remains visible in the folder-workflow area
 until a subsequent folder operation changes it.
 
-- [ ] T016 [US4] Apply accessible status/action presentation to all workspace
+- [x] T016 [US4] Apply accessible status/action presentation to all workspace
       outcomes in `packages/layout-engine/src/preview-shell/local-folder-workspace.ts`.
 - [ ] T017 [US4] Add keyboard and live-region contract assertions in
       `apps/preview/src/persistence/preview-host-contract.test.ts`.

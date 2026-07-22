@@ -133,6 +133,103 @@ function jsonResponse(payload: unknown): Response {
 }
 
 describe('preview local-folder workspace', () => {
+  it('reports a distinct supported-browser explanation when folder picking is unavailable', async () => {
+    const { document, elements } = fakeDocument();
+    const windowObject = {
+      __DG_CONFIG: { slug: '' },
+      location: { assign() {} },
+    } as unknown as Window;
+    const controller = createPreviewLocalFolderWorkspace({
+      windowObject,
+      document,
+      fetchFn: vi.fn() as unknown as typeof fetch,
+      handleStore: memoryStore().store,
+    });
+
+    await controller.openFolder();
+
+    expect(elements.get('dg-workspace-status')?.textContent).toContain('This browser cannot open local folders.');
+    expect(elements.get('dg-workspace-status')?.attributes.get('data-status-kind')).toBe('error');
+  });
+
+  it('reports a visible pending state and explicit cancellation for Open folder', async () => {
+    const { document, elements } = fakeDocument();
+    let rejectPicker: ((reason?: unknown) => void) | null = null;
+    const windowObject = {
+      __DG_CONFIG: { slug: '' },
+      location: { assign() {} },
+      showDirectoryPicker: vi.fn(() => new Promise<FileSystemDirectoryHandle>((_resolve, reject) => {
+        rejectPicker = reject;
+      })),
+    } as unknown as Window;
+    const controller = createPreviewLocalFolderWorkspace({
+      windowObject,
+      document,
+      fetchFn: vi.fn() as unknown as typeof fetch,
+      handleStore: memoryStore().store,
+    });
+
+    const opening = controller.openFolder();
+    expect(elements.get('dg-workspace-status')?.textContent).toBe('Opening folder chooser…');
+    expect(elements.get('dg-workspace-status')?.attributes.get('data-status-kind')).toBe('pending');
+
+    rejectPicker?.(new DOMException('Cancelled', 'AbortError'));
+    await opening;
+
+    expect(elements.get('dg-workspace-status')?.textContent).toBe('No folder was opened.');
+    expect(elements.get('dg-workspace-status')?.attributes.get('data-status-kind')).toBe('cancelled');
+  });
+
+  it('reports a picker failure instead of silently abandoning the operation', async () => {
+    const { document, elements } = fakeDocument();
+    const windowObject = {
+      __DG_CONFIG: { slug: '' },
+      location: { assign() {} },
+      showDirectoryPicker: async () => { throw new DOMException('Access blocked', 'NotAllowedError'); },
+    } as unknown as Window;
+    const controller = createPreviewLocalFolderWorkspace({
+      windowObject,
+      document,
+      fetchFn: vi.fn() as unknown as typeof fetch,
+      handleStore: memoryStore().store,
+    });
+
+    await controller.openFolder();
+
+    expect(elements.get('dg-workspace-status')?.textContent).toBe('Access blocked');
+    expect(elements.get('dg-workspace-status')?.attributes.get('data-status-kind')).toBe('error');
+  });
+
+  it('does not let a stale restore overwrite a newer folder-operation status', async () => {
+    const permission: { value: PermissionState } = { value: 'prompt' };
+    const handle = fakeDirectory('Alpha', [fakeFileHandle('alpha.yaml', 'alpha: original\n')], permission);
+    let resolveRecords: ((records: PreviewLocalFolderHandleRecord[]) => void) | null = null;
+    const store: PreviewLocalFolderHandleStore = {
+      load: () => new Promise((resolve) => { resolveRecords = resolve; }),
+      save: async () => {},
+    };
+    const { document, elements } = fakeDocument();
+    const windowObject = {
+      __DG_CONFIG: { slug: '' },
+      location: { assign() {} },
+      showDirectoryPicker: async () => { throw new DOMException('Cancelled', 'AbortError'); },
+    } as unknown as Window;
+    const controller = createPreviewLocalFolderWorkspace({
+      windowObject,
+      document,
+      fetchFn: vi.fn() as unknown as typeof fetch,
+      handleStore: store,
+    });
+
+    const restoring = controller.restoreFolders();
+    await controller.openFolder();
+    resolveRecords?.([{ sourceId: 'local-alpha', label: 'Alpha', handle }]);
+    await restoring;
+
+    expect(elements.get('dg-workspace-status')?.textContent).toBe('No folder was opened.');
+    expect(elements.get('dg-workspace-status')?.attributes.get('data-status-kind')).toBe('cancelled');
+  });
+
   it('does not mirror a structurally blocked import into the opened folder', async () => {
     const alpha = fakeFileHandle('alpha.yaml', 'alpha: original\n');
     const directory = fakeDirectory('Alpha', [alpha]);
@@ -410,9 +507,10 @@ describe('preview local-folder workspace', () => {
     const handle = fakeDirectory('Alpha', [file], permission);
     const persisted = memoryStore([{ sourceId: 'local-alpha', label: 'Alpha', handle }]);
     const { document, elements } = fakeDocument();
+    const reload = vi.fn();
     const windowObject = {
       __DG_CONFIG: { slug: '' },
-      location: { assign() {} },
+      location: { assign() {}, reload },
       confirm: () => true,
     } as unknown as Window;
     const uploads: string[] = [];
@@ -423,7 +521,7 @@ describe('preview local-folder workspace', () => {
         if (String(input) === '/api/workspaces/open') {
           const body = JSON.parse(String(init?.body)) as { sourceId: string };
           uploads.push(body.sourceId);
-          return jsonResponse({ sourceId: body.sourceId, label: 'Alpha', slugs: ['alpha'] });
+          return jsonResponse({ sourceId: body.sourceId, label: 'Alpha', slugs: ['alpha'], registered: true });
         }
         return jsonResponse({});
       }) as typeof fetch,
@@ -438,6 +536,39 @@ describe('preview local-folder workspace', () => {
     expect(permission.value).toBe('granted');
     expect(elements.get('dg-reconnect-folders')?.hidden).toBe(true);
     expect(uploads).toEqual(['local-alpha']);
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('reconstructs the active-folder status after a reload', async () => {
+    const handle = fakeDirectory('Alpha', [fakeFileHandle('alpha.yaml', 'alpha: original\n')]);
+    const persisted = memoryStore([{ sourceId: 'local-alpha', label: 'Alpha', handle }]);
+    const { document, elements } = fakeDocument();
+    const reload = vi.fn();
+    const windowObject = {
+      __DG_CONFIG: { slug: 'local-alpha:alpha' },
+      location: { assign() {}, reload },
+    } as unknown as Window;
+    const controller = createPreviewLocalFolderWorkspace({
+      windowObject,
+      document,
+      fetchFn: (async (input: RequestInfo | URL) => {
+        if (String(input) === '/api/workspaces/open') {
+          return jsonResponse({
+            sourceId: 'local-alpha',
+            label: 'Alpha',
+            slugs: ['alpha'],
+            registered: false,
+          });
+        }
+        return jsonResponse({});
+      }) as typeof fetch,
+      handleStore: persisted.store,
+    });
+
+    await controller.restoreFolders();
+
+    expect(elements.get('dg-workspace-status')?.textContent).toBe('Alpha is active (1 diagram).');
+    expect(reload).not.toHaveBeenCalled();
   });
 
   it('reloads once when restore recreates a server-side workspace registration', async () => {

@@ -165,12 +165,23 @@ body.dg-preview {
        font-size: 0.6875rem;
        margin-inline-start: calc(var(--bf-baseline) * 0.5);
 }
+.dg-workspace-region {
+       border-block: 1px solid var(--bf-color-border, #444);
+       display: grid;
+       gap: calc(var(--bf-baseline) * 0.5);
+       margin-block: var(--bf-panel-padding-inline, 0.75rem);
+       padding-block: var(--bf-panel-padding-inline, 0.75rem);
+}
+.dg-workspace-region > .bf-form-label,
+.dg-workspace-region > .bf-form-help {
+       padding-inline: var(--bf-panel-padding-inline, 0.75rem);
+}
 .dg-workspace-open-row {
        align-items: center;
        display: flex;
        flex-wrap: wrap;
        gap: calc(var(--bf-baseline) * 0.5);
-       padding: var(--bf-panel-padding-inline, 0.75rem);
+       padding-inline: var(--bf-panel-padding-inline, 0.75rem);
 }
 .dg-workspace-open-row .bf-form-help {
        flex-basis: 100%;
@@ -327,6 +338,7 @@ body.dg-preview {
 .build-status {
        border-radius: var(--bf-border-radius, 4px);
        font-size: 11px;
+       margin-block-start: calc(var(--bf-baseline) * 1.5);
        padding: 6px 8px;
 }
 

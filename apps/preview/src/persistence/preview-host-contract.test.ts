@@ -720,6 +720,10 @@ test("force viewer hides grid and ELK sections", () => {
 test("static viewer chrome exposes stable right-aside panel groups", () => {
   const template = readFileSync(path.join(REPO_ROOT, "scripts", "preview", "viewer-unified.html"), "utf8");
 
+  assert.match(template, /id="dg-workspace-heading">Folder workspace/);
+  assert.match(template, /id="dg-workspace-status" role="status" aria-live="polite">Checking remembered folders/);
+  assert.match(template, /id="build-status" aria-label="Preview build status">Ready/);
+  assert.ok(template.indexOf('id="dg-workspace-status"') < template.indexOf('id="build-status"'));
   assert.match(template, /data-dg-panel-group="selection" data-dg-panel-id="selection"/);
   assert.match(
     template,
@@ -2909,6 +2913,9 @@ test("preview index page HTML renders browse sections without server-local strin
   assert.match(html, /href="\/view\/v3:alpha"/);
   assert.match(html, /href="\/force\/view\/beta"/);
   assert.match(html, /id="dg-open-folder"/);
+  assert.match(html, /id="dg-workspace-heading">Folder workspace/);
+  assert.match(html, /id="dg-workspace-status" role="status" aria-live="polite">Checking remembered folders/);
+  assert.doesNotMatch(html, /id="build-status"/);
 });
 
 function normalizePreviewSlug(value: string): string | null {
