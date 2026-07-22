@@ -23,9 +23,10 @@ individual tasks are discussed.
       Automatic result for T021/T030, including embedded SVG icons.
 - [ ] Close spec 075: the Opus closeout review is done
       (`docs/spec-reviews/opus-adversarial-review-findings-2026-07-20-spec-075-ux-delivery.md`);
-      the only remaining gate is T045 native OS picker/regrant evidence. Land it,
-      then archive `specs/075-preview-folder-workspaces/`. Non-repo delivery is
-      split out to successor Spec 083.
+      original T045 native OS picker/regrant evidence remains, while the observed
+      silent-open/hidden-recovery regression is owned by active Spec 084. Close
+      both before archiving `specs/075-preview-folder-workspaces/`. Non-repo
+      delivery is split out to successor Spec 083.
 - [ ] Delete stale merged remote branches after push access is confirmed:
       `origin/feat/028-diagram-interchange-mermaid-d2` and
       `origin/feat/061-preview-grid-regression`.
@@ -40,22 +41,26 @@ individual tasks are discussed.
 
 ## Recommended proceed / merge order
 
-1. **Spec 077 YAML -> draw.io export closeout.** Perform the Light/Dark/Automatic
+1. **Spec 084 folder-workspace reliability.** User-blocking Open-folder/recovery
+   regression: make the Chrome folder action observable, restore the named Browse
+   group reliably, and record native chooser/regrant proof before claiming the
+   local workflow dependable.
+2. **Spec 077 YAML -> draw.io export closeout.** Perform the Light/Dark/Automatic
    manual verification for T021/T030 before beginning another layout-engine/
    exporter change.
-2. **Spec 075 preview folder workspaces closeout.** Implementation is already on
-   `main`; the Opus closeout review is complete, so the only remaining evidence
-   is the T045 native OS picker/regrant journey. Spec 083 (delivery shell) is the
-   follow-up owner for non-repo launch and is not a 075 blocker.
-3. **Spec 064 arrow annotation label de-overlap.** Start on
+3. **Spec 075 preview folder workspaces closeout.** Implementation is already on
+   `main`; close original T045 only after Spec 084 resolves the current in-app
+   native/recovery reliability defect. Spec 083 (delivery shell) remains the
+   follow-up owner for non-repo launch.
+4. **Spec 064 arrow annotation label de-overlap.** Start on
    `feat/064-arrow-annotation-label-de-overlap`; investigation-first and low
    conflict with 075/077 closeout.
-4. **Spec 070 layers palette reorder.** Start on
+5. **Spec 070 layers palette reorder.** Start on
    `feat/070-layers-palette-reorder` after 064 or in parallel only if a separate
    agent owns it; it touches preview interaction/persistence surfaces.
-5. **Spec 079 Figma component variant import** or smaller draft specs
+6. **Spec 079 Figma component variant import** or smaller draft specs
    (`018` PNG export, `006` arrow routing) after the closeout queue is drained.
-6. **Spec 082 Figma-to-YAML round trip** is an independent contract-first
+7. **Spec 082 Figma-to-YAML round trip** is an independent contract-first
    feature on `feat/082-figma-yaml-round-trip` at `c53d5ae`. Begin T001–T005 and
    T010–T015 without changing product code; after the contract gate, scanner,
    YAML merge/persistence, guarded file service, and plugin UI can run in

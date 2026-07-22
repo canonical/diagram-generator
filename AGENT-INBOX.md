@@ -12,18 +12,23 @@ spec catalog/status → [`docs/specs.md`](docs/specs.md) · human notes →
 [`INBOX.md`](INBOX.md) · durable per-spec detail → `specs/<id>-<slug>/` ·
 adversarial reviews → `docs/spec-reviews/`.
 
-**Current task (2026-07-20): spec 077 draw.io theme closeout.**
-`main` now contains explicit `light-dark(...)` theme pairs for page
-background, fills, strokes, text, arrows, and embedded SVG icons, while keeping
-`adaptiveColors="none"`. T026-T029 are complete. The remaining T021/T030 gate is
-to open the three generated diagrams in diagrams.net Light, Dark, and Automatic
-modes and record whether embedded SVG icons honor the declared pairs.
+**Current task (2026-07-22): Spec 084 folder-workspace reliability.**
+The user reports a silent **Open folder…** action and an absent visible recovery
+control. This is now a dedicated follow-up, not a claim that Spec 075 is ready
+to close. The active branch is `feat/084-folder-workspace-reliability`.
 
-Last known green: `npm --prefix packages/layout-engine test` (1,136 passed,
-3 skipped) and `node scripts/check_no_new_python.mjs` on 2026-07-19. Node v24.11.1
-is installed through `nvm`; `~/.zshrc` already loads it for interactive shells.
-PreviewEditor is running at `http://127.0.0.1:8100/`. The manual gate still needs
-diagrams.net Light/Dark/Automatic verification.
+Evidence so far: the known sidebar fix is `f0f440f` (2026-07-18), and remains
+in `main` and the prior 075 worktree. The server on `http://127.0.0.1:8100/`
+currently runs the 075 worktree, which serves a fresh bundle with the typed
+folder controller. A controlled Chrome page shows the reconnect action only
+after its async restore detects a denied remembered handle; the user's real UI
+does not expose it. The follow-up must make every folder action observable,
+make recovery adjacent and durable, and prove native Chrome chooser/regrant
+behavior. See `specs/084-folder-workspace-reliability/`.
+
+Last known live check: `8100` returned HTTP 200 from the 075 worktree on
+2026-07-22. Do not treat bundle/source inspection or mocked handles as native
+picker evidence; the new Spec 084 tasks require a real Chrome journey.
 
 **Preview folder-workspace UX review — done 2026-07-20.**
 Durable findings: [`docs/spec-reviews/opus-adversarial-review-findings-2026-07-20-spec-075-ux-delivery.md`](docs/spec-reviews/opus-adversarial-review-findings-2026-07-20-spec-075-ux-delivery.md).
@@ -39,6 +44,8 @@ boundaries and merged on `main`.
 Blockers / evidence gaps before Closeout Ready:
 - **G1 (must-fix):** T045 native OS chooser + real permission revoke/restart/
   regrant is unproven — all handle evidence is a deterministic OPFS harness.
+- **G4 (must-fix):** Spec 084 must close the observed silent-open and hidden
+  recovery UX before the folder workflow can be presented as dependable.
 - **G2:** the prior 2026-07-17 Opus closeout was never written; this review
   discharges that gate, conditional on G1.
 - **G3 (process note):** all of 075 shipped to `main` with no `feat/075` branch
@@ -46,9 +53,10 @@ Blockers / evidence gaps before Closeout Ready:
   `docs/specs.md` / `TODO.md`; no action beyond finishing G1 then archiving.
 
 Prioritized next steps:
-1. Run and record the G1 native-picker/regrant journey → closes T045.
-2. Archive `specs/075-preview-folder-workspaces/`; flip status to Closed.
-3. Follow-up only: **Spec 083 preview folder-workspace delivery shell**
+1. Implement and validate Spec 084 through the real Chrome native journey.
+2. Run and record the remaining 075 G1 native-picker/regrant journey.
+3. Archive `specs/075-preview-folder-workspaces/`; flip status to Closed.
+4. Follow-up only: **Spec 083 preview folder-workspace delivery shell**
    (`specs/083-preview-folder-workspace-delivery-shell/`) owns the non-repo
    launch gap (users still need a checkout + `npm install` today). Not a 075
    blocker.
