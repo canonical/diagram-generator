@@ -26,6 +26,11 @@ does not expose it. The follow-up must make every folder action observable,
 make recovery adjacent and durable, and prove native Chrome chooser/regrant
 behavior. See `specs/084-folder-workspace-reliability/`.
 
+**Pending Opus adversarial review:** use
+[`specs/084-folder-workspace-reliability/opus-adversarial-review-request-2026-07-22.md`](specs/084-folder-workspace-reliability/opus-adversarial-review-request-2026-07-22.md).
+Opus must write its findings only to
+[`docs/spec-reviews/opus-adversarial-review-findings-2026-07-22-spec-084-folder-workspace-reliability.md`](docs/spec-reviews/opus-adversarial-review-findings-2026-07-22-spec-084-folder-workspace-reliability.md).
+
 Last known live check: `8100` returned HTTP 200 from the 075 worktree on
 2026-07-22. Do not treat bundle/source inspection or mocked handles as native
 picker evidence; the new Spec 084 tasks require a real Chrome journey.
