@@ -720,6 +720,10 @@ test("force viewer hides grid and ELK sections", () => {
 test("static viewer chrome exposes stable right-aside panel groups", () => {
   const template = readFileSync(path.join(REPO_ROOT, "scripts", "preview", "viewer-unified.html"), "utf8");
 
+  assert.match(template, /class="bf-top-navigation-logo dg-navigation-logo"/);
+  assert.match(template, /href="\/" aria-label="Canonical diagrams home"/);
+  assert.match(template, /src="https:\/\/assets\.ubuntu\.com\/v1\/82818827-CoF_white\.svg" alt=""/);
+  assert.match(template, /class="bf-top-navigation-logo-title">Canonical diagrams<\/span>/);
   assert.match(template, /id="dg-workspace-heading">Folder workspace/);
   assert.match(template, /id="dg-workspace-status" role="status" aria-live="polite">Checking remembered folders/);
   assert.match(template, /id="build-status" aria-label="Preview build status">Ready/);
